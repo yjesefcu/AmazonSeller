@@ -94,11 +94,10 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 CORS_ALLOW_ORIGIN = '*'
-CORS_ALLOW_METHODS = ['GET', 'POST', 'DELETE', 'PATCH', 'PUT']
-CORS_ORIGIN_ALLOW_ALL = True
-CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = ['Origin', 'x-requested-with','content-type', 'Accept']
-CORS_MAX_AGE = 1000
+# CORS_ALLOW_METHODS = ['GET', 'POST', 'DELETE', 'PATCH', 'PUT']
+# CORS_ORIGIN_ALLOW_ALL = True
+# CORS_ALLOW_CREDENTIALS = True
 
 LOGGING = {
     'version': 1,

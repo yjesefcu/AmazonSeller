@@ -10,22 +10,18 @@ app.controller('ProductCtrl', function($scope, $http) {
 });
 
 
-app.controller("ProductEditCtrl", function ($scope, $http, serviceFactory) {
-    $scope.formData = {};
+app.controller("ProductEditCtrl", function ($scope, $http, $sce, serviceFactory) {
+    $scope.formData = {'MarketplaceId': 'ATVPDKIKX0DER'};
+    $sce.trustAsUrl('http://192.168.1.3');
+    $sce.trustAsResourceUrl('http://192.168.1.3');
     $scope.submitForm = function () {
         var url = serviceFactory.createProduct();
-        $http.jsonp(url, $scope.formData, {
+        $http.post(url, $scope.formData
+            /*{
             header: {
-                'Content-Type':'application/x-www-form-urlencoded',
+                'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8',
                 'Access-Control-Allow-Origin': '*'
-            }
-            // header: { 'Content-Type': 'application/x-www-form-urlencoded' }
-        });
-        // $http({
-        //         url: serviceFactory.getAllProducts(),
-        //         headers: {
-        //             'Access-Control-Allow-Origin': '*'
-        //         },
-        // });
+            }*/
+        );
     }
 });

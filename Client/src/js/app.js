@@ -36,3 +36,8 @@ app.factory('serviceFactory', function () {
 
     return services;
 });
+app.config(function($sceDelegateProvider) {
+    $sceDelegateProvider.resourceUrlWhitelist([
+        // Allow same origin resource loads.
+        '**'])
+});
