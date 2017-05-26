@@ -1,0 +1,28 @@
+html,body,body>div{
+  height: 100% !important;
+}
+.index1 {
+  background-color: red;
+}
+.index2 {
+  background-color: black;
+}
+.index3 {
+  background-color: blue;
+}
+.input-horizontal{
+  display: -webkit-box;
+  box-sizing: border-box;
+  padding-right: 0px;
+}
+.input-horizontal span.label-left{
+  line-height: 34px;
+  margin-right:6px;
+}
+.input-horizontal span.label-right{
+  line-height: 34px;
+  margin-left: 6px;
+}
+.input-horizontal input{
+  -webkit-box-flex:1;
+}

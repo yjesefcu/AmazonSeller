@@ -1,0 +1,23 @@
+{
+  "name": "test1",
+  "directory": "src/components",
+  "description": "",
+  "main": "index.js",
+  "authors": [
+    "l00164778 <l00164778@sina.com>"
+  ],
+  "license": "ISC",
+  "homepage": "",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "jquery": "^3.2.1",
+    "angular": "angular2#^1.6.4"
+  }
+}
