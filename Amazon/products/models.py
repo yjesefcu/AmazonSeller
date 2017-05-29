@@ -5,15 +5,15 @@ from django.db import models
 
 
 class Product(models.Model):
-    MarketplaceId = models.CharField(max_length=30, db_index=True)     # 市场Id
+    MarketplaceId = models.CharField(max_length=30, db_index=True, null=True, blank=True)     # 市场Id
     SKU = models.CharField(max_length=20, verbose_name='SKU', db_index=True)
     ASIN = models.CharField(max_length=20, null=True, blank=True, verbose_name='Asin', db_index=True)
     FNSKU = models.CharField(max_length=20, null=True, blank=True, verbose_name='FNSKU')
     Brand = models.CharField(max_length=100, null=True, blank=True, verbose_name=u'品牌')
     Color = models.CharField(max_length=50, null=True, blank=True, verbose_name=u'颜色')
     Amount = models.FloatField(null=True, blank=True, verbose_name=u'售价')   # 售价
-    CurrencyCode = models.CharField(max_length=10, verbose_name=u'货币单位')      # 货币代码：USD-美元
-    Image = models.URLField(null=True, blank=True, verbose_name=u'图标')      # 图标
+    CurrencyCode = models.CharField(max_length=10, null=True, blank=True, verbose_name=u'货币单位')      # 货币代码：USD-美元
+    Image = models.CharField(max_length=50, null=True, blank=True, verbose_name=u'图标')      # 图标
     ImageHeight = models.IntegerField(null=True, blank=True)    # 图标高
     ImageWidth = models.IntegerField(null=True, blank=True)     # 图标宽
     Title = models.TextField(null=True, blank=True, verbose_name=u'亚马逊描述')             # 商城描述
@@ -29,6 +29,11 @@ class Product(models.Model):
     package_length = models.FloatField(null=True, blank=True, verbose_name=u'包装长度') # 单位cm
     package_weight = models.FloatField(null=True, blank=True, verbose_name=u'包装重量') # 单位kg
     PackageDimensions = models.CharField(max_length=100, null=True, blank=True)     # 包装大小、重量，格式： [{'height': 1.40, 'unit': 'inches'}]
+    volume_weight = models.FloatField(null=True, blank=True, verbose_name=u'体积重')        # 体积重，height*width*length/5000
+    remain_count = models.IntegerField(default=0, verbose_name=u'剩余数量')       # 商品剩余数量
+    cost = models.FloatField(default=0, verbose_name=u'成本')     # 当前商品成本
+    last_supply = models.DateField(null=True, blank=True, verbose_name=u'上一次入库日期')
+    last_oversea = models.DateField(null=True, blank=True, verbose_name=u'上一次移库日期')
 
     class Meta:
         unique_together = (('MarketplaceId', 'SKU',),)
@@ -38,14 +43,14 @@ class ShipsIn(models.Model):
     """
     发往国内的商品信息，以商品为维度
     """
-    product = models.ForeignKey(Product, related_name='shipsIn')
+    product = models.ForeignKey(Product, related_name='supplies')
     count = models.IntegerField(verbose_name=u'数量')       # 商品数量
-    remain_count = models.IntegerField(verbose_name=u'剩余数量')    # count-发往国外的数量
+    # remain_count = models.IntegerField(verbose_name=u'剩余数量', default=0)    # count-发往国外的数量
     unit_price = models.FloatField(verbose_name=u'单价')
     total_freight = models.FloatField(verbose_name=u'总运费')
     charges = models.FloatField(null=True, blank=True, verbose_name=u'杂费')
     charges_comment = models.TextField(null=True, blank=True, verbose_name=u'杂费备注')
-    ship_date = models.DateTimeField(null=True, blank=True, verbose_name=u'到货日期')
+    ship_date = models.DateField(null=True, blank=True, verbose_name=u'到货日期')
     insert_time = models.DateTimeField(null=True, blank=True)   # 添加至数据库的时间
 
 

@@ -1,0 +1,60 @@
+<section class="content-header" ng-controller="ProductCtrl">
+    <h1>
+        商品列表
+    </h1>
+    <ol class="breadcrumb">
+        <li><a href="#"><i class="fa fa-dashboard"></i> Home</a></li>
+        <li><a href="#">Forms</a></li>
+        <li class="active">Advanced Elements</li>
+    </ol>
+</section>
+<section class="content" ng-controller="ProductCtrl">
+    <div class="row">
+        <div class="col-md-12">
+            <!-- general form elements -->
+            <div class="box box-primary">
+                <div class="box-header with-border">
+                    <h3 class="box-title"><a type="button" ui-sref="index.productEdit" class="btn btn-block btn-primary">添加商品信息</a></h3>
+                </div>
+                <!-- /.box-header -->
+                <div class="box-body">
+                    <table id="productTable" class="table table-bordered table-hover">
+                        <thead>
+                            <tr>
+                                <th>序号</th>
+                                <th>SKU</th>
+                                <th>ASIN</th>
+                                <th>图片</th>
+                                <th>重量（kg）</th>
+                                <th>体积重</th>
+                                <th>商品剩余数量</th>
+                                <th>当前成本</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr ng-repeat="p in products"table-repeat-directive>
+                                <td>{{ $index + 1 }}</td>
+                                <td><a ui-sref="index.productDetail({id: p.id})">{{ p.SKU }}</a></td>
+                                <td>{{ p.ASIN }}</td>
+                                <td>{{ p.image }}</td>
+                                <td>{{ p.package_weight }}</td>
+                                <td>{{ p.volume_weight }}</td>
+                                <td>{{ p.remain_count }}</td>
+                                <td>{{ p.cost }}</td>
+                                <td>
+                                    <a title="添加货件信息" ng-click="openSupplyModal(p.id);"><i class="fa fa-plus"></i></a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <!-- /.box-body -->
+            </div>
+            <!-- /.box -->
+        </div>
+    </div>
+</section>
+<script>
+    $(function () { $("[data-toggle='tooltip']").tooltip(); });
+</script>

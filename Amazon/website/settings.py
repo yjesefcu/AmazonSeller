@@ -93,6 +93,9 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_URL = '/media/'
+
 CORS_ALLOW_ORIGIN = '*'
 CORS_ALLOW_HEADERS = ['Origin', 'x-requested-with','content-type', 'Accept']
 # CORS_ALLOW_METHODS = ['GET', 'POST', 'DELETE', 'PATCH', 'PUT']

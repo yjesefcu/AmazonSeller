@@ -1,5 +1,5 @@
 {
-  "name": "test1",
+  "name": "client",
   "directory": "src/components",
   "description": "",
   "main": "index.js",
@@ -18,6 +18,9 @@
   ],
   "dependencies": {
     "jquery": "^3.2.1",
-    "angular": "angular2#^1.6.4"
+    "angular": "angular2#^1.6.4",
+    "angular-atomic-notify": "^1.0.4",
+    "angular-bootstrap": "^2.5.0",
+    "angularjs-datepicker": "^2.1.19"
   }
 }
