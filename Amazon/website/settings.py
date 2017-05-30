@@ -147,12 +147,24 @@ LOGGING = {
             "when":"d",
             "interval":7,
             'formatter': 'verbose',
-            # 'filters': ['require_debug_false']
+        },
+        'amazon': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'filename': os.path.join(BASE_DIR,'logs/', 'request.log'),
+            "when":"d",
+            "interval":7,
+            'formatter': 'verbose',
         },
     },
     'loggers': {
         'django': {
             'handlers': ['console', 'default', 'backup'],
+            'propagate': False,
+            'level': 'INFO',
+        },
+        'amazon': {
+            'handlers': ['console', 'amazon'],
             'propagate': False,
             'level': 'INFO',
         },

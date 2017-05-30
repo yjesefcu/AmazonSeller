@@ -104,6 +104,7 @@ class Orders(models.Model):
     NumberOfItemsUnshipped = models.IntegerField(default=0)         # 未发货数量
     PaymentMethod = models.CharField(max_length=50, null=True, blank=True)
     PaymentMethodDetail = models.CharField(max_length=50, null=True, blank=True, verbose_name=u'付款方式')
+    IsPremiumOrder = models.BooleanField(default=False)
     FulfillmentChannel = models.CharField(max_length=30, null=True, blank=True)
     IsPrime = models.BooleanField(default=True)     # 是否会员
     subscription_fee = models.FloatField(null=True, blank=True, verbose_name=u'订阅费')    # 单位：USD

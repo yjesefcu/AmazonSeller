@@ -4,9 +4,12 @@
 
 var app = angular.module('myApp', ['ui.router', 'atomic-notify', 'ui.bootstrap', '720kb.datepicker']);
 
-app.controller('MainCtrl', function ($rootScope) {
-   $rootScope.MarketplaceId = 'ATVPDKIKX0DER' ;
+app.controller('MainCtrl', function ($scope, $http, $rootScope, serviceFactory) {
+    $rootScope.MarketplaceId = 'ATVPDKIKX0DER' ;
     $rootScope.alerts = [];
+    $scope.markets = [];
+    $rootScope.currentMarket = {'country': '美国'};
+    $rootScope.currentcy = 'USD';
 
     $rootScope.addAlert = function (type, msg, timeout) {
         if (typeof(timeout) == 'undefined'){
@@ -21,6 +24,17 @@ app.controller('MainCtrl', function ($rootScope) {
     $rootScope.closeAlert = function (index) {
         $rootScope.alerts.splice(index, 1);
     };
+
+    $http.get(serviceFactory.markets())
+        .then(function (result) {
+             $scope.markets = result.data;
+             $rootScope.currentMarket = result.data[0];
+             $rootScope.currency = $rootScope.currentMarket.currency;
+        });
+
+    $scope.chooseMarket = function (index) {
+        $rootScope.currentMarket = $scope.markets[index];
+    }
 });
 
 app.config(['atomicNotifyProvider', function(atomicNotifyProvider){
@@ -32,6 +46,9 @@ app.config(['atomicNotifyProvider', function(atomicNotifyProvider){
 
 app.factory('serviceFactory', function () {
     var host='http://192.168.1.3:8000', services = {};
+    services.markets = function () {
+        return host + '/api/markets/';
+    };
     services.createProduct = function () {
         return host + '/api/products/';
     };

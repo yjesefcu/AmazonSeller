@@ -26,3 +26,7 @@ html,body,body>.wrapper{
 .input-horizontal input{
   -webkit-box-flex:1;
 }
+.control-label.unit{
+  margin-left:-20px;
+  font-weight:normal;
+}

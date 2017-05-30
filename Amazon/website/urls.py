@@ -10,6 +10,7 @@ urlpatterns = patterns('',
 
     url(r'^admin/', include(admin.site.urls)),
     url(r'^', include('products.urls')),
+    url(r'^', include('amazon_services.urls')),
 )
 urlpatterns += patterns('',
         url(r'^media/(?P<path>.*)$',

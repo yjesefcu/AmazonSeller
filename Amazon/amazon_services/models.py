@@ -22,12 +22,16 @@ class Market(models.Model):
 
 
 class MarketAccount(models.Model):
-    country = models.ForeignKey(Market)
+    country = models.CharField(max_length=10)   # 国家
     host = models.CharField(max_length=50)
-    auth_token = models.CharField(max_length=15)
-    access_key_id = models.CharField(max_length=25)
-    secret_key = models.CharField(max_length=50)
-    market_id = models.CharField(max_length=20)
+    MWSAuthToken = models.CharField(max_length=15)
+    AWSAccessKeyId = models.CharField(max_length=25)
+    SellerId = models.CharField(max_length=20)
+    SecretKey = models.CharField(max_length=50)
+    MarketplaceId = models.CharField(max_length=20)
+    currency_code = models.CharField(max_length=10)     # 货币编码
+    period_start = models.DateField(null=True, blank=True)  # 结算周期起点
+    period_days = models.IntegerField(default=14)       # 结算周期长度
 
 
 class ApiCategory(models.Model):
@@ -59,12 +63,16 @@ class RequestRecords(models.Model):
     """
     请求记录
     """
-    sender = models.ForeignKey(User)        # 请求发起人
+    SUCCESS = 0
+    FAIL = 1   # 请求超过次数
+    PARSER_FAIL = 2     # 应答无法解析
+    # sender = models.ForeignKey(User)        # 请求发起人
     market = models.ForeignKey(MarketAccount)
-    action = models.ForeignKey(ApiActions, related_name='records')
+    # action = models.ForeignKey(ApiActions, related_name='records')
     uri = models.CharField(max_length=100)      # 请求的链接，即：action.uri
-    action_name = models.CharField(max_length=50, null=True, blank=True)    # 动作，action.name
+    action = models.CharField(max_length=50, null=True, blank=True)    # 动作，action.name
     params = models.TextField(null=True, blank=True)    # 参数，json格式
     create_time = models.DateTimeField()        # 请求创建的时间
     sent_time = models.DateTimeField(null=True, blank=True)   # 请求实际发送的时间
-    result = models.IntegerField(default=0)     # 请求结果，0：未发送，1：成功，2：失败
+    result = models.IntegerField(default=0)     # 请求结果，0：成功，1：失败
+    errors = models.TextField(null=True, blank=True)    # 失败信息
