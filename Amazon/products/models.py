@@ -4,20 +4,31 @@ from django.db import models
 # Create your models here.
 
 
+class Commission(models.Model):
+    """
+    佣金对照表
+    """
+    ProductGroup = models.CharField(max_length=50, verbose_name=u'商品类型', db_index=True)
+    percentage = models.FloatField()    # 比例
+    min_charge = models.FloatField(default=1.0)
+    price = models.FloatField(null=True, blank=True)    # 有的商品以价格区分，<=price取percentage，>price取percentage_greater
+    percentage_greater = models.FloatField(null=True, blank=True)
+
+
 class Product(models.Model):
-    MarketplaceId = models.CharField(max_length=30, db_index=True, null=True, blank=True)     # 市场Id
-    SKU = models.CharField(max_length=20, verbose_name='SKU', db_index=True)
+    MarketplaceId = models.CharField(max_length=30, db_index=True)     # 市场Id
+    SellerSKU = models.CharField(max_length=50, verbose_name='SKU', db_index=True)
     ASIN = models.CharField(max_length=20, null=True, blank=True, verbose_name='Asin', db_index=True)
     FNSKU = models.CharField(max_length=20, null=True, blank=True, verbose_name='FNSKU')
     Brand = models.CharField(max_length=100, null=True, blank=True, verbose_name=u'品牌')
     Color = models.CharField(max_length=50, null=True, blank=True, verbose_name=u'颜色')
     Amount = models.FloatField(null=True, blank=True, verbose_name=u'售价')   # 售价
     CurrencyCode = models.CharField(max_length=10, null=True, blank=True, verbose_name=u'货币单位')      # 货币代码：USD-美元
-    Image = models.CharField(max_length=50, null=True, blank=True, verbose_name=u'图标')      # 图标
-    ImageHeight = models.IntegerField(null=True, blank=True)    # 图标高
-    ImageWidth = models.IntegerField(null=True, blank=True)     # 图标宽
+    Image = models.CharField(max_length=255, null=True, blank=True, verbose_name=u'图标')      # 图标
+    TotalSupplyQuantity = models.IntegerField(null=True, blank=True)        #  亚马逊库存
     Title = models.TextField(null=True, blank=True, verbose_name=u'亚马逊描述')             # 商城描述
     TitleCn = models.TextField(null=True, blank=True, verbose_name=u'中文描述')           # 中文描述，手动输入
+    Binding = models.CharField(max_length=50, null=True, blank=True, verbose_name=u'类型')
     ProductGroup = models.CharField(max_length=50, null=True, blank=True)   # 商品分组
     ProductTypeName = models.CharField(max_length=50, null=True, blank=True, verbose_name=u'商品所在分组')    # 商品分组名称
     width = models.FloatField(null=True, blank=True, verbose_name=u'宽度')    # 商品本身高度，单位cm
@@ -28,7 +39,6 @@ class Product(models.Model):
     package_height = models.FloatField(null=True, blank=True, verbose_name=u'包装高度') # 单位cm
     package_length = models.FloatField(null=True, blank=True, verbose_name=u'包装长度') # 单位cm
     package_weight = models.FloatField(null=True, blank=True, verbose_name=u'包装重量') # 单位kg
-    PackageDimensions = models.CharField(max_length=100, null=True, blank=True)     # 包装大小、重量，格式： [{'height': 1.40, 'unit': 'inches'}]
     volume_weight = models.FloatField(null=True, blank=True, verbose_name=u'体积重')        # 体积重，height*width*length/5000
     remain_count = models.IntegerField(default=0, verbose_name=u'剩余数量')       # 商品剩余数量
     cost = models.FloatField(default=0, verbose_name=u'成本')     # 当前商品成本
@@ -36,10 +46,10 @@ class Product(models.Model):
     last_oversea = models.DateField(null=True, blank=True, verbose_name=u'上一次移库日期')
 
     class Meta:
-        unique_together = (('MarketplaceId', 'SKU',),)
+        unique_together = (('MarketplaceId', 'SellerSKU',),)
 
 
-class ShipsIn(models.Model):
+class InboundShipment(models.Model):
     """
     发往国内的商品信息，以商品为维度
     """
@@ -54,7 +64,7 @@ class ShipsIn(models.Model):
     insert_time = models.DateTimeField(null=True, blank=True)   # 添加至数据库的时间
 
 
-class ShipsOversea(models.Model):
+class OutboundShipment(models.Model):
     """
     发往国外的货件，以货件为维度
     """
@@ -64,12 +74,12 @@ class ShipsOversea(models.Model):
     total_freight = models.FloatField(null=True, blank=True, verbose_name=u'总运费')        # 总运费
 
 
-class ShipOverseaItem(models.Model):
+class OutboundShipmentItem(models.Model):
     """
     每个货件里的商品信息
     """
     MarketplaceId = models.CharField(max_length=30, db_index=True)     # 市场Id
-    shipment = models.ForeignKey(ShipsOversea, related_name='products')
+    shipment = models.ForeignKey(OutboundShipment, related_name='products')
     product = models.ForeignKey(Product, related_name='shipsOversea')
     count = models.IntegerField(verbose_name=u'数量')
     unit_freight = models.FloatField(null=True, blank=True, verbose_name=u'运费单价')       # 单位：kg
@@ -88,13 +98,12 @@ class Orders(models.Model):
     销售记录
     """
     MarketplaceId = models.CharField(max_length=30, db_index=True)
-    product = models.ForeignKey(Product, related_name='orders')
-    OrderType = models.CharField(max_length=50)
-    PurchaseDate = models.DateTimeField(verbose_name=u'购买时间')
+    OrderType = models.CharField(max_length=50, null=True, blank=True)
+    PurchaseDate = models.DateTimeField(null=True, blank=True, verbose_name=u'购买时间')
     AmazonOrderId = models.CharField(max_length=50, verbose_name=u'订单编号')
-    SellerOrderId = models.CharField(max_length=50, verbose_name=u'卖家订单号')
+    SellerOrderId = models.CharField(null=True, blank=True, max_length=50, verbose_name=u'卖家订单号')
     Amount = models.FloatField(null=True, blank=True, verbose_name=u'售价')   # USD
-    CurrencyCode = models.CharField(max_length=10, verbose_name=u'货币单位')      # 货币代码：USD-美元
+    CurrencyCode = models.CharField(null=True, blank=True, max_length=10, verbose_name=u'货币单位')      # 货币代码：USD-美元
     LastUpdateDate = models.DateTimeField(null=True, blank=True)                # 上一次更新时间
     LatestShipDate = models.DateTimeField(null=True, blank=True)                # 预计配送日期
     IsReplacementOrder = models.BooleanField(default=False)                     #
@@ -107,6 +116,36 @@ class Orders(models.Model):
     IsPremiumOrder = models.BooleanField(default=False)
     FulfillmentChannel = models.CharField(max_length=30, null=True, blank=True)
     IsPrime = models.BooleanField(default=True)     # 是否会员
+
+
+class OrderItem(models.Model):
+    MarketplaceId = models.CharField(max_length=30, db_index=True, null=True, blank=True)
+    # 从Order同步的信息
+    order = models.ForeignKey(Orders, related_name='items')
+    AmazonOrderId = models.CharField(max_length=50, db_index=True, null=True, blank=True)
+    PurchaseDate = models.DateTimeField(null=True, blank=True, verbose_name=u'购买时间')
+    LastUpdateDate = models.DateTimeField(null=True, blank=True)                # 上一次更新时间
+    OrderStatus = models.CharField(max_length=50, null=True, blank=True, verbose_name=u'订单状态')  # =order.OrderStatus
+    # 商品信息
+    product = models.ForeignKey(Product, related_name='items', null=True, blank=True)
+    Binding = models.CharField(max_length=50, null=True, blank=True, verbose_name=u'类型')
+    ProductGroup = models.CharField(max_length=50, null=True, blank=True)
+    ProductTypeName = models.CharField(max_length=50, null=True, blank=True)
+    SellerSKU = models.CharField(null=True, blank=True, max_length=50, db_index=True)
+    ASIN = models.CharField(max_length=20, null=True, blank=True)
+    # 订单子项信息
+    OrderItemId = models.CharField(max_length=20)
+    QuantityOrdered = models.IntegerField(null=True, blank=True, verbose_name=u'销售数量')
+    QuantityShipped = models.IntegerField(null=True, blank=True, verbose_name=u'已发货数量')
+    ItemPrice = models.FloatField(null=True, blank=True, verbose_name=u'总价')
+    ShippingPrice = models.FloatField(null=True, blank=True, verbose_name=u'运费')
+    ShippingDiscount = models.FloatField(null=True, blank=True, verbose_name=u'运费折扣')
+    ItemTax = models.FloatField(null=True, blank=True, verbose_name=u'订单税')
+    ShippingTax = models.FloatField(null=True, blank=True, verbose_name=u'运费税')
+    PromotionDiscount = models.FloatField(null=True, blank=True, verbose_name=u'促销折扣')
+    # 其他收费信息
+    commission_per = models.FloatField(null=True, blank=True, verbose_name=u'佣金比例')     # 根据Product.ProductGroup
+    commission = models.FloatField(null=True, blank=True, verbose_name=u'佣金')   # ItemPrice * commission_per
     subscription_fee = models.FloatField(null=True, blank=True, verbose_name=u'订阅费')    # 单位：USD
     cost = models.FloatField(null=True, blank=True, default=0)      # 成本，USD
 
@@ -116,8 +155,10 @@ class Settlement(models.Model):
     一次结算记录
     """
     MarketplaceId = models.CharField(max_length=30, db_index=True)     # 市场Id
-    start_date = models.DateField(verbose_name=u'结算开始日期')
-    end_date = models.DateField(verbose_name=u'结算结束日期')
+    AmazonSettlementID = models.CharField(max_length=100)
+    TotalAmount = models.FloatField(null=True, blank=True)
+    StartDate = models.DateTimeField(null=True, blank=True, verbose_name=u'结算开始日期')
+    EndDate = models.DateTimeField(null=True, blank=True, verbose_name=u'结算结束日期')
     advertising_fee = models.FloatField(null=True, blank=True, verbose_name=u'广告费') # 手动
     storage_fee = models.FloatField(null=True, blank=True, verbose_name=u'仓储费')     # 手动
     total_returns = models.FloatField(null=True, blank=True, verbose_name=u'总收入')   # 计算
@@ -126,6 +167,142 @@ class Settlement(models.Model):
     profit = models.FloatField(null=True, blank=True, verbose_name=u'利润')           # 计算
     profit_rate = models.FloatField(null=True, blank=True, verbose_name=u'利润率')     # 计算
 
+    class Meta:
+        ordering = ['-EndDate']
 
 
+class Refund(models.Model):
+    """
+    退款
+    """
+    MarketplaceId = models.CharField(max_length=30, db_index=True)     # 市场Id
+    settlement = models.ForeignKey(Settlement, null=True, blank=True, related_name='refunds')   # 关联的结算周期
+    AdjustmentID = models.CharField(max_length=100)
+    AmazonOrderId = models.CharField(max_length=50, null=True, blank=True)
+    MarketplaceName = models.CharField(max_length=100, null=True, blank=True, verbose_name=u'商城名字')     # 如：Amazon.com
+    PostedDate = models.DateTimeField(null=True, blank=True, verbose_name=u'提交时间')
 
+
+class RefundItem(models.Model):
+    """
+    退款中的商品子项
+    """
+    MarketplaceId = models.CharField(max_length=30, db_index=True)     # 市场Id
+    settlement = models.ForeignKey(Settlement, null=True, blank=True)   # 关联的结算周期
+    MerchantAdjustmentItemID = models.CharField(max_length=50)
+    refund = models.ForeignKey(Refund, null=True, blank=True, related_name='items')
+    OrderItemId = models.CharField(max_length=50, null=True, blank=True)
+    PostedDate = models.DateTimeField(null=True, blank=True, verbose_name=u'提交时间')
+    product = models.ForeignKey(Product, null=True, blank=True, related_name='refunds')
+    SellerSKU = models.CharField(max_length=50, null=True, blank=True)
+    Principal = models.FloatField(null=True, blank=True)        # 商品总价
+    Shipping = models.FloatField(null=True, blank=True)         # 运费
+    Commission = models.FloatField(null=True, blank=True)       # 退还的商品佣金
+    RefundCommission = models.FloatField(null=True, blank=True) # 退货抽取的佣金
+    PromotionPrincipal = models.FloatField(null=True, blank=True)   # 退还的销售促销
+    PromotionShipping = models.FloatField(null=True, blank=True)    # 退还的运费促销
+    ShippingChargeback = models.FloatField(null=True, blank=True)
+    RestockingFee = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-PostedDate']
+
+
+class OtherTransaction(models.Model):
+    """
+    其他服务费
+    """
+    MarketplaceId = models.CharField(max_length=30, db_index=True)     # 市场Id
+    settlement = models.ForeignKey(Settlement, null=True, blank=True, related_name='other_transactions')   # 关联的结算周期
+    TransactionID = models.CharField(max_length=50)
+    AmazonOrderId = models.CharField(max_length=50, null=True, blank=True)
+    TransactionType = models.CharField(max_length=50, null=True, blank=True, verbose_name=u'服务费类型') # RemovalComplete:亚马逊物流移除费用
+    PostedDate = models.DateTimeField(null=True, blank=True, verbose_name=u'提交时间')
+    Amount = models.FloatField(null=True, blank=True, verbose_name=u'总计')
+    FBACustomerReturnPerUnitFee = models.FloatField(null=True, blank=True)    # FBA Customer Return Per Unit Fee,
+
+    class Meta:
+        ordering = ['-PostedDate']
+
+
+class SellerDealPayment(models.Model):
+    """
+    促销费用
+    """
+    MarketplaceId = models.CharField(max_length=30, db_index=True)     # 市场Id
+    settlement = models.ForeignKey(Settlement, null=True, blank=True, related_name='seller_deal_payments')   # 关联的结算周期
+    DealID = models.CharField(max_length=255)
+    PostedDate = models.DateTimeField(null=True, blank=True, verbose_name=u'提交时间')
+    DealDescription = models.CharField(max_length=100, null=True, blank=True)
+    MarketplaceName = models.CharField(max_length=100, null=True, blank=True, verbose_name=u'商城名字')     # 如：Amazon.com
+    TransactionType = models.CharField(max_length=50, null=True, blank=True, verbose_name=u'服务费类型')     # Lightning Deal Fee：秒杀费
+    PaymentReason = models.CharField(max_length=100, null=True, blank=True)
+    DealFeeType = models.CharField(max_length=100, null=True, blank=True)      # 促销类型
+    DealFeeAmount = models.FloatField(null=True, blank=True)                   # 促销总费用
+
+    class Meta:
+        ordering = ['-PostedDate']
+
+
+class AdvertisingTransactionDetails(models.Model):
+    """
+    广告费用
+    """
+    MarketplaceId = models.CharField(max_length=30, db_index=True)     # 市场Id
+    settlement = models.ForeignKey(Settlement, null=True, blank=True, related_name='advertising_transactions')   # 关联的结算周期
+    InvoiceId = models.CharField(max_length=100, verbose_name=u'发票ID')
+    TransactionType = models.CharField(max_length=50, null=True, blank=True, verbose_name=u'服务费类型')
+    PostedDate = models.DateTimeField(null=True, blank=True, verbose_name=u'提交时间')
+    BaseAmount = models.FloatField(null=True, blank=True)
+    TransactionAmount = models.FloatField(null=True, blank=True)
+
+
+class SettleOrder(models.Model):
+    """
+    销售记录
+    """
+    MarketplaceId = models.CharField(max_length=30, db_index=True)     # 市场Id
+    settlement = models.ForeignKey(Settlement, null=True, blank=True, related_name='orders')   # 关联的结算周期
+    MarketplaceId = models.CharField(max_length=30, db_index=True)
+    MarketplaceName = models.CharField(max_length=100, null=True, blank=True)
+    AmazonOrderId = models.CharField(max_length=50, verbose_name=u'订单编号')
+    ShipmentID = models.CharField(null=True, blank=True, max_length=50, verbose_name=u'物流ID')
+    PostedDate = models.DateTimeField(null=True, blank=True, verbose_name=u'提交时间')   # USD
+
+    class Meta:
+        ordering = ['-PostedDate']
+
+
+class SettleOrderItem(models.Model):
+    settlement = models.ForeignKey(Settlement, null=True, blank=True, related_name='order_items')   # 关联的结算周期
+    MarketplaceId = models.CharField(max_length=30, db_index=True, null=True, blank=True)
+    # 从Order同步的信息
+    order = models.ForeignKey(SettleOrder, related_name='items')
+    OrderItemId = models.CharField(max_length=20)
+    AmazonOrderId = models.CharField(max_length=50, db_index=True, null=True, blank=True)
+    PostedDate = models.DateTimeField(null=True, blank=True, verbose_name=u'提交时间')   # USD
+    # 商品信息
+    product = models.ForeignKey(Product, related_name='settle_items', null=True, blank=True)
+    SellerSKU = models.CharField(max_length=50, null=True, blank=True)
+
+    # 销售环节
+    UnitPrice = models.FloatField(null=True, blank=True, verbose_name=u'单价')    # Principal/Quantity
+    Quantity = models.IntegerField(null=True, blank=True)
+    Principal = models.FloatField(null=True, blank=True, verbose_name=u'商品总价')
+    Shipping = models.FloatField(null=True, blank=True, verbose_name=u'运费')
+    FBAPerUnitFulfillmentFee = models.FloatField(null=True, blank=True, verbose_name=u'亚马逊物流基础服务费')
+    ShippingChargeback = models.FloatField(null=True, blank=True)       # 买家运费付款
+    GiftwrapChargeback = models.FloatField(null=True, blank=True)
+    GiftWrap = models.FloatField(null=True, blank=True)
+    FBAPerOrderFulfillmentFee = models.FloatField(null=True, blank=True)
+    Commission = models.FloatField(null=True, blank=True, verbose_name=u'佣金')
+    PromotionPrincipal = models.FloatField(null=True, blank=True, verbose_name=u'销售促销返点')   # 从销售收入中扣除
+    PromotionShipping = models.FloatField(null=True, blank=True, verbose_name=u'运费促销返点')    # 从销售收入中扣除
+    Amount = models.FloatField(null=True, blank=True, verbose_name=u'实收金额') #　以上
+
+    # 成本
+    subscription_fee = models.FloatField(null=True, blank=True, verbose_name=u'订阅费')    # 单位：USD
+    cost = models.FloatField(null=True, blank=True, default=0)      # 成本，USD
+
+    class Meta:
+        ordering = ['-PostedDate']

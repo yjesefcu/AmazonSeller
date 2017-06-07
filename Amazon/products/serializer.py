@@ -1,6 +1,30 @@
 __author__ = 'liucaiyun'
+import datetime
 from rest_framework import serializers
 from models import *
+
+
+class DateTimeFormat(serializers.DateTimeField):
+
+    def to_representation(self, value):
+        if not value:
+            return ''
+        return value.strftime('%Y-%m-%d %H:%M:%S')
+
+
+class DateFormat(serializers.DateTimeField):
+
+    def to_representation(self, value):
+        return value.strftime('%Y-%m-%d')
+
+
+class SettlementSerializer(serializers.ModelSerializer):
+    StartDate = DateFormat()
+    EndDate = DateFormat()
+
+    class Meta:
+        model = Settlement
+        fields = '__all__'
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -10,15 +34,23 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class ShipInSerializer(serializers.ModelSerializer):
+class OrderItemSerializer(serializers.ModelSerializer):
+    PostedDate = DateTimeFormat()
 
     class Meta:
-        model = ShipsIn
+        model = SettleOrderItem
         fields = '__all__'
 
 
-class ShipOverseaSerializer(serializers.ModelSerializer):
+class InboundShipmentSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = ShipsOversea
+        model = InboundShipment
+        fields = '__all__'
+
+
+class OutboundShipmentSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = OutboundShipment
         fields = '__all__'

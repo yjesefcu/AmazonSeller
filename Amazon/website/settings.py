@@ -39,6 +39,7 @@ INSTALLED_APPS = (
     'amazon_services',
     'rest_framework',
     'rest_framework_extensions',
+    'django_filters',
     'dcors',
     'products',
 )

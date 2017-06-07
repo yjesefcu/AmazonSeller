@@ -24,7 +24,7 @@
                         <div class="row">
                             <div class="form-group col-sm-3 col-xs-6">
                                 <label >SKU</label>
-                                <input type="text" class="form-control" placeholder="卖家SKU" ng-model="formData.SKU">
+                                <input type="text" class="form-control" placeholder="卖家SKU" ng-model="formData.SellerSKU">
                             </div>
                             <!--<div class="form-group col-sm-3 col-xs-6">-->
                                 <!--<label>FNSKU</label>-->
@@ -38,7 +38,7 @@
                                 <label>图片</label>
                                 <input type="file" placeholder="选择商品图片" accept="image/*" name="images"
                                        onchange="angular.element(this).scope().img_upload(this.files)" style="width: 75px;">
-                                <input ng-model="formData.Image" hidden>
+                                <input type="text" ng-model="formData.Image" hidden>
                                 <img ng-show="productIcon" src="{{ productIcon }}" style="height: 70px; position: absolute;top: 0px;left: 90px;">
                             </div>
                         </div>
@@ -95,11 +95,12 @@
                     </div>
                     <!-- /.box-body -->
                     <div class="box-footer">
-                        <button type="submit" class="btn btn-primary" ng-click="submitForm();">Submit</button>
+                        <button type="submit" class="btn btn-primary" ng-click="submitForm();">保存</button>
                     </div>
                 </form>
             </div>
             <!-- /.box -->
         </div>
     </div>
+    <div ng-include="'templates/product/product_orders.html'" ng-controller="ProductOrdersCtrl"></div>
 </section>

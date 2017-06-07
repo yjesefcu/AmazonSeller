@@ -27,7 +27,7 @@
                                 <th>图片</th>
                                 <th>重量（kg）</th>
                                 <th>体积重</th>
-                                <th>商品剩余数量</th>
+                                <th>亚马逊库存</th>
                                 <th>当前成本</th>
                                 <th>操作</th>
                             </tr>
@@ -35,9 +35,9 @@
                         <tbody>
                             <tr ng-repeat="p in products"table-repeat-directive>
                                 <td>{{ $index + 1 }}</td>
-                                <td><a ui-sref="index.productDetail({id: p.id})">{{ p.SKU }}</a></td>
+                                <td><a ui-sref="index.productDetail({id: p.id})">{{ p.SellerSKU }}</a></td>
                                 <td>{{ p.ASIN }}</td>
-                                <td>{{ p.image }}</td>
+                                <td><img src="{{ host }}{{ p.Image }}"></td>
                                 <td>{{ p.package_weight }}</td>
                                 <td>{{ p.volume_weight }}</td>
                                 <td>{{ p.remain_count }}</td>

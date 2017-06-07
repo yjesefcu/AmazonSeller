@@ -19,7 +19,11 @@ app.config(['$stateProvider', '$urlRouterProvider', function($stateProvider, $ur
         })
         .state('index.productDetail', {
             url: 'product/:id',
-            templateUrl: 'templates/product/product_detail.html'
+            templateUrl: 'templates/product/product_edit.html'
+        })
+        .state('index.productSettlement', {
+            url: 'product/:id/settlement/:settlementId',
+            templateUrl: 'templates/product/product_orders.html'
         })
         .state('index.shipment', {
             url: 'shipment',

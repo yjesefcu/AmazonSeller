@@ -6,11 +6,14 @@ from viewsets import *
 
 
 router = ExtendedSimpleRouter()
-router.register(r'products', ProductViewSet, base_name="api_products")\
-       .register(r'supply', ShipInViewSet, base_name="api_ships_in", parents_query_lookups=['product'])
-router.register(r'oversea', ShipOverseaViewSet, base_name="api_ships_oversea")
+product = router.register(r'products', ProductViewSet, base_name="api_products")
+product.register(r'supply', InboundShipmentViewSet, base_name="api_ships_in", parents_query_lookups=['product'])
+product.register(r'orders', OrderViewSet, base_name="api_product_orders", parents_query_lookups=['product'])
+router.register(r'oversea', OutboundShipmentViewSet, base_name="api_ships_oversea")
+router.register(r'settlements', SettlementViewSet, base_name="api_settlements")
 
 urlpatterns = patterns('',
     url(r'^api/', include(router.urls)),
     url('^image/upload/$', 'products.views.image_upload'),
+    url(r'^sync$', 'products.views.sync_orders'),
 )

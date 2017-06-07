@@ -1,11 +1,13 @@
 #-*- coding:utf-8 -*-
 __author__ = 'liucaiyun'
-import requests, urllib, base64, hmac, hashlib, traceback, time, logging
+import requests, urllib, base64, hmac, hashlib, traceback, time, logging, threading, Queue
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import datetime
-from django.conf import settings
 from xml_parser import *
 # from models import RequestRecords
-logger = logging.getLogger('request')
+logger = logging.getLogger('amazon')
+# 禁用安全请求警告
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 
 HOST = 'mws.amazonservices.com'
@@ -18,20 +20,43 @@ Marketplace_EN = 'ATVPDKIKX0DER'
 DT_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 
 
-class AmazonService():
+class OrderQueueHandle(threading.Thread):
+
+    def __init__(self, target, args):
+        super(OrderQueueHandle, self).__init__(target=target, args=args)
+        self.queue = Queue.Queue
+
+    def run(self):
+        order = self.queue.get(block=True)
+        while order:
+            #
+            order = self.queue.get(block=True)
+        pass
+
+    def add_order(self, order):
+        """
+        添加订单信息
+        :param order: 从amazon查询回来的订单信息
+        """
+        self.queue.put(order)
+
+
+class AmazonService(object):
 
     def __init__(self, market_account=None):
         self.market = market_account
         self.host = market_account.host if market_account else HOST
         self.SecretKey = market_account.SecretKey if market_account else SecretKey
+        self.MarketplaceId = market_account.MarketplaceId if market_account else Marketplace_EN
         self.default = {
             'AWSAccessKeyId': market_account.AWSAccessKeyId if market_account else AWSAccessKeyId,
             'MWSAuthToken': market_account.MWSAuthToken if market_account else MWSAuthToken,
-            'MarketplaceId.Id.1': market_account.MarketplaceId if market_account else Marketplace_EN,
+            'MarketplaceId.Id.1': self.MarketplaceId,
             'SellerId': market_account.SellerId if market_account else SellerId,
             'SignatureMethod': 'HmacSHA256',
             'SignatureVersion': '2'
         }
+        self.last_post_time = None
 
     def post(self, uri, action, param=None, api_version='2013-09-01'):
         if not param:
@@ -47,12 +72,16 @@ class AmazonService():
         form_data = '&'.join([key+'='+self._url_encode(value) for (key, value) in parameters.items()])
         url = 'https://%s%s?%s' % (self.host, uri, form_data)
         try:
-            r = requests.post(url, verify=False)
+            if not self._can_post():    # 如果当期已经超过限制，则等待相应的时间
+                time.sleep(self._get_api_interval_time())
+            r = requests.post(url, verify=False, headers={'Connection': 'close'})
+            self.last_post_time = datetime.datetime.now()
             self._add_record(uri, action, form_data, r.text)
+            return r
         except Exception, ex:
             traceback.format_exc()
             logger.warning('post exception: %s', traceback.format_exc())
-        return r
+        return None
 
     def _add_record(self, uri, action, param, response_text):
         if not self.market:     #  如果market为空，说明是调试信息，则不保存
@@ -93,6 +122,22 @@ class AmazonService():
         signature = base64.b64encode(hmac.new(secret, message, digestmod=hashlib.sha256).digest())
         return signature
 
+    def _can_post(self):
+        """
+        根据api限制，判断是否能够发起请求，不能的话等待相应的时间
+        """
+        if not self.last_post_time:
+            return True
+        if (datetime.datetime.now() - self.last_post_time).seconds > self._get_api_interval_time():
+            return True
+        return False
+
+    def _get_api_interval_time(self):
+        """
+        获取api规定的间隔时间，单位s
+        """
+        return 0
+
     @classmethod
     def _url_encode(cls, s):
         return urllib.quote(s).replace('/', '%2F').replace('%7E', '~')
@@ -100,10 +145,14 @@ class AmazonService():
 
 class OrderService(AmazonService):
 
+    def __init__(self, market_account=None):
+        super(OrderService, self).__init__(market_account)
+        self.order_item_service = OrderItemService()
+
     def get_orders(self, last_update_time):
         """
         获取订单列表
-        :param last_update_time:
+        :param last_update_time: 字符串格式
         :return:
         """
         return self._get_next_token(last_update_time=last_update_time)
@@ -119,13 +168,16 @@ class OrderService(AmazonService):
         except Exception, ex:
             traceback.format_exc()
             print r.text
+            return None
         orders = parser.get_items()
         if parser.get_next_token():
-            time.sleep(60)   # 休眠1s
             next_orders = self._get_next_token(next_token=parser.get_next_token())
-            if not next_orders:
+            if next_orders:
                 orders.extend(next_orders)
         return orders
+
+    def _get_api_interval_time(self):
+        return 60
 
 
 class OrderItemService(AmazonService):
@@ -139,6 +191,9 @@ class OrderItemService(AmazonService):
                       {'AmazonOrderId': amazon_order_id})
         else:
             r = self.post('/Orders/2013-09-01', 'ListOrderItemsByNextToken', {'NextToken': next_token})
+        if not r:
+            logger.error('GetMatchingProductForId except. ')
+            return None
         try:
             parser = OrderItemParser(r.text)
         except Exception, ex:
@@ -147,12 +202,91 @@ class OrderItemService(AmazonService):
             return None
         items = parser.get_items()
         if parser.get_next_token():
-            time.sleep(1)   # 休眠1s
             next_items = self._get_next_token(next_token=parser.get_next_token())
-            if not next_items:
+            if next_items:
                 items.extend(next_items)
         return items
 
+    def _get_api_interval_time(self):
+        return 1
+
+
+class ProductService(AmazonService):
+
+    def get_products(self, sku_list):
+        """
+        获取商品信息列表
+        :param asin_list: SellerSKU列表，不超过5个
+        """
+        if len(sku_list) > 5:
+            return
+        param = {'IdType': 'SellerSKU', 'MarketplaceId': self.MarketplaceId}
+        i = 1
+        for id in sku_list:
+            key = 'IdList.Id.%d' % i
+            param[key] = id
+            i += 1
+        r = self.post('/Products/2011-10-01', 'GetMatchingProductForId',
+                      param, api_version='2011-10-01')
+        if not r:
+            logger.error('GetMatchingProductForId except. ')
+        try:
+            parser = ProductParser(r.text)
+        except Exception, ex:
+            traceback.format_exc()
+            logger.warning('GetMatchingProductForId parse failed: %s', r.text)
+            return None
+        items = parser.get_items()
+        return items
+
+    def _get_api_interval_time(self):
+        return 1
+
+
+class SettlementReportService(AmazonService):
+    """
+    结算报告
+    """
+
+    def get_list(self):
+        """
+        获取结算报告列表
+        """
+        r = self.post('/', 'GetReportList', {
+            'ReportTypeList.Type.1': '_GET_V2_SETTLEMENT_REPORT_DATA_XML_'
+        }, api_version='2009-01-01')
+
+        try:
+            parser = ReportListParser(r.text)
+        except Exception, ex:
+            traceback.format_exc()
+            logger.warning('SettlementReport parse failed: %s', r.text)
+            return None
+        # 不获取NextToken的值
+        items = parser.get_items()
+        return items
+
+    def get_one(self, report_id):
+        """
+        根据ReportId获取单个报告的xml信息
+        :param report_id:
+        """
+        r = self.post('/', 'GetReport', {
+            'ReportId': report_id
+        }, api_version='2009-01-01')
+
+        try:
+            parser = SettlementReportParser(r.text)
+        except Exception, ex:
+            traceback.format_exc()
+            logger.warning('SettlementReport parse failed: %s', r.text)
+            return None
+        # 不获取NextToken的值
+        items = parser.get_items()
+        return items
+
+    def _get_api_interval_time(self):
+        return 30
 
 
 if __name__ == '__main__':
@@ -166,9 +300,9 @@ if __name__ == '__main__':
     # print r.text
     # pass
     # print OrderService(None).get_orders('2017-05-01T00:00:00Z')
-    print OrderItemService(None).list_items('114-6870523-5093814')
-
-
+    # print OrderItemService(None).list_items('114-6870523-5093814')
+    # print ProductService(None).get_products(['MLA000125', 'MLA000327'])
+    print SettlementReportService().get_items()
 
     # file_object = open('orders.txt')
     # try:

@@ -2,3 +2,4 @@ django==1.8
 djangorestframework
 drf-extensions
 django-dcors
+django-filter
