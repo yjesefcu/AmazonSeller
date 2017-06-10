@@ -99,7 +99,7 @@ MEDIA_URL = '/media/'
 
 CORS_ALLOW_ORIGIN = '*'
 CORS_ALLOW_HEADERS = ['Origin', 'x-requested-with','content-type', 'Accept']
-# CORS_ALLOW_METHODS = ['GET', 'POST', 'DELETE', 'PATCH', 'PUT']
+CORS_ALLOW_METHODS = ['GET', 'POST', 'DELETE', 'PATCH', 'PUT']
 # CORS_ORIGIN_ALLOW_ALL = True
 # CORS_ALLOW_CREDENTIALS = True
 

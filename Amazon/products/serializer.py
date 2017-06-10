@@ -49,7 +49,16 @@ class InboundShipmentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class OutboundShipmentItemSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = OutboundShipmentItem
+        # fields = '__all__'
+        exclude = ['shipment', 'product', 'id']
+
+
 class OutboundShipmentSerializer(serializers.ModelSerializer):
+    products = OutboundShipmentItemSerializer(many=True, read_only=True)
 
     class Meta:
         model = OutboundShipment

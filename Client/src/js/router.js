@@ -21,8 +21,8 @@ app.config(['$stateProvider', '$urlRouterProvider', function($stateProvider, $ur
             url: 'product/:id',
             templateUrl: 'templates/product/product_edit.html'
         })
-        .state('index.productSettlement', {
-            url: 'product/:id/settlement/:settlementId',
+        .state('index.productDetail.settlement', {
+            url: '/settlement/:settlementId',
             templateUrl: 'templates/product/product_orders.html'
         })
         .state('index.shipment', {
@@ -35,11 +35,15 @@ app.config(['$stateProvider', '$urlRouterProvider', function($stateProvider, $ur
         })
         .state('index.createShipOversea', {
             url: 'shipment/create',
-            templateUrl: 'templates/shipment/oversea-create.html'
+            templateUrl: 'templates/shipment/outbound_create.html'
+        })
+        .state('index.shipmentDetail', {
+            url: 'shipment/:id',
+            templateUrl: 'templates/shipment/outbound_create.html'
         })
         .state('index.settlement', {
             url: 'settlement',
-            templateUrl: 'templates/settlements.html'
+            templateUrl: 'templates/settlement/settlements.html'
         })
     ;
 }]);

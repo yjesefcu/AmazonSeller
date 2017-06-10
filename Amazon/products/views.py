@@ -5,6 +5,7 @@ from django.shortcuts import render
 from django.http import HttpResponse
 from django.conf import settings
 from api import create_image_path
+from models import *
 
 
 def image_upload(request):
@@ -21,10 +22,12 @@ def image_upload(request):
 
 
 def sync_orders(request):
-    from sync_handler import update_orders, update_product, update_settlement
+    from sync_handler import update_orders, update_product, update_settlement, update_inventories
     d = datetime.datetime.now() - datetime.timedelta(days=30)
     # update_orders(None, d)
-    update_settlement(None)
-    update_product(None)
+    # update_settlement(None)
+    # update_product(None)
+    settlement = Settlement.objects.all().first()
+    update_inventories(settlement)
 
     return HttpResponse('success')

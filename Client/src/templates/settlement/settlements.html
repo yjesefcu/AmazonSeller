@@ -1,0 +1,18 @@
+
+<section class="content-header">
+    <h1>
+        结算中心
+    </h1>
+</section>
+<section class="content" ng-controller="settlementCtrl">
+<!--<div ng-include="'templates/product/product_orders.html'" ng-controller="ProductOrdersCtrl"></div>-->
+<div class="row" style="text-align: center;">
+    <label>结算周期</label>
+    <div class="form-group" style="width: 200px;display: inline-block">
+        <select class="form-control" ng-model="selectedSettlement" id="settlementSelection">
+            <option ng-repeat="s in settlements" value="{{ s.id }}">{{ s.StartDate}} - {{ s.EndDate }}</option>
+        </select>
+    </div>
+</div>
+<div ui-view></div>
+</section>

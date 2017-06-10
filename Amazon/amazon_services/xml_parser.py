@@ -217,6 +217,20 @@ class ProductParser(BaseParser):
         return item
 
 
+class RequestReportParser(BaseParser):
+
+    def __init__(self, s):
+        self.report_id = None
+        super(RequestReportParser, self).__init__(s)
+
+    def _parse(self):
+        result = self.find(self.root, 'RequestReportResult')
+        self.report_id = self.find(result, 'ReportRequestInfo/ReportRequestId').text
+
+    def get_report_id(self):
+        return self.report_id
+
+
 class ReportListParser(BaseParser):
     """
     解析GetReportList的应答

@@ -275,3 +275,9 @@ class SettlementDbHandler(object):
 #     if current_status == OrderStatus.Pending and new_status == OrderStatus.Canceled:
 #         return
 #     if created or (current_status == OrderStatus.Pending and new_status !=)
+
+
+##################  退货 ####################
+def update_returns_to_db(settlement, item):
+    product, created = Product.objects.get_or_create(MarketplaceId=settlement.MarketplaceId, SellerSKU=item['SellerSKU'])
+    ProductReturn.objects.create(settlement=settlement, product=product, **item)

@@ -75,3 +75,21 @@ def update_settlement(market=None):
             for item in settlement_data['AdvertisingTransactionDetails']:
                 handler.update_advertising_transaction_to_db(settlement, item)
 
+
+def update_inventories(settlement):
+    """
+    同步退货信息
+    :param market:
+    """
+    for settlement in Settlement.objects.filter(returns__isnull=True):
+        service = InventorySummaryService()
+        request_report_id = service.request_report(settlement.StartDate, settlement.EndDate)
+        print 'update_inventories: request report id: %s' % request_report_id
+        time.sleep(60)
+        inventories = service.get_by_request_id(request_report_id)
+        # inventories = service.get_by_report_id('5396817722017327')
+        if inventories:
+            for one in inventories:
+                if one['type'] == 'CustomerReturns':
+                    update_returns_to_db(settlement, one)
+

@@ -59,45 +59,66 @@ app.directive('tableRepeatDirective', function($timeout) {
     return function(scope, element, attrs) {
         if (scope.$last){   // 表格repeat完毕
             $timeout(function(){
-                $(element.parent().parent()[0]).DataTable({
-                    "paging": true,
-                    "lengthChange": true,
-                    "searching": true,
-                    "ordering": false,
-                    "info": true,
-                    "autoWidth": false
-                });
-            }, 500);
+                if (angular.element(element.parent().parent())[0].nodeName == 'TABLE'){
+                    angular.element(element.parent().parent()).DataTable({
+                        "paging": true,
+                        "lengthChange": true,
+                        "searching": true,
+                        "ordering": false,
+                        "info": true,
+                        "autoWidth": false
+                    });
+                }
+            }, 1000);
         }
     };
 });
-app.controller("ProductEditCtrl", function ($scope, $http, $rootScope, $location, serviceFactory, atomicNotifyService) {
+
+app.controller("ProductEditCtrl", function ($scope, $http, $rootScope, $location, $state, $timeout, $stateParams, serviceFactory, atomicNotifyService) {
     $scope.formData = {'MarketplaceId': $rootScope.MarketplaceId};
     $scope.productIcon = '';
     $scope.thumb = {};
-    var path = $location.$$path;
-    if (path != 'products/create'){     // 编辑页面
-        var id = path.substring(path.indexOf('product/')+8);     // detail的path为：/product/1
-        $http.get(serviceFactory.getProductDetail(id)).then(function (result) {
+    $scope.inbounds = [];
+    $scope.showSupplies = false;
+    $scope.showShipments = false;
+    var productId=$stateParams.id, settlementId=$stateParams.settlementId;
+    $scope.isDetail = productId ? true : false;
+    if (productId){     // 编辑页面
+        $http.get(serviceFactory.getProductDetail(productId)).then(function (result) {
             $scope.formData = result.data;
             $scope.productIcon = serviceFactory.mediaPath(result.data.Image);
         });
+        getInboundShipment(productId);
     }
     $scope.submitForm = function () {
-        var url = serviceFactory.createProduct();
-        $http.post(url, $scope.formData)
+        var url = serviceFactory.createProduct(), method='post';
+        if (productId){
+            url = serviceFactory.getProductDetail(productId);
+            method = 'patch';
+        }
+        $http({
+            url: url,
+            method: method,
+            data: $scope.formData
+        })
             .then(function (result) {
-                $rootScope.addAlert('success', '添加商品成功', 1000);
+                if (productId){
+                    $rootScope.addAlert('success', '保存成功', 3000);
+                }else{
+                    $rootScope.addAlert('success', '添加商品成功', 1000);
+                    productId = result.data.id;
+                    $scope.formData = result.data;
+                }
             }).catch(function (result) {
                 if (result.status == 400){
                     var msg = [];
                     for (var key in result.data){
                         msg.push(key+"： " + result.data[key]);
                     }
-                    $rootScope.addAlert('danger', '添加商品失败：'+ msg.join('; '));
+                    $rootScope.addAlert('danger', '保存失败：'+ msg.join('; '));
                 }
                 else{
-                    $rootScope.addAlert('danger', '添加商品失败，状态码：' + result.status);
+                    $rootScope.addAlert('danger', '保存失败，状态码：' + result.status);
                 }
             });
     };
@@ -133,42 +154,57 @@ app.controller("ProductEditCtrl", function ($scope, $http, $rootScope, $location
                 }
             });
     };
-});
-
-app.controller('ProductOrdersCtrl', function ($scope, $http, $location, $timeout, serviceFactory) {
-    var path = $location.$$path;
-    $scope.orders = [];
     $scope.settlements = [];
-    var productId;
-    if (path != 'products/create'){     // 编辑页面
-        productId = path.substring(path.indexOf('product/')+8);     // detail的path为：/product/1
+    if (productId){
         getSettlements();
-        // getOrders(id, settlement);
     }
     function getSettlements() {
-        $http.get(serviceFactory.getSettlements()).then(function (result) {
+        $http.get(serviceFactory.getSettlements(productId)).then(function (result) {
             $scope.selectedSettlement = result.data[0];
             $scope.settlements = result.data;
             // getOrders(productId, result.data[0]);
             $timeout(function () {
                 // $scope.$watch('selectedSettlement', function (newValue, oldValue) {
-                    // if (typeof(newValue) != 'undefined')
-                    // {
-                    //     console.log(newValue);
-                    // }
+                // if (typeof(newValue) != 'undefined')
+                // {
+                //     console.log(newValue);
+                // }
                 // });
+                // 如果settlementId不为空，则默认设置选择该settlement
                 $("#settlementSelection").on('change', function () {
-                    getOrders(productId, $(this).val());
-                    console.log('change');
+                    if ($(this).val())
+                    {
+                        $state.go('index.productDetail.settlement', {
+                            id: productId,
+                            settlementId: $(this).val()
+                        });
+                    }
                 });
+                $("#settlementSelection option[value='" + settlementId + "']").attr('selected', true);
             }, 500);
         });
     }
+
+    function getInboundShipment(productId) {        // 获取入库货件
+        $http.get(serviceFactory.getProductInbounds(productId)).then(function (result) {
+            $scope.inbounds = result.data;
+        });
+    }
+});
+
+app.controller('ProductOrdersCtrl', function ($scope, $rootScope, $http, $location, $state, $stateParams, $timeout, serviceFactory) {
+    var productId = $stateParams.id, settlementId=$stateParams.settlementId;
+    $scope.orders = [];
+    $scope.settlements = [];
+
+    getOrders(productId, settlementId);
+
     function getOrders(productId, settlementId) {
         if (settlementId){
             $http.get(serviceFactory.getProductOrders(productId), {
                 params: {
-                    settlement: settlementId
+                    settlement: settlementId,
+                    MarketplaceId: $rootScope.MarketplaceId
                 }
             }).then(function (result) {
                 $scope.orders = result.data;
@@ -181,7 +217,7 @@ app.controller('ProductOrdersCtrl', function ($scope, $http, $location, $timeout
                         "info": true,
                         "autoWidth": false
                     });
-                }, 500);
+                }, 1000);
             });
         }
     }

@@ -4,6 +4,7 @@ import requests, urllib, base64, hmac, hashlib, traceback, time, logging, thread
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import datetime
 from xml_parser import *
+from text_parser import *
 # from models import RequestRecords
 logger = logging.getLogger('amazon')
 # 禁用安全请求警告
@@ -289,6 +290,78 @@ class SettlementReportService(AmazonService):
         return 30
 
 
+class InventorySummaryService(AmazonService):
+
+    def request_report(self, start_time, end_time):
+        """
+        请求报告
+        :return:
+        """
+        r = self.post('/', 'RequestReport', {
+            'ReportType': '_GET_FBA_FULFILLMENT_INVENTORY_SUMMARY_DATA_',
+            'StartDate': start_time.strftime(DT_FORMAT),
+            'EndDate': end_time.strftime(DT_FORMAT)
+        }, api_version='2009-01-01')
+        return RequestReportParser(r.text).get_report_id()
+
+    def get_by_request_id(self, request_report_id):
+        # 如果十分钟内还没恢复，则不再请求
+        count = 0
+        report_id = self._check_report_done(request_report_id)
+        while not report_id and count < 10:
+            time.sleep(60)
+            report_id = self._check_report_done(request_report_id)
+        if count == 10:
+            return None
+        return self.get_by_report_id(report_id)
+
+    def get_by_report_id(self, report_id):
+        r = self.post('/', 'GetReport', {
+            'ReportId': report_id
+        }, api_version='2009-01-01')
+        parser = InventorySummaryParser(r.text)
+        return parser.get_items()
+
+    def _check_report_done(self, report_id):
+        r = self.post('/', 'GetReportList', {
+            'ReportTypeList.Type.1': '_GET_FBA_FULFILLMENT_INVENTORY_SUMMARY_DATA_'
+        }, api_version='2009-01-01')
+        try:
+            parser = ReportListParser(r.text)
+        except Exception, ex:
+            traceback.format_exc()
+            logger.warning('SettlementReport parse failed: %s', r.text)
+            return None
+        # 不获取NextToken的值
+        items = parser.get_items()
+        # 如果report_id在reportList中存在，说明报告已经准备好了
+        for report in items:
+            if report['ReportRequestId'] == report_id:
+                return report['RequestId']
+        return False
+
+    def get_one(self, report_id):
+        """
+        根据ReportId获取单个报告的xml信息
+        :param report_id:
+        """
+        r = self.post('/', 'GetReport', {
+            'ReportId': report_id
+        }, api_version='2009-01-01')
+
+        try:
+            parser = SettlementReportParser(r.text)
+        except Exception, ex:
+            traceback.format_exc()
+            logger.warning('SettlementReport parse failed: %s', r.text)
+            return None
+        # 不获取NextToken的值
+        items = parser.get_items()
+        return items
+
+    def _get_api_interval_time(self):
+        return 0
+
 if __name__ == '__main__':
     # token = 'pXPDw7T+Fup/YYuZQbKv1QafEPREmauvizt1MIhPYZbaSgEpfAaYkXTkBHvJ93W/XVvMiz84ZXbNeGyEmOrLe7q8xqAchQNKtU38YwqRuVIwqcbUqh/LhCJ0wMvlylZkE3RvwDUQBA1G6ShfNgiExkSDtsD4aPvQcv0UYHXV8K5jpIXqERozsh35jNz11rwFKFx4/9h+5BG5ki8QZ/nAov0IfGeAvb95J/gMIjfO756fpVJGS+vu5pFHMXy6XL5lQW8Xd/Zkc1SuQyquFjSkBowoP8liP7H3sJdJobvDtjbZkLh8ZQWZdmTZrNwXH6VTGi/TbfXVDR7tObdzBnmaYnGsHLYYIfzBGxpr1p/cLrO96kATpJ2Ci+OjokijmI8Bbe7jhwcQGngpvkbRUhFumapDFyJ4Aaz0lmrLJ6gfmjoSyoYkkmy7z4+envNcHi41tHdkruHJ4Z15itQRr/9F9A=='
     # r = AmazonService().post('/Orders/2013-09-01', 'ListOrders', {'LastUpdatedAfter': '2017-05-01T00:00:00Z'})
@@ -302,7 +375,11 @@ if __name__ == '__main__':
     # print OrderService(None).get_orders('2017-05-01T00:00:00Z')
     # print OrderItemService(None).list_items('114-6870523-5093814')
     # print ProductService(None).get_products(['MLA000125', 'MLA000327'])
-    print SettlementReportService().get_items()
+    # print SettlementReportService().get_items()
+    start = datetime.datetime(year=2017, month=5, day=20)
+    end = datetime.datetime(year=2017, month=6, day=10)
+    report_id = InventorySummaryService().request_report(start, end)
+    inventories = InventorySummaryService().get_inventory_list(report_id)
 
     # file_object = open('orders.txt')
     # try:

@@ -30,3 +30,31 @@ html,body,body>.wrapper{
   margin-left:-20px;
   font-weight:normal;
 }
+
+table input{
+  line-height: 24px;
+  border: none;
+  outline: none;
+}
+table textarea{
+  border: none;
+  outline: none;
+}
+table input.xs{
+    width: 40px;
+}
+table input.md{
+  width: 75px;
+}
+table input.lg{
+  width: 110px;
+}
+table th{
+   text-align: center;
+}
+table th.dark-border{
+   border: #ccc 1px solid !important;
+}
+table tr.no-hover:hover{
+  background-color: #fff !important;
+}

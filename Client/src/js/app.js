@@ -44,38 +44,6 @@ app.config(['atomicNotifyProvider', function(atomicNotifyProvider){
 
 }]);
 
-app.factory('serviceFactory', function ($rootScope) {
-    var host='http://192.168.1.3:8000', services = {};
-    $rootScope.host = host;
-    services.markets = function () {
-        return host + '/api/markets/';
-    };
-    services.getSettlements = function () {
-        return host + '/api/settlements';
-    };
-    services.createProduct = function () {
-        return host + '/api/products/';
-    };
-    services.getAllProducts = function () {
-        return host + '/api/products/';
-    };
-    services.getProductDetail = function (id) {
-        return host + '/api/products/' + id;
-    };
-    services.getProductOrders = function (id) {
-        return host + '/api/products/' + id + '/orders';
-    };
-    services.supplyList = function (productId) {
-        return host + '/api/products/' + productId + '/supply/';
-    };
-    services.imageUpload = function () {
-        return host + '/image/upload/';
-    };
-    services.mediaPath = function (imagePath) {
-        return host + imagePath;
-    };
-    return services;
-});
 app.config(function($sceDelegateProvider) {
     $sceDelegateProvider.resourceUrlWhitelist([
         // Allow same origin resource loads.
