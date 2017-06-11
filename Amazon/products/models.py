@@ -42,6 +42,8 @@ class Product(models.Model):
     volume_weight = models.FloatField(null=True, blank=True, verbose_name=u'体积重')        # 体积重，height*width*length/5000
     domestic_inventory = models.IntegerField(default=0, verbose_name=u'国内库存')          # 商品剩余数量
     amazon_inventory = models.IntegerField(default=0, verbose_name=u'亚马逊库存')
+    domestic_cost = models.FloatField(null=True, blank=True)    # 国内成本：包括商品单价和运费
+    oversea_cost = models.FloatField(null=True, blank=True)     # 国外成本：国内至亚马逊的运费
     cost = models.FloatField(default=0, verbose_name=u'成本')     # 当前商品成本
     last_supply = models.DateField(null=True, blank=True, verbose_name=u'上一次入库日期')
     last_oversea = models.DateField(null=True, blank=True, verbose_name=u'上一次移库日期')
@@ -60,12 +62,16 @@ class InboundShipment(models.Model):
     count = models.IntegerField(verbose_name=u'数量')       # 商品数量
     inventory = models.IntegerField(verbose_name=u'库存', default=0)
     # remain_count = models.IntegerField(verbose_name=u'剩余数量', default=0)    # count-发往国外的数量
-    unit_price = models.FloatField(verbose_name=u'运费单价')
+    unit_price = models.FloatField(verbose_name=u'商品单价')
     total_freight = models.FloatField(verbose_name=u'总运费')
     charges = models.FloatField(null=True, blank=True, verbose_name=u'杂费')
     charges_comment = models.TextField(null=True, blank=True, verbose_name=u'杂费备注')
     ship_date = models.DateField(null=True, blank=True, verbose_name=u'到货日期')
     insert_time = models.DateTimeField(null=True, blank=True)   # 添加至数据库的时间
+    unit_cost = models.FloatField(null=True, blank=True, verbose_name=u'单位成本')  # 包括单价与运费
+
+    class Meta:
+        ordering = ('-ship_date', )
 
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):
@@ -120,7 +126,7 @@ class OutboundShipmentItem(models.Model):
     inventory = models.IntegerField(null=True, blank=True, default=0, verbose_name=u'库存')
 
     class Meta:
-        ordering = ['SellerSKU']
+        ordering = ['SellerSKU', '-shipment__ship_date']
 
 
 class Orders(models.Model):
@@ -205,9 +211,19 @@ class Settlement(models.Model):
 
 class ProductSettlement(models.Model):
     settlement = models.ForeignKey(Settlement, related_name='products')
+    product = models.ForeignKey(Product)
     advertising_fee = models.FloatField(null=True, blank=True)       # 广告费
     storage_fee = models.FloatField(null=True, blank=True)           # 仓储费
     quantity = models.IntegerField(null=True, blank=True)           # 销售数量
+    sales_amount = models.FloatField(null=True, blank=True)         # 总销售
+    total_cost = models.FloatField(null=True, blank=True)           # 总成本
+    profit = models.FloatField(null=True, blank=True, verbose_name=u'利润')
+    profit_rate = models.FloatField(null=True, blank=True, verbose_name=u'利润率')
+
+
+class SettlementProfit(models.Model):
+    settlement = models.ForeignKey(Settlement)
+    subscribe_fee = models.FloatField(null=True, blank=True, default=0, verbose_name=u'订阅费')
     sales_amount = models.FloatField(null=True, blank=True)         # 总销售
     total_cost = models.FloatField(null=True, blank=True)           # 总成本
     profit = models.FloatField(null=True, blank=True, verbose_name=u'利润')
@@ -246,6 +262,9 @@ class RefundItem(models.Model):
     PromotionShipping = models.FloatField(null=True, blank=True)    # 退还的运费促销
     ShippingChargeback = models.FloatField(null=True, blank=True)
     RestockingFee = models.FloatField(null=True, blank=True)
+    amount = models.FloatField(null=True, blank=True)       # 从订单中获取总共退款，应该为负数
+    quantity = models.IntegerField(null=True, blank=True)   # 从订单中获取
+    cost = models.FloatField(null=True, blank=True)         # 成本，应该为正数
 
     class Meta:
         ordering = ['-PostedDate']
@@ -347,7 +366,8 @@ class SettleOrderItem(models.Model):
     subscription_fee = models.FloatField(null=True, blank=True, verbose_name=u'订阅费')    # 单位：USD
     inbound_fee = models.FloatField(null=True, blank=True, verbose_name=u'国内运费')
     outbound_fee = models.FloatField(null=True, blank=True, verbose_name=u'国际运费')
-    cost = models.FloatField(null=True, blank=True, default=0)      # 成本，USD
+    cost = models.FloatField(null=True, blank=True, default=0)      # 总成本，USD
+    profit = models.FloatField(null=True, blank=True, default=0)    # 利润
 
     class Meta:
         ordering = ['-PostedDate']

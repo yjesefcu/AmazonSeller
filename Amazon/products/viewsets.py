@@ -31,20 +31,12 @@ class SettlementProductViewSet(NestedViewSetMixin, ModelViewSet):
     filter_fields = ('settlement',)
 
 
-
 class ProductViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
     filter_backends = (DjangoFilterBackend,)
     filter_fields = ('MarketplaceId',)
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     @detail_route(methods=['get'])
     def settlements(self, request, pk):

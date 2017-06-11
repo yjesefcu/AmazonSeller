@@ -4,13 +4,13 @@
 
 var app = angular.module('myApp', ['ui.router', 'atomic-notify', 'ui.bootstrap', '720kb.datepicker']);
 
-app.controller('MainCtrl', function ($scope, $http, $rootScope, serviceFactory) {
+app.controller('MainCtrl', function ($scope, $http, $rootScope, $location, serviceFactory) {
     $rootScope.MarketplaceId = 'ATVPDKIKX0DER' ;
     $rootScope.alerts = [];
     $scope.markets = [];
     $rootScope.currentMarket = {'country': '美国'};
     $rootScope.currentcy = 'USD';
-
+    $scope.currentUrl = $location.$$path;
     $rootScope.addAlert = function (type, msg, timeout) {
         if (typeof(timeout) == 'undefined'){
             timeout = 3000;

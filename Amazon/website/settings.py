@@ -157,6 +157,14 @@ LOGGING = {
             "interval":7,
             'formatter': 'verbose',
         },
+        'product': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'filename': os.path.join(BASE_DIR,'logs/', 'product.log'),
+            "when":"d",
+            "interval":7,
+            'formatter': 'verbose',
+        },
     },
     'loggers': {
         'django': {
@@ -166,6 +174,11 @@ LOGGING = {
         },
         'amazon': {
             'handlers': ['console', 'amazon'],
+            'propagate': False,
+            'level': 'INFO',
+        },
+        'product': {
+            'handlers': ['console', 'product'],
             'propagate': False,
             'level': 'INFO',
         },

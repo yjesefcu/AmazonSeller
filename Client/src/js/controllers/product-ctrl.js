@@ -107,8 +107,10 @@ app.controller("ProductEditCtrl", function ($scope, $http, $rootScope, $location
                     $rootScope.addAlert('success', '保存成功', 3000);
                 }else{
                     $rootScope.addAlert('success', '添加商品成功', 1000);
-                    productId = result.data.id;
-                    $scope.formData = result.data;
+                    // 跳转到商品详情页
+                    $timeout(function () {
+                        $state.go('index.productDetail', {id: result.data.id});
+                    }, 500);
                 }
             }).catch(function (result) {
                 if (result.status == 400){

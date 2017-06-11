@@ -1,10 +1,13 @@
 #-*- coding:utf-8 -*-
 __author__ = 'liucaiyun'
-import os, datetime, urllib, json
+import os, datetime, urllib, json, logging
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Q, F
 from amazon_services.service import OrderService, OrderItemService
 from models import *
+
+
+logger = logging.getLogger('product')
 
 
 class OrderStatus(enumerate):
@@ -258,23 +261,209 @@ class SettlementDbHandler(object):
         return AdvertisingTransactionDetails.objects.create(**data)
 
 
-##################  Settlement ####################
-# def update_order_income(order, data, created=False):
-#     """
-#     计算订单销售情况
-#     :param order: 数据库订单
-#     :param data:  最新的订单数据
-#     :param created: order是否最新创建
-#     """
-#     current_status = order.OrderStatus
-#     new_status = data['OrderStatus']
-#     if not created and current_status == new_status:    # 状态未更新
-#         return
-#     if new_status == OrderStatus.Pending:   # 等待付款状态不计入销售
-#         return
-#     if current_status == OrderStatus.Pending and new_status == OrderStatus.Canceled:
-#         return
-#     if created or (current_status == OrderStatus.Pending and new_status !=)
+#################  成本计算 ####################
+class CostCalculate(object):
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def calc_current_cost(cls, product):
+        """
+        计算商品的当前成本
+        """
+        cost1 = cls._calc_supply_cost(product)
+        cost2 = cls._calc_shipment_cost(product)
+        product.domestic_cost = cost1
+        product.oversea_cost = cost2
+        product.cost = cost1 + cost2
+        product.save()
+        return product.cost
+
+    @classmethod
+    def _calc_supply_cost(cls, product):
+        """
+        计算国内运费单价成本
+        """
+        supplies = InboundShipment.objects.filter(product=product, inventory__gt=0)
+        quantity = 0    # 总数量
+        amount = 0      # 总成本
+        for supply in supplies:
+            if not supply.unit_cost:
+                # 如果单位成本为空，则计算单位成本
+                supply.unit_cost = supply.unit_price + (supply.total_freight+supply.charges) / supply.count
+                supply.save()
+            quantity += supply.inventory
+            amount += supply.inventory * supply.unit_cost
+        return amount/quantity if quantity else 0
+
+    def _calc_shipment_cost(self, product):
+        """
+        计算当前移库单位成本
+        """
+        shipments = OutboundShipmentItem.objects.filter(product=product, inventory__gt=0)
+        quantity = 0
+        amount = 0
+        for s in shipments:
+            quantity += s.inventory
+            amount += quantity * s.unit_freight
+        return amount/quantity if quantity else 0
+
+
+#################  Settlement ####################
+class SettlementCalc(object):
+    """
+    结算利润计算
+    """
+
+    def __init__(self, settlement):
+        self.settlement = settlement
+
+    def calc_settlement(self):
+        """
+        计算结算周期内所有商品的总收入、总成本、总利润
+        :return:
+        """
+        items = ProductSettlement.objects.filter(settlement=self.settlement)
+        amount = sum([item.sales_amount for item in items])
+        cost = sum([item.total_cost for item in items])
+        sp, created = SettlementProfit.objects.get_or_create(settlement=self.settlement)
+        sp.sales_amount = amount
+        sp.total_cost = cost
+        sp.profit = amount - cost
+        sp.profit_rate = sp.profit / sp.sales_amount if sp.sales_amount else 0
+        sp.save()
+
+    def calc_product_profit(self, product):
+        # 首先更新商品当前单位成本
+        CostCalculate.calc_current_cost(product)
+        q1, a1, c1 = self._calc_with_orders(product)
+        q2, a2, c2 = self._calc_with_refunds(product)
+        # 更新库存
+        self._update_inventory(product, q1-q2)
+        ps, created = ProductSettlement.objects.get_or_create(settlement=self.settlement, product=product)
+        ps.quantity = q1
+        ps.sales_amount = a1 + a2
+        ps.total_cost = c1 + c2 + ps.advertising_fee + ps.storage_fee
+        ps.profit = ps.sales_amount - ps.total_cost
+        ps.profit_rate = ps.profit / ps.sales_amount if ps.sales_amount else 0
+        ps.save()
+
+    def _clear(self, product):
+        """
+        清除计算的结果
+        :return:
+        """
+        try:
+            ps = ProductSettlement.objects.get(settlement=self.settlement, product=product)
+            self._update_inventory(product, ps.quantity)        # 先将库存补充上
+        except ProductSettlement.DoesNotExist, ex:
+            return
+
+    def _calc_with_orders(self, product):
+        """
+        计算订单的收入支出
+        :param product:
+        :return: 数量、实收、成本
+        """
+        orders = SettleOrderItem.objects.filter(product=product, settlement=self.settlement)
+        if not orders:
+            return 0, 0, 0
+        quantity = 0
+        cost_amount = 0     # 总成本
+        principal_amount = 0
+        for order in orders:
+            cost_amount += self._calc_order_cost(product, order)
+            principal_amount += order.Amount
+            quantity += order.Quantity
+        return quantity, principal_amount, cost_amount
+
+    def _calc_with_refunds(self, product):
+        """
+        计算退货的收入支出
+        :param product:
+        """
+        refunds = RefundItem.objects.filter(product=product, settlement=self.settlement)
+        quantity = 0
+        amount = 0
+        cost = 0
+        for refund in refunds:
+            try:
+                order = SettleOrderItem.objects.get(OrderItemId=refund.OrderItemId)
+            except SettleOrderItem.DoesNotExist, ex:
+                logger.warning('cannot find refund order: %s', refund.OrderItemId)
+                order = None
+            refund.amount = order.Principal + order.Shipping + order.Commission + order.RefundCommission + \
+                           order.PromotionPrincipal + order.PromotionShipping + order.ShippingChargeback + order.RestockingFee
+            refund.cost = order.cost if order else 0
+            refund.quantity = order.Quantity if order else 1
+            refund.save()
+            quantity += refund.quantity
+            amount = refund.amount
+            cost = refund.cost
+        return quantity, amount, cost
+
+    def _handle_returns(self, product):
+        """
+        处理退货
+        :param product:
+        """
+        values = ProductReturn.objects.filter(product=product, settlement=self.settlement).values_list('quantity', flat=True)
+        total = sum(list(values))
+        if not total:
+            return
+        # 将退货数量补充到国内库存、国外库存
+        self._update_inventory(product, total)
+
+    def _update_inventory(self, product, count):
+        """
+        更新国内、亚马逊库存
+        :param product:
+        :param count: 如果为正数，表示销售的商品数，如果为负数，表示退货的数量
+        """
+        class_list = [InboundShipment, OutboundShipmentItem]
+        order_list = ['ship_date', 'shipment__ship_date']
+        quantity_key = ['count', 'QuantityShipped']
+        if count == 0:
+            return
+        if count > 0:
+            for i in [0, 1]:
+                items = class_list[i].objects.filter(product=product, inventory__gt=0).order_by(order_list[i])
+                tmp_count = count
+                for supply in items:
+                    if supply.inventory > tmp_count:
+                        supply.inventory -= tmp_count
+                        supply.save()
+                        break
+                    tmp_count -= supply.inventory
+                    supply.inventory = 0
+                    supply.save()
+        else:
+            for i in [0, 1]:
+                items = class_list[i].objects.filter(product=product, inventory__lt=F(quantity_key[i])).order_by('-'+order_list[i])
+                tmp = count
+                for item in items:
+                    if tmp < getattr(item, quantity_key[i]) - item.inventory:
+                        item.inventory += tmp
+                        item.save()
+                        break
+                    tmp -= getattr(item, quantity_key[i]) - item.inventory
+                    item.inventory = item.count
+                    item.save()
+
+    def _calc_order_cost(self, product, order):
+        """
+        计算每个订单的成本
+        :return:
+        """
+        if not order.Principal:
+            logger.info('order %s principal is None or 0', order.AmazonOrderId)
+            return
+        order.inbound_fee = product.domestic_cost * order.Quantity
+        order.outbound_fee = product.oversea_cost * order.Quantity
+        order.cost = (order.subscription_fee + order.inbound_fee + order.outbound_fee) * order.Quantity
+        order.save()
+        return order.cost
 
 
 ##################  退货 ####################
