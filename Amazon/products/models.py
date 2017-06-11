@@ -40,13 +40,16 @@ class Product(models.Model):
     package_length = models.FloatField(null=True, blank=True, verbose_name=u'包装长度') # 单位cm
     package_weight = models.FloatField(null=True, blank=True, verbose_name=u'包装重量') # 单位kg
     volume_weight = models.FloatField(null=True, blank=True, verbose_name=u'体积重')        # 体积重，height*width*length/5000
-    remain_count = models.IntegerField(default=0, verbose_name=u'剩余数量')       # 商品剩余数量
+    domestic_inventory = models.IntegerField(default=0, verbose_name=u'国内库存')          # 商品剩余数量
+    amazon_inventory = models.IntegerField(default=0, verbose_name=u'亚马逊库存')
     cost = models.FloatField(default=0, verbose_name=u'成本')     # 当前商品成本
     last_supply = models.DateField(null=True, blank=True, verbose_name=u'上一次入库日期')
     last_oversea = models.DateField(null=True, blank=True, verbose_name=u'上一次移库日期')
+    sold_count = models.IntegerField(default=0, verbose_name=u'已销售数量')
 
     class Meta:
         unique_together = (('MarketplaceId', 'SellerSKU',),)
+        ordering = ['SellerSKU']
 
 
 class InboundShipment(models.Model):
@@ -55,6 +58,7 @@ class InboundShipment(models.Model):
     """
     product = models.ForeignKey(Product, related_name='supplies')
     count = models.IntegerField(verbose_name=u'数量')       # 商品数量
+    inventory = models.IntegerField(verbose_name=u'库存', default=0)
     # remain_count = models.IntegerField(verbose_name=u'剩余数量', default=0)    # count-发往国外的数量
     unit_price = models.FloatField(verbose_name=u'运费单价')
     total_freight = models.FloatField(verbose_name=u'总运费')
@@ -62,6 +66,13 @@ class InboundShipment(models.Model):
     charges_comment = models.TextField(null=True, blank=True, verbose_name=u'杂费备注')
     ship_date = models.DateField(null=True, blank=True, verbose_name=u'到货日期')
     insert_time = models.DateTimeField(null=True, blank=True)   # 添加至数据库的时间
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        super(InboundShipment, self).save(force_insert, force_update, using, update_fields)
+        # 更新Product.domestic_inventory
+        self.product.domestic_inventory += self.count
+        self.product.save()
 
 
 class OutboundShipment(models.Model):
@@ -76,6 +87,8 @@ class OutboundShipment(models.Model):
     ShipFromCity = models.CharField(max_length=50, null=True, blank=True)
     ship_date = models.DateField(null=True, blank=True, verbose_name=u'发货时间')     # 发货时间
     total_freight = models.FloatField(null=True, blank=True, verbose_name=u'总运费')        # 总运费
+    unit_freight = models.FloatField(null=True, blank=True, verbose_name=u'运费单价')
+    domestic_unit_freight = models.FloatField(null=True, blank=True, verbose_name=u'国内运费单价')
 
     class Meta:
         ordering = ['-ship_date']
@@ -90,12 +103,12 @@ class OutboundShipmentItem(models.Model):
     product = models.ForeignKey(Product, related_name='shipsOversea')
     SellerSKU = models.CharField(max_length=50, null=True, blank=True)
     FulfillmentNetworkSKU = models.CharField(max_length=50, null=True, blank=True)      # 商品的亚马逊配送网络 SKU
-    QuantityShipped = models.IntegerField()     # 要配送的商品数量。
-    QuantityReceived = models.IntegerField(null=True, blank=True)    # 亚马逊配送中心已接收的商品数量
-    QuantityInCase = models.IntegerField(null=True, blank=True)      # 每个包装箱中的商品数量（仅针对原厂包装发货商品）。请注意，QuantityInCase x 入库货件中的包装箱数 = QuantityShipped
-    unit_freight = models.FloatField(null=True, blank=True, verbose_name=u'运费单价')       # 单位：kg
-    fuel_tax = models.FloatField(null=True, blank=True, verbose_name=u'燃油附加税')       # 百分比
-    duty = models.FloatField(null=True, blank=True, verbose_name=u'关税')
+    QuantityShipped = models.IntegerField(null=True, blank=True, default=0)     # 要配送的商品数量。
+    QuantityReceived = models.IntegerField(null=True, blank=True, default=0)    # 亚马逊配送中心已接收的商品数量
+    QuantityInCase = models.IntegerField(null=True, blank=True, default=0)      # 每个包装箱中的商品数量（仅针对原厂包装发货商品）。请注意，QuantityInCase x 入库货件中的包装箱数 = QuantityShipped
+    unit_freight = models.FloatField(null=True, blank=True, default=0, verbose_name=u'运费单价')       # 单位：kg
+    fuel_tax = models.FloatField(null=True, blank=True, default=0, verbose_name=u'燃油附加税')       # 百分比
+    duty = models.FloatField(null=True, blank=True, default=0, verbose_name=u'关税')
     logistics_company = models.CharField(max_length=100, null=True, blank=True, verbose_name=u'物流公司名称')
     logistics_id = models.CharField(max_length=100, null=True, blank=True, verbose_name=u'物流运单号')
     package_width = models.FloatField(null=True, blank=True, verbose_name=u'外包装宽度')
@@ -104,6 +117,7 @@ class OutboundShipmentItem(models.Model):
     package_weight = models.FloatField(null=True, blank=True, verbose_name=u'外包装重量')
     volume_weight = models.FloatField(null=True, blank=True, verbose_name=u'体积重')
     total_freight = models.FloatField(null=True, blank=True, verbose_name=u'总运费')    # 通过计算获得：max(外箱体积重,外箱实际重)*运费单价*（1+燃油附加税） = 总运费
+    inventory = models.IntegerField(null=True, blank=True, default=0, verbose_name=u'库存')
 
     class Meta:
         ordering = ['SellerSKU']
@@ -189,7 +203,7 @@ class Settlement(models.Model):
         ordering = ['-EndDate']
 
 
-class ProductSettlement(models.CharField):
+class ProductSettlement(models.Model):
     settlement = models.ForeignKey(Settlement, related_name='products')
     advertising_fee = models.FloatField(null=True, blank=True)       # 广告费
     storage_fee = models.FloatField(null=True, blank=True)           # 仓储费
@@ -331,6 +345,8 @@ class SettleOrderItem(models.Model):
 
     # 成本
     subscription_fee = models.FloatField(null=True, blank=True, verbose_name=u'订阅费')    # 单位：USD
+    inbound_fee = models.FloatField(null=True, blank=True, verbose_name=u'国内运费')
+    outbound_fee = models.FloatField(null=True, blank=True, verbose_name=u'国际运费')
     cost = models.FloatField(null=True, blank=True, default=0)      # 成本，USD
 
     class Meta:

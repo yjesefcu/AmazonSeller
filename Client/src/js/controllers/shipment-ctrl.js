@@ -15,9 +15,11 @@ app.controller('OutboundEditCtrl', function ($scope, $http, $rootScope, $statePa
     var id = $stateParams.id;
     $scope.formData = {MarketplaceId: $rootScope.MarketplaceId};
     $scope.products = [];
+    $scope.error_msg = '';
     $scope.addProductRow = function () {
         $scope.products.push({});
     };
+    $scope.isDetail = id ? true : false;
     getShipment(id);
     function getShipment(id) {
         $http.get(serviceFactory.shipmentDetail(id)).then(function (result) {
@@ -26,6 +28,7 @@ app.controller('OutboundEditCtrl', function ($scope, $http, $rootScope, $statePa
         });
     }
     $scope.save = function () {
+        $scope.error_msg = '';
         var method, url;
         if (id){
             $scope.formData['id'] = id;
@@ -44,8 +47,9 @@ app.controller('OutboundEditCtrl', function ($scope, $http, $rootScope, $statePa
             console.log('create outbound shipment success');
         }).catch(function (result) {
             console.log('create outbound shipment failed');
+            $rootScope.addAlert('danger', '保存失败');
             if (result.status == 400){
-                $rootScope.addAlert('danger', result.data.msg);
+                $scope.error_msg = result.data.msg;
             }
         });
     };

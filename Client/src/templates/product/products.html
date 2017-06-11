@@ -25,10 +25,10 @@
                                 <th>SKU</th>
                                 <th>ASIN</th>
                                 <th>图片</th>
-                                <th>重量（kg）</th>
-                                <th>体积重</th>
+                                <th>描述</th>
+                                <th>国内库存</th>
                                 <th>亚马逊库存</th>
-                                <th>当前成本</th>
+                                <th>已销售数量</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
@@ -38,12 +38,12 @@
                                 <td><a ui-sref="index.productDetail({id: p.id})">{{ p.SellerSKU }}</a></td>
                                 <td>{{ p.ASIN }}</td>
                                 <td><img src="{{ host }}{{ p.Image }}"></td>
-                                <td>{{ p.package_weight }}</td>
-                                <td>{{ p.volume_weight }}</td>
-                                <td>{{ p.remain_count }}</td>
-                                <td>{{ p.cost }}</td>
+                                <td>{{ p.TitleCn }}</td>
+                                <td>{{ p.domestic_inventory }}</td>
+                                <td>{{ p.amazon_inventory }}</td>
+                                <td>{{ p.sold_count }}</td>
                                 <td>
-                                    <a title="添加货件信息" ng-click="openSupplyModal(p.id);"><i class="fa fa-plus"></i></a>
+                                    <a title="添加入库货件（至上海）" ng-click="openSupplyModal(p.id);"><i class="fa fa-plus"></i></a>
                                 </td>
                             </tr>
                         </tbody>

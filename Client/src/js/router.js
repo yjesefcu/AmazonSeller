@@ -45,5 +45,9 @@ app.config(['$stateProvider', '$urlRouterProvider', function($stateProvider, $ur
             url: 'settlement',
             templateUrl: 'templates/settlement/settlements.html'
         })
+        .state('index.settlement.detail', {
+            url: '/:id',
+            templateUrl: 'templates/settlement/settlement_detail.html'
+        })
     ;
 }]);

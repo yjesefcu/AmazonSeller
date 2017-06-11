@@ -34,6 +34,13 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class ProductSettlementSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = ProductSettlement
+        fields = '__all__'
+
+
 class OrderItemSerializer(serializers.ModelSerializer):
     PostedDate = DateTimeFormat()
 
@@ -54,7 +61,7 @@ class OutboundShipmentItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OutboundShipmentItem
         # fields = '__all__'
-        exclude = ['shipment', 'product', 'id']
+        exclude = ['shipment', 'product']
 
 
 class OutboundShipmentSerializer(serializers.ModelSerializer):

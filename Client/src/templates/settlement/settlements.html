@@ -1,4 +1,3 @@
-
 <section class="content-header">
     <h1>
         结算中心
@@ -9,9 +8,11 @@
 <div class="row" style="text-align: center;">
     <label>结算周期</label>
     <div class="form-group" style="width: 200px;display: inline-block">
-        <select class="form-control" ng-model="selectedSettlement" id="settlementSelection">
-            <option ng-repeat="s in settlements" value="{{ s.id }}">{{ s.StartDate}} - {{ s.EndDate }}</option>
-        </select>
+        <!--<select class="form-control" ng-model="selectedSettlement" id="settlementSelection" ng-init="selectedSettlement=''">-->
+            <!--<option value="">请选择</option>-->
+            <!--<option ng-repeat="s in settlements" value="{{ s.id }}" selected={{s.id == selected}}>{{ s.StartDate}} - {{ s.EndDate }}</option>-->
+        <!--</select>-->
+        <select class="form-control" ng-model="selectedSettlement" ng-options="s.id as s.StartDate + '-' + s.EndDate for s in settlements" ng-selected="selectedSettlement == s.id"></select>
     </div>
 </div>
 <div ui-view></div>

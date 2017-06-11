@@ -337,7 +337,7 @@ class InventorySummaryService(AmazonService):
         # 如果report_id在reportList中存在，说明报告已经准备好了
         for report in items:
             if report['ReportRequestId'] == report_id:
-                return report['RequestId']
+                return report['ReportId']
         return False
 
     def get_one(self, report_id):

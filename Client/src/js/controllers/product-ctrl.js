@@ -33,6 +33,7 @@ app.controller('supplyModalCtrl', function($scope, $rootScope, $http, serviceFac
     $scope.supply = {product: data};
     //在这里处理要进行的操作
     $scope.save = function() {
+        $scope.supply['inventory'] = $scope.supply['count'];       // 设置剩余数量与总数量一致
         $http.post(serviceFactory.supplyList($scope.productId), $scope.supply)
             .then(function (result) {
                 $rootScope.addAlert('success', '添加入库信息成功');

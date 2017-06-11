@@ -40,13 +40,13 @@ table textarea{
   border: none;
   outline: none;
 }
-table input.xs{
+table .xs{
     width: 40px;
 }
-table input.md{
+table .md{
   width: 75px;
 }
-table input.lg{
+table .lg{
   width: 110px;
 }
 table th{

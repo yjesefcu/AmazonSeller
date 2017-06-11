@@ -38,6 +38,9 @@ app.factory('serviceFactory', function ($rootScope) {
     services.settlements = function () {
         return host + '/api/settlements/';
     };
+    services.settlementProducts = function (settlementId) {
+        return host + '/api/settlements/' + settlementId + '/products/';
+    };
     services.imageUpload = function () {
         return host + '/image/upload/';
     };
