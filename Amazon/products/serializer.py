@@ -35,6 +35,14 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 class ProductSettlementSerializer(serializers.ModelSerializer):
+    settlement = SettlementSerializer()
+
+    class Meta:
+        model = ProductSettlement
+        fields = '__all__'
+
+
+class ProductSettlementSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductSettlement
@@ -56,7 +64,15 @@ class InboundShipmentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class SimpleOutboundShipmentSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = OutboundShipment
+        fields = '__all__'
+
+
 class OutboundShipmentItemSerializer(serializers.ModelSerializer):
+    shipment = SimpleOutboundShipmentSerializer(read_only=True)
 
     class Meta:
         model = OutboundShipmentItem

@@ -1,16 +1,16 @@
-
+<div ng-controller="ProductEditCtrl">
 <section class="content-header">
-    <h1>
-        添加商品
-    </h1>
+    <h1 ng-hide="isDetail">添加商品</h1>
+    <h1 ng-show="isDetail">商品信息编辑</h1>
 </section>
-<section class="content" ng-controller="ProductEditCtrl">
+<section class="content">
     <div class="row">
         <div class="col-md-12">
             <!-- general form elements -->
             <div class="box box-primary">
                 <div class="box-header with-border">
-                    <h3 class="box-title">添加商品信息</h3>
+                    <h3 class="box-title" ng-hide="isDetail">添加商品信息</h3>
+                    <h3 class="box-title" ng-show="isDetail">修改商品信息</h3>
                 </div>
                 <!-- /.box-header -->
                 <!-- form start -->
@@ -19,7 +19,8 @@
                         <div class="row">
                             <div class="form-group col-sm-3 col-xs-6">
                                 <label >SKU</label>
-                                <input type="text" class="form-control" placeholder="卖家SKU" ng-model="formData.SellerSKU">
+                                <input type="text" class="form-control" placeholder="卖家SKU" ng-model="formData.SellerSKU" ng-if="!isDetail">
+                                <input type="text" class="form-control" placeholder="卖家SKU" ng-model="formData.SellerSKU" readonly ng-if="isDetail">
                             </div>
                             <!--<div class="form-group col-sm-3 col-xs-6">-->
                                 <!--<label>FNSKU</label>-->
@@ -97,86 +98,5 @@
             <!-- /.box -->
         </div>
     </div>
-    <div class="col-md-12" ng-show="isDetail">
-        <!-- general form elements -->
-        <div class="box box-primary">
-            <div class="box-header with-border" ng-click="showSupplies=!showSupplies">
-                <h3 class="box-title">入库货件（至上海）</h3>
-            </div>
-            <!-- /.box-header -->
-            <div class="box-body" ng-show="showSupplies">
-                <table id="inboundShipements" class="table table-bordered table-hover">
-                    <tr>
-                        <th>序号</th>
-                        <th>日期</th>
-                        <th>商品数量</th>
-                        <th>商品单价</th>
-                        <th>运费总结</th>
-                        <th>杂费</th>
-                        <th>杂费说明</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr ng-repeat="p in inbounds"table-repeat-directive>
-                        <td>{{ $index + 1 }}</td>
-                        <td>{{ p.ship_date }}</td>
-                        <td>{{ p.count }}</td>
-                        <td>{{ p.unit_price }}</td>
-                        <td>{{ p.total_freight}}</td>
-                        <td>{{ p.charges }}</td>
-                        <td>{{ p.charges_comment }}</td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
-            <!-- /.box-body -->
-        </div>
-        <!-- /.box -->
-    </div>
-    <div class="col-md-12" ng-show="isDetail">
-        <!-- general form elements -->
-        <div class="box box-primary">
-            <div class="box-header with-border" ng-click="showShipments=!showShipments">
-                <h3 class="box-title">移库货件（至亚马逊）</h3>
-            </div>
-            <!-- /.box-header -->
-            <div class="box-body" ng-show="showShipments">
-                <table id="outboundShipements" class="table table-bordered table-hover">
-                    <tr>
-                        <th>序号</th>
-                        <th>日期</th>
-                        <th>商品单价</th>
-                        <th>商品数量</th>
-                        <th>运费总结</th>
-                        <th>杂费</th>
-                        <th>杂费说明</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr ng-repeat="p in inbounds"table-repeat-directive>
-                        <td>{{ $index + 1 }}</td>
-                        <td>{{ p.ship_date }}</td>
-                        <td>{{ p.count }}</td>
-                        <td>{{ p.unit_price }}</td>
-                        <td>{{ p.total_freight}}</td>
-                        <td>{{ p.charges }}</td>
-                        <td>{{ p.charges_comment }}</td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
-            <!-- /.box-body -->
-        </div>
-        <!-- /.box -->
-    </div>
-    <!--<div ng-include="'templates/product/product_orders.html'" ng-controller="ProductOrdersCtrl"></div>-->
-    <div class="row" style="text-align: center;" ng-show="isDetail">
-        <label>结算周期</label>
-        <div class="form-group" style="width: 200px;display: inline-block">
-            <select class="form-control" ng-model="selectedSettlement" id="settlementSelection">
-                <option ng-repeat="s in settlements" value="{{ s.id }}">{{ s.StartDate}} - {{ s.EndDate }}</option>
-            </select>
-        </div>
-    </div>
-    <div ui-view ng-show="isDetail"></div>
 </section>
+</div>

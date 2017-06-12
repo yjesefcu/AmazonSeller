@@ -1,15 +1,37 @@
+<style>
+    dt{
+        width: 110px !important;
+    }
+    dd{
+        margin-left: 130px !important;
+    }
+    dt,dd{
+        line-height: 2;
+        font-size: 16px;
+    }
+</style>
 <div class="row" ng-controller="settlementDetailCtrl">
     <div class="col-md-12">
         <div class="box box-primary">
             <div class="box-header with-border">
-                <h3 class="box-title">设置基本费用</h3>
+                <h3 class="box-title">结算周期：{{ settlement.StartDate }} - {{ settlement.EndDate }}</h3>
             </div>
             <!-- /.box-header -->
                 <div class="box-body">
                     <div class="row">
+                        <div class="col-sm-6">
+                            <dl class="dl-horizontal">
+                                <dt>收入({{ currency }})</dt>
+                                <dd>{{ settlement.sales_amount }}</dd>
+                                <dt>利润({{ currency }})</dt>
+                                <dd>{{ settlement.profit }}</dd>
+                                <dt>利润率</dt>
+                                <dd>{{ settlement.profit_rate }}</dd>
+                            </dl>
+                        </div>
                         <div class="form-group col-sm-3 col-xs-6">
                             <label >订阅费（将会平均到每个订单上）</label>
-                            <input type="text" class="form-control" placeholder="请输入该结算周期内的订阅费" ng-model="formData.subscribe_fee">
+                            <input type="text" class="form-control" placeholder="请输入该结算周期内的订阅费" ng-model="settlement.subscribe_fee">
                         </div>
                     </div>
                 </div>

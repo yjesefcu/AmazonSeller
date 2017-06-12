@@ -4,16 +4,41 @@
     </h1>
 </section>
 <section class="content" ng-controller="settlementCtrl">
-<!--<div ng-include="'templates/product/product_orders.html'" ng-controller="ProductOrdersCtrl"></div>-->
-<div class="row" style="text-align: center;">
-    <label>结算周期</label>
-    <div class="form-group" style="width: 200px;display: inline-block">
-        <!--<select class="form-control" ng-model="selectedSettlement" id="settlementSelection" ng-init="selectedSettlement=''">-->
-            <!--<option value="">请选择</option>-->
-            <!--<option ng-repeat="s in settlements" value="{{ s.id }}" selected={{s.id == selected}}>{{ s.StartDate}} - {{ s.EndDate }}</option>-->
-        <!--</select>-->
-        <select class="form-control" ng-model="selectedSettlement" ng-options="s.id as s.StartDate + '-' + s.EndDate for s in settlements" ng-selected="selectedSettlement == s.id"></select>
+    <div class="row">
+        <div class="col-md-12">
+            <!-- general form elements -->
+            <div class="box box-primary">
+                <div class="box-header with-border">
+                    <h3 class="box-title">结算记录</h3>
+                </div>
+                <!-- /.box-header -->
+                <div class="box-body">
+                    <table id="overseaTable" class="table table-bordered table-hover">
+                        <thead>
+                        <tr>
+                            <th>日期</th>
+                            <th>收入({{ currency }})</th>
+                            <th>成本({{ currency }})</th>
+                            <th>利润({{ currency }})</th>
+                            <th>利润率</th>
+                            <!--<th>操作</th>-->
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr ng-repeat="s in settlements"table-repeat-directive>
+                            <td><a ui-sref="index.settlement.detail({id: s.id})">{{ s.StartDate }} - {{s.EndDate}}</a></td>
+                            <td>{{ p.sales_amount}}</td>
+                            <td>{{ p.total_cost }}</td>
+                            <td>{{ p.profit }}</td>
+                            <td>{{ p.profit_rate }}</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <!-- /.box-body -->
+            </div>
+            <!-- /.box -->
+        </div>
     </div>
-</div>
 <div ui-view></div>
 </section>

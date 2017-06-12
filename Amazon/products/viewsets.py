@@ -41,9 +41,8 @@ class ProductViewSet(NestedViewSetMixin, ModelViewSet):
     @detail_route(methods=['get'])
     def settlements(self, request, pk):
         product = self.get_object()
-        settlement_id_list = set(list(SettleOrderItem.objects.filter(product=product).values_list('settlement', flat=True)))
-        settlements = Settlement.objects.filter(pk__in=settlement_id_list)
-        serializer = SettlementSerializer(settlements, many=True)
+        settlements = ProductSettlement.objects.filter(product=product)
+        serializer = ProductSettlementSerializer(settlements, many=True)
         return Response(serializer.data)
 
 
@@ -51,6 +50,13 @@ class SupplyViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = InboundShipment.objects.all()
     serializer_class = InboundShipmentSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
+    filter_backends = (DjangoFilterBackend,)
+    filter_fields = ('product',)
+
+
+class ProductShipmentItemViewSet(NestedViewSetMixin, ModelViewSet):
+    queryset = OutboundShipmentItem.objects.all()
+    serializer_class = OutboundShipmentItemSerializer
 
 
 class OrderViewSet(NestedViewSetMixin, ModelViewSet):

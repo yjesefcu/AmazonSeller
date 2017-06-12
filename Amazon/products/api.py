@@ -327,12 +327,11 @@ class SettlementCalc(object):
         items = ProductSettlement.objects.filter(settlement=self.settlement)
         amount = sum([item.sales_amount for item in items])
         cost = sum([item.total_cost for item in items])
-        sp, created = SettlementProfit.objects.get_or_create(settlement=self.settlement)
-        sp.sales_amount = amount
-        sp.total_cost = cost
-        sp.profit = amount - cost
-        sp.profit_rate = sp.profit / sp.sales_amount if sp.sales_amount else 0
-        sp.save()
+        self.settlement.sales_amount = amount
+        self.settlement.total_cost = cost
+        self.settlement.profit = amount - cost
+        self.settlement.profit_rate = self.settlement.profit / amount if amount else 0
+        self.settlement.save()
 
     def calc_product_profit(self, product):
         # 首先更新商品当前单位成本

@@ -199,8 +199,8 @@ class Settlement(models.Model):
     StartDate = models.DateTimeField(null=True, blank=True, verbose_name=u'结算开始日期')
     EndDate = models.DateTimeField(null=True, blank=True, verbose_name=u'结算结束日期')
     subscribe_fee = models.FloatField(null=True, blank=True, verbose_name=u'订阅费') # 手动
-    total_returns = models.FloatField(null=True, blank=True, verbose_name=u'总收入')   # 计算
-    sold_account = models.IntegerField(null=True, blank=True, verbose_name=u'销售数量') # 计算
+    sales_amount = models.FloatField(null=True, blank=True, verbose_name=u'总收入')   # 计算
+    quantity = models.IntegerField(null=True, blank=True, verbose_name=u'销售数量')           # 销售数量
     total_cost = models.FloatField(null=True, blank=True, verbose_name=u'总成本')      # 计算
     profit = models.FloatField(null=True, blank=True, verbose_name=u'利润')           # 计算
     profit_rate = models.FloatField(null=True, blank=True, verbose_name=u'利润率')     # 计算
@@ -219,15 +219,15 @@ class ProductSettlement(models.Model):
     total_cost = models.FloatField(null=True, blank=True)           # 总成本
     profit = models.FloatField(null=True, blank=True, verbose_name=u'利润')
     profit_rate = models.FloatField(null=True, blank=True, verbose_name=u'利润率')
-
-
-class SettlementProfit(models.Model):
-    settlement = models.ForeignKey(Settlement)
-    subscribe_fee = models.FloatField(null=True, blank=True, default=0, verbose_name=u'订阅费')
-    sales_amount = models.FloatField(null=True, blank=True)         # 总销售
-    total_cost = models.FloatField(null=True, blank=True)           # 总成本
-    profit = models.FloatField(null=True, blank=True, verbose_name=u'利润')
-    profit_rate = models.FloatField(null=True, blank=True, verbose_name=u'利润率')
+#
+#
+# class SettlementProfit(models.Model):
+#     settlement = models.ForeignKey(Settlement)
+#     subscribe_fee = models.FloatField(null=True, blank=True, default=0, verbose_name=u'订阅费')
+#     sales_amount = models.FloatField(null=True, blank=True)         # 总销售
+#     total_cost = models.FloatField(null=True, blank=True)           # 总成本
+#     profit = models.FloatField(null=True, blank=True, verbose_name=u'利润')
+#     profit_rate = models.FloatField(null=True, blank=True, verbose_name=u'利润率')
 
 
 class Refund(models.Model):

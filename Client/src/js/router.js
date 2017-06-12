@@ -1,6 +1,6 @@
 
 app.config(['$stateProvider', '$urlRouterProvider', function($stateProvider, $urlRouterProvider) {
-    $urlRouterProvider.otherwise('/');
+    $urlRouterProvider.otherwise('/products');
 
     $stateProvider
         .state('index', {
@@ -19,6 +19,10 @@ app.config(['$stateProvider', '$urlRouterProvider', function($stateProvider, $ur
         })
         .state('index.productDetail', {
             url: 'product/:id',
+            templateUrl: 'templates/product/product_detail.html'
+        })
+        .state('index.productDetailEdit', {
+            url: 'product/:id/edit',
             templateUrl: 'templates/product/product_edit.html'
         })
         .state('index.productDetail.settlement', {

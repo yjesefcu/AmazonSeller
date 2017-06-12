@@ -1,6 +1,9 @@
 html,body,body>.wrapper{
   height: 100% !important;
 }
+.content-wrapper{
+   min-height: 100% !important;
+}
 .index1 {
   background-color: red;
 }

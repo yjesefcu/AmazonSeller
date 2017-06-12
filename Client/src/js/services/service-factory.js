@@ -20,8 +20,11 @@ app.factory('serviceFactory', function ($rootScope) {
     services.getProductDetail = function (id) {
         return host + '/api/products/' + id + '/';
     };
-    services.getProductInbounds = function (productId) {
+    services.getProductSupply = function (productId) {
         return host + '/api/products/' + productId + '/supply/';
+    };
+    services.getProductShipments = function (productId) {
+        return host + '/api/products/' + productId + '/shipments/';
     };
     services.getProductOrders = function (id) {
         return host + '/api/products/' + id + '/orders';
@@ -37,6 +40,9 @@ app.factory('serviceFactory', function ($rootScope) {
     };
     services.settlements = function () {
         return host + '/api/settlements/';
+    };
+    services.settlementDetail = function (id) {
+        return host + '/api/settlements/' + id + '/';
     };
     services.settlementProducts = function (settlementId) {
         return host + '/api/settlements/' + settlementId + '/products/';

@@ -25,6 +25,11 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
 app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $stateParams, serviceFactory) {
     var settlementId = $stateParams.id;
     $scope.products = [];
+    $scope.settlement = {};
+    $http.get(serviceFactory.settlementDetail(settlementId))
+        .then(function (result) {
+             $scope.settlement = result.data;
+        });
     $http.get(serviceFactory.settlementProducts(settlementId))
         .then(function (result) {
             $scope.products = result.data;

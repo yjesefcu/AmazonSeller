@@ -1,9 +1,12 @@
 #-*- coding:utf-8 -*-
 __author__ = 'liucaiyun'
-import datetime
+import datetime, logging
 from amazon_services.service import *
 from amazon_services.models import MarketAccount
 from api import *
+
+
+logger = logging.getLogger('product')
 
 
 DT_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
@@ -76,20 +79,32 @@ def update_settlement(market=None):
                 handler.update_advertising_transaction_to_db(settlement, item)
 
 
-def update_inventories(settlement):
+def update_inventories(market, settlement):
     """
     同步退货信息
     :param market:
     """
-    for settlement in Settlement.objects.filter(returns__isnull=True):
-        service = InventorySummaryService()
-        request_report_id = service.request_report(settlement.StartDate, settlement.EndDate)
-        print 'update_inventories: request report id: %s' % request_report_id
-        time.sleep(60)
-        inventories = service.get_by_request_id(request_report_id)
-        # inventories = service.get_by_report_id('5396817722017327')
-        if inventories:
-            for one in inventories:
-                if one['type'] == 'CustomerReturns':
-                    update_returns_to_db(settlement, one)
+    if settlement.returns.exists():
+        logger.info('product returns of settlement exists: %s-%s', settlement.StartDate, settlement.EndDate)
+        return
+    logger.info('start update product returns of settlement: %s-%s', settlement.StartDate, settlement.EndDate)
+    service = InventorySummaryService(market)
+    request_report_id = service.request_report(settlement.StartDate, settlement.EndDate)
+    logger.info('update_inventories: request report id: %s', request_report_id)
+    time.sleep(60)
+    inventories = service.get_by_request_id(request_report_id)
+    # inventories = service.get_by_report_id('5396817722017327')
+    if inventories:
+        for one in inventories:
+            if one['type'] in ['CustomerReturns', 'Adjustments']:
+                update_returns_to_db(settlement, one)
 
+
+
+def update_all(market):
+    # 总的更新入口
+    update_settlement(market)
+    settlement = Settlement.objects.filter(returns__isnull=True).first()
+    if settlement:
+        update_inventories(market, settlement)
+    update_product(market)
