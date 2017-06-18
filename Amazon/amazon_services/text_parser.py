@@ -29,15 +29,48 @@ class InventorySummaryParser(BaseTextParser):
     def _parse(self):
 
         for item in self.lines:
-            d, t, sku, fulfillment_id, quantity, disposition = item
+            d, id, type, status, update_date, sku, fnsku, disposition, quantity, cancled, disposed_quantity, \
+            shipped_quantity, in_progress_quantity, fee, currency = item
             self.items.append({
-                'snapshot_date': d,
-                'type': t,
+                'RequestDate': d,
+                'UpdateDate': update_date,
+                'OrderId': id,
+                'OrderStatus': status,
                 'SellerSKU': sku,
-                'quantity': quantity,
-                'disposition': disposition
+                'FNSKU': fnsku,
+                'Quantity': quantity,
+                'Disposition': disposition,
+                'Fee': fee
             })
 
+
+class ProductRemovalParser(BaseTextParser):
+    """
+    商品移除表
+    """
+    def _parse(self):
+        for item in self.lines:
+            start_date, end_date, merchant, sku, clicks, impressions, ctr, currency, total_spend, avg = item
+            self.items.append({
+                'StartDate': start_date,
+                'EndDate': end_date,
+                'SellerSKU': sku,
+                'TotalSpend': total_spend
+            })
+
+
+class AdvertisingParser(BaseTextParser):
+    # 广告业绩表
+    def _parse(self):
+        for item in self.lines:
+            if item and len(item) > 9:
+                start_date, end_date, merchant, sku, clicks, impressions, ctr, currency, total_spend, avg = item
+                self.items.append({
+                    'StartDate': start_date,
+                    'EndDate': end_date,
+                    'SellerSKU': sku,
+                    'TotalSpend': total_spend
+                })
 
 
 if __name__ == '__main__':

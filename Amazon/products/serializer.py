@@ -4,6 +4,14 @@ from rest_framework import serializers
 from models import *
 
 
+class FloatRoundField(serializers.FloatField):
+
+    def to_representation(self, value):
+        if not value:
+            return value
+        return round(value, 2)
+
+
 class DateTimeFormat(serializers.DateTimeField):
 
     def to_representation(self, value):
@@ -21,6 +29,9 @@ class DateFormat(serializers.DateTimeField):
 class SettlementSerializer(serializers.ModelSerializer):
     StartDate = DateFormat()
     EndDate = DateFormat()
+    profit = FloatRoundField()
+    sales_amount = FloatRoundField()
+    total_cost = FloatRoundField()
 
     class Meta:
         model = Settlement
@@ -36,13 +47,9 @@ class ProductSerializer(serializers.ModelSerializer):
 
 class ProductSettlementSerializer(serializers.ModelSerializer):
     settlement = SettlementSerializer()
-
-    class Meta:
-        model = ProductSettlement
-        fields = '__all__'
-
-
-class ProductSettlementSerializer(serializers.ModelSerializer):
+    profit = FloatRoundField()
+    sales_amount = FloatRoundField()
+    total_cost = FloatRoundField()
 
     class Meta:
         model = ProductSettlement

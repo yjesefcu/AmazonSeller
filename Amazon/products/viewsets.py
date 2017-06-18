@@ -165,8 +165,9 @@ class OutboundShipmentViewSet(NestedViewSetMixin, ModelViewSet):
         for item in data:
             product = Product.objects.get(SellerSKU=item['SellerSKU'])
             # 计算体积重
-            item['volume_weight'] = float(item['package_width']) * float(item['package_length']) * \
-                                    float(item['package_height']) / float(5000)
+            item['volume_weight'] = round(float(item['package_width']) * float(item['package_length']) * \
+                                    float(item['package_height']) / float(5000), 2)
+
             # 计算总运费
             item['total_freight'] = max(float(item['volume_weight']), float(item['package_weight'])) * \
                                     (1 + float(item['fuel_tax'])) * float(item['unit_freight']) * int(item['QuantityShipped'])

@@ -40,6 +40,7 @@ INSTALLED_APPS = (
     'rest_framework',
     'rest_framework_extensions',
     'django_filters',
+    'dateutil',
     'dcors',
     'products',
 )

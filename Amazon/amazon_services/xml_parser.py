@@ -370,9 +370,23 @@ class SettlementReportParser(BaseParser):
         transaction['PostedDate'] = self.find(element, 'PostedDate').text
         transaction['Amount'] = self.find(element, 'Amount').text
         if self.findall(element, 'Fees/Fee') is not None:
+            fees = list()
             for fee in self.findall(element, 'Fees/Fee'):
-                t = ''.join(self.find(fee, 'Type').text.split(' '))
-                transaction[t] = self.find(fee, 'Amount').text
+                fees.append({
+                    'Type': self.find(fee, 'Type').text,
+                    'Amount': self.find(fee, 'Amount').text
+                })
+                transaction['fees'] = fees
+        if self.findall(element, 'OtherTransactionItem') is not None:
+            # 服务子项，一般指赔偿类
+            items = list()
+            for item in self.findall(element, 'OtherTransactionItem'):
+                items.append({
+                    'SellerSKU': self.find(item, 'SKU').text,
+                    'Quantity': self.find('item', 'Quantity').text,
+                    'Amount': self.find('item', 'Amount').text
+                })
+                transaction['items'] = items
         return transaction
 
     def _parse_deal_payment(self, element):

@@ -3,3 +3,4 @@ djangorestframework
 drf-extensions
 django-dcors
 django-filter
+py-dateutil

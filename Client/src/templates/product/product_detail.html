@@ -63,7 +63,7 @@
         <!-- general form elements -->
         <div class="box box-primary">
             <div class="box-header with-border" ng-click="showSupplies=!showSupplies">
-                <h3 class="box-title">入库货件（至上海）</h3>
+                <h3 class="box-title">入库货件（{{supplies.length}}）</h3>
             </div>
             <!-- /.box-header -->
             <div class="box-body" ng-show="showSupplies">
@@ -101,7 +101,7 @@
         <!-- general form elements -->
         <div class="box box-primary">
             <div class="box-header with-border" ng-click="showShipments=!showShipments">
-                <h3 class="box-title">移库货件（至亚马逊）</h3>
+                <h3 class="box-title">移库货件({{shipments.length}}）</h3>
             </div>
             <!-- /.box-header -->
             <div class="box-body" ng-show="showShipments">
@@ -143,7 +143,7 @@
         <!-- general form elements -->
         <div class="box box-primary">
             <div class="box-header with-border" ng-click="showSettlements=!showSettlements">
-                <h3 class="box-title">结算记录</h3>
+                <h3 class="box-title">结算记录({{settlements.length}})</h3>
             </div>
             <!-- /.box-header -->
             <div class="box-body" ng-show="showSettlements">

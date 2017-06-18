@@ -1,11 +1,11 @@
 #-*- coding:utf-8 -*-
 __author__ = 'liucaiyun'
-import requests, urllib, base64, hmac, hashlib, traceback, time, logging, threading, Queue
+import requests, urllib, base64, hmac, hashlib, traceback, time, logging, threading, Queue, json
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import datetime
 from xml_parser import *
 from text_parser import *
-# from models import RequestRecords
+from models import RequestRecords, ReportRequestRecord
 logger = logging.getLogger('amazon')
 # 禁用安全请求警告
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -88,23 +88,23 @@ class AmazonService(object):
         if not self.market:     #  如果market为空，说明是调试信息，则不保存
             return
         errors = None
-        # try:
-        #     parser = BaseParser(response_text)
-        #     if parser.is_error_response():
-        #         errors = ', '.join([i for i in parser.errors()])
-        #         result = RequestRecords.FAIL
-        #     else:
-        #         result = RequestRecords.SUCCESS
-        # except Exception, ex:
-        #     traceback.format_exc()
-        #     logger.warning('xml parser fail: %s', response_text)
-        #     result = RequestRecords.PARSER_FAIL
-        # try:
-        #     RequestRecords.objects.create(market=self.market, uri=uri, action=action, param=param,
-        #                                   create_time=datetime.datetime.now(), sent_time=datetime.datetime.now(),
-        #                                   result=result, errors=errors)
-        # except BaseException, ex:
-        #     logger.warning('create RequestRecord failed: %s', traceback.format_exc())
+        try:
+            parser = BaseParser(response_text)
+            if parser.is_error_response():
+                errors = ', '.join([i for i in parser.errors()])
+                result = RequestRecords.FAIL
+            else:
+                result = RequestRecords.SUCCESS
+        except Exception, ex:
+            traceback.format_exc()
+            logger.warning('xml parser fail: %s', response_text)
+            result = RequestRecords.PARSER_FAIL
+        try:
+            RequestRecords.objects.create(market=self.market, uri=uri, action=action, params=json.dumps(param),
+                                          create_time=datetime.datetime.now(), sent_time=datetime.datetime.now(),
+                                          result=result, errors=errors)
+        except BaseException, ex:
+            logger.warning('create RequestRecord failed: %s', traceback.format_exc())
 
     def create_signature(self, uri, params):
         """
@@ -290,41 +290,78 @@ class SettlementReportService(AmazonService):
         return 30
 
 
-class InventorySummaryService(AmazonService):
+class BaseReportService(AmazonService):
 
-    def request_report(self, start_time, end_time):
+    def request_report(self, report_type, start_time=None, end_time=None):
         """
         请求报告
+        :param report_type: 报告类型
+        :param start_time: 报告的起始时间
+        :param end_time: 报告的截止时间
+        :return: RequestReportId
+        """
+        # 如果数据库中已有记录，则不重复请求
+        try:
+            exist_request = ReportRequestRecord.objects.get(report_type=report_type, start_time=start_time, end_time=end_time)
+            return exist_request.request_report_id
+        except ReportRequestRecord.DoesNotExist, ex:
+            pass
+        param = {
+            'ReportType': report_type
+        }
+        if start_time:
+            param['StartDate'] = start_time.strftime(DT_FORMAT)
+        if end_time:
+            param['EndDate'] = end_time.strftime(DT_FORMAT)
+        logger.info('Start request report, type=%s, StartDate:%s, EndDate:%s', report_type, start_time, end_time)
+        r = self.post('/', 'RequestReport', param, api_version='2009-01-01')
+        request_report_id = RequestReportParser(r.text).get_report_id()
+        ReportRequestRecord.objects.create(report_type=report_type, start_time=start_time, end_time=end_time,
+                                           request_time=datetime.datetime.now(), request_report_id=request_report_id)
+        logger.info('end request report, type=%s, StartDate:%s, EndDate:%s, RequestReportId:%s',
+                    report_type, start_time, end_time, request_report_id)
+        return request_report_id
+
+    def _check_report_done(self, report_type, request_report_id, max_try=3, interval=60):
+        """
+        检查报告是否生成
+        :param report_type: 报告类型
+        :param request_report_id: 请求id
+        :param max_try: 最多尝试次数
+        :param interval: 每次等待的间隔时间
+        :return: 返回reportID，如果尝试max_try次以后还未生成报告，则返回None
+        """
+        # 如果数据库中已存在，则不重复请求
+        try:
+            exist_request = ReportRequestRecord.objects.get(report_type=report_type, request_report_id=request_report_id)
+            if exist_request.report_id:
+                return exist_request.report_id
+        except ReportRequestRecord.DoesNotExist, ex:
+            pass
+        time.sleep(interval)
+        report_id = self._get_report_id(report_type, request_report_id)
+        count = 1
+        while not report_id and count < max_try:
+            time.sleep(interval)
+            report_id = self._get_report_id(report_type, request_report_id)
+            count += 1
+        if report_id:
+            try:
+                rrr = ReportRequestRecord.objects.get(request_report_id=request_report_id)
+                rrr.report_id = report_id
+                rrr.save()
+            except ReportRequestRecord.DoesNotExist, ex:
+                logger.warning('ReportRequestRecord with request report id: %s does not exist')
+        return report_id
+
+    def _get_report_id(self, report_type, request_report_id):
+        """
+        获取报告id，如果报告未生成，则返回Node
+        :param request_report_id:
         :return:
         """
-        r = self.post('/', 'RequestReport', {
-            'ReportType': '_GET_FBA_FULFILLMENT_INVENTORY_SUMMARY_DATA_',
-            'StartDate': start_time.strftime(DT_FORMAT),
-            'EndDate': end_time.strftime(DT_FORMAT)
-        }, api_version='2009-01-01')
-        return RequestReportParser(r.text).get_report_id()
-
-    def get_by_request_id(self, request_report_id):
-        # 如果十分钟内还没恢复，则不再请求
-        count = 0
-        report_id = self._check_report_done(request_report_id)
-        while not report_id and count < 10:
-            time.sleep(60)
-            report_id = self._check_report_done(request_report_id)
-        if count == 10:
-            return None
-        return self.get_by_report_id(report_id)
-
-    def get_by_report_id(self, report_id):
-        r = self.post('/', 'GetReport', {
-            'ReportId': report_id
-        }, api_version='2009-01-01')
-        parser = InventorySummaryParser(r.text)
-        return parser.get_items()
-
-    def _check_report_done(self, report_id):
         r = self.post('/', 'GetReportList', {
-            'ReportTypeList.Type.1': '_GET_FBA_FULFILLMENT_INVENTORY_SUMMARY_DATA_'
+            'ReportTypeList.Type.1': report_type
         }, api_version='2009-01-01')
         try:
             parser = ReportListParser(r.text)
@@ -336,31 +373,84 @@ class InventorySummaryService(AmazonService):
         items = parser.get_items()
         # 如果report_id在reportList中存在，说明报告已经准备好了
         for report in items:
-            if report['ReportRequestId'] == report_id:
+            if report['ReportRequestId'] == request_report_id:
                 return report['ReportId']
-        return False
+        return None
 
-    def get_one(self, report_id):
+    def get_by_report_id(self, report_id):
         """
-        根据ReportId获取单个报告的xml信息
+        获取报告内容
         :param report_id:
+        :return: 返回response对象
         """
+        logger.info('Start get report by ReportId:　%s', report_id)
         r = self.post('/', 'GetReport', {
             'ReportId': report_id
         }, api_version='2009-01-01')
-
-        try:
-            parser = SettlementReportParser(r.text)
-        except Exception, ex:
-            traceback.format_exc()
-            logger.warning('SettlementReport parse failed: %s', r.text)
-            return None
-        # 不获取NextToken的值
-        items = parser.get_items()
-        return items
+        logger.info('End get report by ReportId:　%s', report_id)
+        return r
 
     def _get_api_interval_time(self):
-        return 0
+        return 60
+
+
+class InventorySummaryService(BaseReportService):
+
+    def get_inventory(self, start_time, end_time):
+        request_report_id = self.request_report('_GET_FBA_FULFILLMENT_INVENTORY_SUMMARY_DATA_', start_time, end_time)
+        report_id = self._check_report_done('_GET_FBA_FULFILLMENT_INVENTORY_SUMMARY_DATA_', request_report_id)
+        if report_id:
+            r = self.get_by_report_id(report_id)
+            parser = InventorySummaryParser(r.text)
+            return parser.get_items()
+        return None
+
+
+class AdvertiseReportService(BaseReportService):
+    """
+    广告账单报告
+    """
+
+    def get_by_day(self, day):
+        """
+        请求广告日报告
+        """
+        return self._get_advertising_report('_GET_PADS_PRODUCT_PERFORMANCE_OVER_TIME_DAILY_DATA_TSV_', day)
+
+    def get_by_week(self, start_day):
+        """
+        请求广告周报告，起始时间必须是周日
+        day：起始时间，必须是周日
+        """
+        return self._get_advertising_report('_GET_PADS_PRODUCT_PERFORMANCE_OVER_TIME_WEEKLY_DATA_TSV_', start_day)
+
+    def _get_advertising_report(self, report_type, start_day):
+        """
+        :param type: 类型
+        :param start_day: 时间
+        """
+        request_report_id = self.request_report(report_type, start_day)
+        report_id = self._check_report_done(report_type, request_report_id)
+        if report_id:
+            r = self.get_by_report_id(report_id)
+            parser = AdvertisingParser(r.text)
+            return parser.get_items()
+        return None
+
+
+class ProductRemovalReportService(BaseReportService):
+
+    def get_list(self, start_time, end_time):
+        # 获取移除列表
+        request_type = '_GET_FBA_FULFILLMENT_REMOVAL_ORDER_DETAIL_DATA_'
+        request_report_id = self.request_report(request_type, start_time, end_time)
+        report_id = self._check_report_done(request_type, request_report_id)
+        if report_id:
+            r = self.get_by_report_id(report_id)
+            parser = ProductRemovalParser(r.text)
+            return parser.get_items()
+        return None
+
 
 if __name__ == '__main__':
     # token = 'pXPDw7T+Fup/YYuZQbKv1QafEPREmauvizt1MIhPYZbaSgEpfAaYkXTkBHvJ93W/XVvMiz84ZXbNeGyEmOrLe7q8xqAchQNKtU38YwqRuVIwqcbUqh/LhCJ0wMvlylZkE3RvwDUQBA1G6ShfNgiExkSDtsD4aPvQcv0UYHXV8K5jpIXqERozsh35jNz11rwFKFx4/9h+5BG5ki8QZ/nAov0IfGeAvb95J/gMIjfO756fpVJGS+vu5pFHMXy6XL5lQW8Xd/Zkc1SuQyquFjSkBowoP8liP7H3sJdJobvDtjbZkLh8ZQWZdmTZrNwXH6VTGi/TbfXVDR7tObdzBnmaYnGsHLYYIfzBGxpr1p/cLrO96kATpJ2Ci+OjokijmI8Bbe7jhwcQGngpvkbRUhFumapDFyJ4Aaz0lmrLJ6gfmjoSyoYkkmy7z4+envNcHi41tHdkruHJ4Z15itQRr/9F9A=='

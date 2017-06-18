@@ -10,6 +10,13 @@ from models import *
 logger = logging.getLogger('product')
 
 
+def get_float(data, key):
+    value = data.get(key)
+    if not value:
+        return 0
+    return float(value)
+
+
 class OrderStatus(enumerate):
     Pending = 'Pending'     # 等待付款
     Canceled = 'Canceled'   # 订单取消
@@ -219,12 +226,26 @@ class SettlementDbHandler(object):
                                                          MarketplaceId=self.MarketplaceId)
         data['product'] = product
         data['SellerSKU'] = product.SellerSKU
+        # 获取该订单的商品数量、以及退款的总额
+        try:
+            soi = SettleOrderItem.objects.get(OrderItemId=data['OrderItemId'])
+            data['quantity'] = soi.Quantity
+        except SettleOrderItem.DoesNotExist, ex:
+            pass
+        data['amount'] = get_float(data, 'Principal') + get_float(data, 'Shipping') + get_float(data, 'Commission') + \
+                         get_float(data, 'RefundCommission') + get_float(data, 'PromotionPrincipal') + \
+                         get_float(data, 'PromotionShipping') + get_float(data, 'ShippingChargeback') + \
+                         get_float(data, 'ShippingChargeback')
         return RefundItem.objects.create(**data)
 
     def update_transaction_to_db(self, settlement, data):
         if not data:
             return None
         try:
+            fees = data.get('fees', None)
+            items = data.get('items', None)
+            del data['fees']
+            del data['items']
             obj = OtherTransaction.objects.get(settlement=settlement, TransactionID=data['TransactionID'])
             print 'OtherTransaction exist:　%s' % json.dumps(data)
             return obj
@@ -233,6 +254,19 @@ class SettlementDbHandler(object):
         data['MarketplaceId'] = self.MarketplaceId
         data['settlement'] = settlement
         return OtherTransaction.objects.create(**data)
+
+    def _update_transaction_fees_to_db(self, transaction, data):
+        fields = ['MarketplaceId', 'TransactionID', 'AmazonOrderId', 'TransactionType', 'PostedDate']
+        for field in fields:
+            data[field] = getattr(transaction, field)
+        OtherTransactionFee.objects.create(transaction=transaction, settlement=transaction.settlement, **data)
+
+    def _update_transaction_items_to_db(self, transaction, data):
+        fields = ['MarketplaceId', 'TransactionID', 'AmazonOrderId', 'TransactionType', 'PostedDate']
+        for field in fields:
+            data[field] = getattr(transaction, field)
+        product, created = Product.objects.get_or_create(MarketplaceId=transaction.MarketplaceId, SellerSKU=data['SellerSKU'])
+        OtherTransactionItem.objects.create(transaction=transaction, settlement=transaction.settlement, product=product, **data)
 
     def update_deal_payment_to_db(self, settlement, data):
         if not data:
@@ -259,6 +293,40 @@ class SettlementDbHandler(object):
         data['MarketplaceId'] = self.MarketplaceId
         data['settlement'] = settlement
         return AdvertisingTransactionDetails.objects.create(**data)
+
+
+class RemovalDbHandler(object):
+
+    def update_to_db(self, settlement, data):
+        for item in data:
+            item['settlement'] = settlement
+            item['MarketplaceId'] = settlement.MarketplaceId
+            product, created = Product.objects.get_or_create(SellerSKU=item['SellerSKU'], MarketplaceId=settlement.MarketplaceId)
+            item['product'] = product
+            item['Fee'] = -float(item['Fee'])
+            ProductRemovalItem.objects.create(**item)
+
+
+def update_product_advertising_to_db(settlement, data):
+    """
+    同步广告业绩报告数据到数据库
+    :param settlement:
+    :param data:
+    """
+    def _format_datetime(d):
+        if d.endswith('PDT'):
+            return d[0: len(d)-4]
+        return d
+
+    for item in data:
+        item['MarketplaceId'] = settlement.MarketplaceId
+        item['settlement'] = settlement
+        item['StartDate'] = _format_datetime(item['StartDate'])
+        item['EndDate'] = _format_datetime(item['EndDate'])
+        product, created = Product.objects.get_or_create(MarketplaceId=settlement.MarketplaceId, SellerSKU=item['SellerSKU'])
+        item['product'] = product
+        item['cost'] = -float(item['TotalSpend'])
+        AdvertisingProductItems.objects.create(**item)
 
 
 #################  成本计算 ####################
@@ -318,6 +386,7 @@ class SettlementCalc(object):
 
     def __init__(self, settlement):
         self.settlement = settlement
+        self.sale_quantity = 0       # 周期内库存数量的更新数量
 
     def calc_settlement(self):
         """
@@ -329,22 +398,23 @@ class SettlementCalc(object):
         cost = sum([item.total_cost for item in items])
         self.settlement.sales_amount = amount
         self.settlement.total_cost = cost
-        self.settlement.profit = amount - cost
+        self.settlement.profit = amount + cost
         self.settlement.profit_rate = self.settlement.profit / amount if amount else 0
         self.settlement.save()
 
     def calc_product_profit(self, product):
         # 首先更新商品当前单位成本
+        self.inventory_change = 0       # 每个商品计算时都先清零
         CostCalculate.calc_current_cost(product)
-        q1, a1, c1 = self._calc_with_orders(product)
-        q2, a2, c2 = self._calc_with_refunds(product)
+        a1, c1 = self._calc_with_orders(product)
+        a2, c2 = self._calc_with_refunds(product)
         # 更新库存
-        self._update_inventory(product, q1-q2)
+        self._update_inventory(product, self.inventory_change)
         ps, created = ProductSettlement.objects.get_or_create(settlement=self.settlement, product=product)
-        ps.quantity = q1
+        ps.quantity = self.inventory_change
         ps.sales_amount = a1 + a2
         ps.total_cost = c1 + c2 + ps.advertising_fee + ps.storage_fee
-        ps.profit = ps.sales_amount - ps.total_cost
+        ps.profit = ps.sales_amount + ps.total_cost
         ps.profit_rate = ps.profit / ps.sales_amount if ps.sales_amount else 0
         ps.save()
 
@@ -375,6 +445,7 @@ class SettlementCalc(object):
             cost_amount += self._calc_order_cost(product, order)
             principal_amount += order.Amount
             quantity += order.Quantity
+        self.inventory_change += quantity
         return quantity, principal_amount, cost_amount
 
     def _calc_with_refunds(self, product):
@@ -392,27 +463,66 @@ class SettlementCalc(object):
             except SettleOrderItem.DoesNotExist, ex:
                 logger.warning('cannot find refund order: %s', refund.OrderItemId)
                 order = None
-            refund.amount = order.Principal + order.Shipping + order.Commission + order.RefundCommission + \
-                           order.PromotionPrincipal + order.PromotionShipping + order.ShippingChargeback + order.RestockingFee
-            refund.cost = order.cost if order else 0
-            refund.quantity = order.Quantity if order else 1
+            if order:
+                refund.cost = -order.cost
             refund.save()
             quantity += refund.quantity
-            amount = refund.amount
-            cost = refund.cost
+            amount += refund.amount
+            cost += refund.cost
+        self.inventory_change -= quantity
         return quantity, amount, cost
+
+    def _calc_with_transactions(self):
+        pass
+
+    def _handle_removal_or_disposal(self):
+        # 弃置或移除，处理方式：成本+弃置费
+        items = ProductRemovalItem.objects.filter(settlement=self.settlement)
+        for item in items:
+            item.cost = -item.product.cost
+            item.profit = item.Fee + item.cost
+            item.save()
+            self.inventory_change += item.Quantity  # 更新库存，相当于销售了
+
+    def _handle_lost(self):
+        # 仓库丢失或费用更正
+        items = OtherTransactionItem.objects.filter(settlement=self.settlement)
+        for item in items:
+            if item.TransactionType in ['WAREHOUSE_LOST', 'WAREHOUSE_LOST_MANUAL',
+                                        'MISSING_FROM_INBOUND', 'REVERSAL_REIMBURSEMENT']: # 仓库丢失，Inbound时丢失，退货丢失
+                # 丢失的商品按销售处理
+                item.cost = -item.product.cost
+                item.profit = item.Amount + item.total_cost
+                item.save()
+                self.inventory_change += item.Quantity  # 更新库存，相当于销售了
+            elif item.TransactionType == 'INCORRECT_FEES_ITEMS':    # 费用更正
+                item.profit = item.Amount
+                item.save()
+            else:
+                logger.error('_handle_disposal_and_removal: item TransactionType is not handled: %s', item.TransactionType)
 
     def _handle_returns(self, product):
         """
         处理退货
         :param product:
         """
-        values = ProductReturn.objects.filter(product=product, settlement=self.settlement).values_list('quantity', flat=True)
+        # 计算顾客退货且可销售的商品数量
+        values = ProductReturn.objects.filter(product=product, settlement=self.settlement, type='CustomerReturns',
+                                              disposition='SELLABLE').values_list('quantity', flat=True)
         total = sum(list(values))
-        if not total:
-            return
-        # 将退货数量补充到国内库存、国外库存
-        self._update_inventory(product, total)
+        product.custom_return_quantity = total
+        # 计算顾客退货且损坏的商品数量
+        values = ProductReturn.objects.filter(product=product, settlement=self.settlement, type='CustomerReturns',
+                                              disposition='CUSTOMER_DAMAGED').values_list('quantity', flat=True)
+        total = sum(list(values))
+        product.custom_damage_quantity = total
+        # 计算顾客退货且可销售的商品数量
+        values = ProductReturn.objects.filter(product=product, settlement=self.settlement, type='Adjustments')\
+            .values_list('quantity', flat=True)
+        total = sum(list(values))
+        product.return_quantity = total
+        # # 将退货数量补充到国内库存、国外库存
+        # self._update_inventory(product, total)
 
     def _update_inventory(self, product, count):
         """
@@ -458,8 +568,8 @@ class SettlementCalc(object):
         if not order.Principal:
             logger.info('order %s principal is None or 0', order.AmazonOrderId)
             return
-        order.inbound_fee = product.domestic_cost * order.Quantity
-        order.outbound_fee = product.oversea_cost * order.Quantity
+        order.inbound_fee = -product.domestic_cost * order.Quantity
+        order.outbound_fee = -product.oversea_cost * order.Quantity
         order.cost = (order.subscription_fee + order.inbound_fee + order.outbound_fee) * order.Quantity
         order.save()
         return order.cost

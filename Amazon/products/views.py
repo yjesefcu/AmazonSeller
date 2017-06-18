@@ -5,6 +5,7 @@ from django.shortcuts import render
 from django.http import HttpResponse
 from django.conf import settings
 from api import create_image_path
+from amazon_services.models import MarketAccount
 from models import *
 
 
@@ -22,12 +23,11 @@ def image_upload(request):
 
 
 def sync_orders(request):
-    from sync_handler import update_orders, update_product, update_settlement, update_inventories
-    d = datetime.datetime.now() - datetime.timedelta(days=30)
-    # update_orders(None, d)
-    # update_settlement(None)
-    # update_product(None)
-    settlement = Settlement.objects.all().first()
-    update_inventories(settlement)
+    from sync_handler import update_all
+    market_place_id = request.GET.get('MarketplaceId')
+    if not market_place_id:
+        market_place_id = 'ATVPDKIKX0DER'
+    market = MarketAccount.objects.get(MarketplaceId=market_place_id)
+    update_all(market)
 
     return HttpResponse('success')

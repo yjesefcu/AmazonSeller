@@ -76,3 +76,13 @@ class RequestRecords(models.Model):
     sent_time = models.DateTimeField(null=True, blank=True)   # 请求实际发送的时间
     result = models.IntegerField(default=0)     # 请求结果，0：成功，1：失败
     errors = models.TextField(null=True, blank=True)    # 失败信息
+
+
+class ReportRequestRecord(models.Model):
+
+    report_type = models.CharField(max_length=100)
+    start_time = models.DateTimeField(null=True, blank=True)
+    end_time = models.DateTimeField(null=True, blank=True)
+    request_time = models.DateTimeField()       # 请求发起的时间
+    request_report_id = models.CharField(max_length=50)
+    report_id = models.CharField(max_length=50, null=True, blank=True)
