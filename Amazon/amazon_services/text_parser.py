@@ -9,8 +9,19 @@ class BaseTextParser(object):
 
     def __init__(self, s):
         self.lines = list()
-        for l in s.split('\r\n')[1:]:
-            self.lines.append(tuple(l.strip().split('\t')))
+        lines = s.split('\r\n')
+        # 第一行作为关键字
+        keys = lines[0].strip().split('\t')
+        for l in lines[1:]:
+            values = l.strip().split('\t')
+            if len(values) < len(keys):
+                continue
+            i = 0
+            item = dict()
+            while i < len(keys):
+                item[keys[i]] = values[i]
+                i += 1
+            self.lines.append(item)
         self.items = list()
         self._parse()
 
@@ -29,18 +40,13 @@ class InventorySummaryParser(BaseTextParser):
     def _parse(self):
 
         for item in self.lines:
-            d, id, type, status, update_date, sku, fnsku, disposition, quantity, cancled, disposed_quantity, \
-            shipped_quantity, in_progress_quantity, fee, currency = item
+            snap_date, transaction_type, sku, fulfillment, quantity, disposition = item
             self.items.append({
-                'RequestDate': d,
-                'UpdateDate': update_date,
-                'OrderId': id,
-                'OrderStatus': status,
+                'UpdateDate': snap_date,
+                'TransactionType': transaction_type,
                 'SellerSKU': sku,
-                'FNSKU': fnsku,
                 'Quantity': quantity,
-                'Disposition': disposition,
-                'Fee': fee
+                'Disposition': disposition
             })
 
 
@@ -50,12 +56,17 @@ class ProductRemovalParser(BaseTextParser):
     """
     def _parse(self):
         for item in self.lines:
-            start_date, end_date, merchant, sku, clicks, impressions, ctr, currency, total_spend, avg = item
             self.items.append({
-                'StartDate': start_date,
-                'EndDate': end_date,
-                'SellerSKU': sku,
-                'TotalSpend': total_spend
+                'RequestDate': item['request-date'],
+                'UpdateDate': item['last-updated-date'],
+                'OrderId': item['order-id'],
+                'OrderType': item['order-type'],
+                'OrderStatus': item['order-status'],
+                'SellerSKU': item['sku'],
+                'FNSKU': item['fnsku'],
+                'Quantity': item['requested-quantity'],
+                'Disposition': item['disposition'],
+                'Fee': item['removal-fee']
             })
 
 
@@ -63,14 +74,12 @@ class AdvertisingParser(BaseTextParser):
     # 广告业绩表
     def _parse(self):
         for item in self.lines:
-            if item and len(item) > 9:
-                start_date, end_date, merchant, sku, clicks, impressions, ctr, currency, total_spend, avg = item
-                self.items.append({
-                    'StartDate': start_date,
-                    'EndDate': end_date,
-                    'SellerSKU': sku,
-                    'TotalSpend': total_spend
-                })
+            self.items.append({
+                'StartDate': item['Start Date'],
+                'EndDate': item['End Date'],
+                'SellerSKU': item['SKU'],
+                'TotalSpend': item['Total Spend']
+            })
 
 
 if __name__ == '__main__':

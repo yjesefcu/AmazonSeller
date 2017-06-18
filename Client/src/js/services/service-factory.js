@@ -47,6 +47,21 @@ app.factory('serviceFactory', function ($rootScope) {
     services.settlementProducts = function (settlementId) {
         return host + '/api/settlements/' + settlementId + '/products/';
     };
+    services.settlementOrders = function (settlementId) {
+        return host + '/api/settlements/' + settlementId + '/orders/';
+    };
+    services.settlementRefunds = function (settlementId) {
+        return host + '/api/settlements/' + settlementId + '/refunds/';
+    };
+    services.settlementRemovals = function (settlementId) {
+        return host + '/api/settlements/' + settlementId + '/removals/';
+    };
+    services.settlementLosts = function (settlementId) {
+        return host + '/api/settlements/' + settlementId + '/losts/';
+    };
+    services.settlement = function (settlementId) {
+        return host + '/api/settlements/' + settlementId + '/orders/';
+    };
     services.imageUpload = function () {
         return host + '/image/upload/';
     };

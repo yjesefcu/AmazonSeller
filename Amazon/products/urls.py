@@ -6,13 +6,20 @@ from viewsets import *
 
 
 router = ExtendedSimpleRouter()
+
 product = router.register(r'products', ProductViewSet, base_name="api_products")
 product.register(r'supply', SupplyViewSet, base_name="api_ships_in", parents_query_lookups=['product'])
 product.register(r'shipments', ProductShipmentItemViewSet, base_name="api_product_shipements", parents_query_lookups=['product'])
 product.register(r'orders', OrderViewSet, base_name="api_product_orders", parents_query_lookups=['product'])
+product.register(r'removals', RemovalViewSet, base_name="api_product_removals", parents_query_lookups=['product'])
+
 router.register(r'shipments', OutboundShipmentViewSet, base_name="api_ships_oversea")
 settlement = router.register(r'settlements', SettlementViewSet, base_name="api_settlements")
-settlement.register(r'products', SettlementProductViewSet, base_name="api_settlment_products", parents_query_lookups=['settlement'])
+settlement.register(r'products', SettlementProductViewSet, base_name="api_settlement_products", parents_query_lookups=['settlement'])
+settlement.register(r'orders', OrderViewSet, base_name="api_settlement_orders", parents_query_lookups=['settlement'])
+settlement.register(r'refunds', RefundViewSet, base_name="api_settlement_refunds", parents_query_lookups=['settlement'])
+settlement.register(r'removals', RemovalViewSet, base_name="api_settlement_removals", parents_query_lookups=['settlement'])
+settlement.register(r'losts', ProductLostViewSet, base_name="api_settlement_losts", parents_query_lookups=['settlement'])
 
 urlpatterns = patterns('',
     url(r'^api/', include(router.urls)),

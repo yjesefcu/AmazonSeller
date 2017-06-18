@@ -20,6 +20,14 @@ class DateTimeFormat(serializers.DateTimeField):
         return value.strftime('%Y-%m-%d %H:%M:%S')
 
 
+class DateFormatField(serializers.DateTimeField):
+
+    def to_representation(self, value):
+        if not value:
+            return ''
+        return value.strftime('%m-%d')
+
+
 class DateFormat(serializers.DateTimeField):
 
     def to_representation(self, value):
@@ -92,4 +100,37 @@ class OutboundShipmentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OutboundShipment
+        fields = '__all__'
+
+
+class ProductRemovalItemSerializer(serializers.ModelSerializer):
+    UpdateDate = DateFormatField(read_only=True)
+
+    class Meta:
+        model = ProductRemovalItem
+        fields = '__all__'
+
+
+class AdvertisingItemSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = AdvertisingProductItems
+        fields = '__all__'
+
+
+class ProductLostSerializer(serializers.ModelSerializer):
+    product = ProductSerializer(read_only=True)
+    PostedDate = DateFormatField(read_only=True)
+
+    class Meta:
+        model = OtherTransactionItem
+        fields = '__all__'
+
+
+class RefundItemSerializer(serializers.ModelSerializer):
+    product = ProductSerializer(read_only=True)
+    PostedDate = DateFormatField(read_only=True)
+
+    class Meta:
+        model = RefundItem
         fields = '__all__'

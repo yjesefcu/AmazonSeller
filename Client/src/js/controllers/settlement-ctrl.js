@@ -25,6 +25,10 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
 app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $stateParams, $uibModal, serviceFactory) {
     var settlementId = $stateParams.id;
     $scope.products = [];
+    $scope.orders = [];
+    $scope.refunds = [];
+    $scope.removals = [];
+    $scope.losts = [];
     $scope.settlement = {};
     $http.get(serviceFactory.settlementDetail(settlementId))
         .then(function (result) {
@@ -33,12 +37,53 @@ app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $sta
                  openSetModal();
              }
         });
-    $http.get(serviceFactory.settlementProducts(settlementId))
-        .then(function (result) {
-            $scope.products = result.data;
-        }).catch(function (result) {
+
+    getOrders();
+    getRefunds();
+    getRemovals();
+    getLosts();
+    getProducts();
+    function getProducts() {
+        $http.get(serviceFactory.settlementProducts(settlementId))
+            .then(function (result) {
+                $scope.products = result.data;
+            }).catch(function (result) {
             $rootScope.addAlert('warning', '获取商品列表失败');
         });
+    }
+
+    function getOrders() {
+        $http.get(serviceFactory.settlementOrders(settlementId))
+            .then(function (result) {
+                $scope.orders = result.data;
+            }).catch(function (result) {
+            $rootScope.addAlert('warning', '获取商品列表失败');
+        });
+    }
+    function getRefunds() {
+        $http.get(serviceFactory.settlementRefunds(settlementId))
+            .then(function (result) {
+                $scope.refunds = result.data;
+            }).catch(function (result) {
+            $rootScope.addAlert('warning', '获取商品列表失败');
+        });
+    }
+    function getRemovals() {
+        $http.get(serviceFactory.settlementRemovals(settlementId))
+            .then(function (result) {
+                $scope.removals = result.data;
+            }).catch(function (result) {
+            $rootScope.addAlert('warning', '获取商品列表失败');
+        });
+    }
+    function getLosts() {
+        $http.get(serviceFactory.settlementLosts(settlementId))
+            .then(function (result) {
+                $scope.losts = result.data;
+            }).catch(function (result) {
+            $rootScope.addAlert('warning', '获取商品列表失败');
+        });
+    }
 
     function openSetModal() {
         var modalInstance = $uibModal.open({

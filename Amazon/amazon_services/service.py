@@ -77,7 +77,7 @@ class AmazonService(object):
                 time.sleep(self._get_api_interval_time())
             r = requests.post(url, verify=False, headers={'Connection': 'close'})
             self.last_post_time = datetime.datetime.now()
-            self._add_record(uri, action, form_data, r.text)
+            # self._add_record(uri, action, form_data, r.text)
             return r
         except Exception, ex:
             traceback.format_exc()
@@ -442,9 +442,10 @@ class ProductRemovalReportService(BaseReportService):
 
     def get_list(self, start_time, end_time):
         # 获取移除列表
-        request_type = '_GET_FBA_FULFILLMENT_REMOVAL_ORDER_DETAIL_DATA_'
-        request_report_id = self.request_report(request_type, start_time, end_time)
-        report_id = self._check_report_done(request_type, request_report_id)
+        # request_type = '_GET_FBA_FULFILLMENT_REMOVAL_ORDER_DETAIL_DATA_'
+        # request_report_id = self.request_report(request_type, start_time, end_time)
+        # report_id = self._check_report_done(request_type, request_report_id)
+        report_id = '5470984137017335'
         if report_id:
             r = self.get_by_report_id(report_id)
             parser = ProductRemovalParser(r.text)

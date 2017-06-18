@@ -61,3 +61,10 @@ table th.dark-border{
 table tr.no-hover:hover{
   background-color: #fff !important;
 }
+
+.td-sale{
+  background-color: rgba(218, 242, 242, 0.21);
+}
+.td-cost{
+  background-color: rgba(248, 246, 205, 0.36);
+}

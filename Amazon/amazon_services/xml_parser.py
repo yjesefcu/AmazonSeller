@@ -321,7 +321,8 @@ class SettlementReportParser(BaseParser):
         item['SellerSKU'] = self.find(ele, 'SKU').text
         item['Quantity'] = self.find(ele, 'Quantity').text
         for component in self.findall(ele, 'ItemPrice/Component'):  # 获取商品总价和运费
-            item[self.find(component, 'Type').text] = self.find(component, 'Amount').text
+            item['ItemPriceType'] = self.find(component, 'Type').text
+            item['ItemPriceAmount'] = self.find(component, 'Amount').text
         if self.find(ele, 'ItemFees') is not None:      # 亚马逊物流基础服务费
             for fee in self.findall(ele, 'ItemFees/Fee'):
                 item[self.find(fee, 'Type').text] = self.find(fee, 'Amount').text
@@ -352,7 +353,8 @@ class SettlementReportParser(BaseParser):
         item['SellerSKU'] = self.find(element, 'SKU').text
         if self.find(element, 'ItemPriceAdjustments') is not None:
             for component in self.findall(element, 'ItemPriceAdjustments/Component'):
-                item[self.find(component, 'Type').text] = self.find(component, 'Amount').text
+                item['PriceAdjustmentType'] = self.find(component, 'Type').text
+                item['PriceAdjustmentAmount'] = self.find(component, 'Amount').text
         if self.find(element, 'ItemFeeAdjustments') is not None:
             for fee in self.findall(element, 'ItemFeeAdjustments/Fee'):
                 item[self.find(fee, 'Type').text] = self.find(fee, 'Amount').text
@@ -383,8 +385,8 @@ class SettlementReportParser(BaseParser):
             for item in self.findall(element, 'OtherTransactionItem'):
                 items.append({
                     'SellerSKU': self.find(item, 'SKU').text,
-                    'Quantity': self.find('item', 'Quantity').text,
-                    'Amount': self.find('item', 'Amount').text
+                    'Quantity': self.find(item, 'Quantity').text,
+                    'Amount': self.find(item, 'Amount').text
                 })
                 transaction['items'] = items
         return transaction

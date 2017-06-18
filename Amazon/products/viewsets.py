@@ -187,3 +187,28 @@ class OutboundShipmentViewSet(NestedViewSetMixin, ModelViewSet):
         product.domestic_inventory -= count   # 如果数量变更，需要相应的更改商品的库存信息
         product.amazon_inventory += count
         product.save()
+
+
+class RefundViewSet(NestedViewSetMixin, ModelViewSet):
+    queryset = RefundItem.objects.all()
+    serializer_class = RefundItemSerializer
+    authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
+
+
+class RemovalViewSet(NestedViewSetMixin, ModelViewSet):
+
+    queryset = ProductRemovalItem.objects.all()
+    serializer_class = ProductRemovalItemSerializer
+    authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
+
+
+class ProductLostViewSet(NestedViewSetMixin, ModelViewSet):
+    queryset = OtherTransactionItem.objects.all()
+    serializer_class = ProductLostSerializer
+    authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
+
+
+class AdvertisingViewSet(NestedViewSetMixin, ModelViewSet):
+    queryset = AdvertisingProductItems.objects.all()
+    serializer_class = AdvertisingItemSerializer
+    authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)

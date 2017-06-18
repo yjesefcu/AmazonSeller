@@ -64,34 +64,19 @@ def update_settlement(market=None):
         latest = Settlement.objects.filter(MarketplaceId=market.MarketplaceId).order_by('-EndDate').last()
         last_settle_end_date = latest.EndDate.strftime('%Y-%m-%d %H:%M:%S')
     # 如果settlement为空，取最近一次结算周期的数据。如果不为空，则取上一次到现在的所有settlements
+
     for report in reports:
-        handler = SettlementDbHandler(market)
         settlement_data = service.get_one(report['ReportId'])
-        if last_settle_end_date and settlement_data['StartDate'] < last_settle_end_date:    # 不取更早的数据
-            break
         try:
-            SettlementDataRecord.objects.get(settlement=settlement, start_time=settlement_data['StartDate'],
-                                                end_time=settlement_data['EndDate'], type=SettlementDataRecord.SETTLEMENT)
+            SettlementDataRecord.objects.get(data_type=SettlementDataRecord.SETTLEMENT, start_time=settlement_data['SettlementData']['StartDate'])
+            continue
         except SettlementDataRecord.DoesNotExist, ex:
-            settlement = handler.update_settlement_to_db(settlement_data['SettlementData'])
-            if 'Order' in settlement_data:
-                for item in settlement_data['Order']:
-                    handler.update_order_to_db(settlement, item)
-            if 'Refund' in settlement_data:
-                for item in settlement_data['Refund']:
-                    handler.update_refund_to_db(settlement, item)
-            if 'OtherTransactions' in settlement_data:
-                for item in settlement_data['OtherTransactions']:
-                    handler.update_transaction_to_db(settlement, item)
-            if 'SellerDealPayment' in settlement_data:
-                for item in settlement_data['SellerDealPayment']:
-                    handler.update_deal_payment_to_db(settlement, item)
-            if 'AdvertisingTransactionDetails' in settlement_data:
-                for item in settlement_data['AdvertisingTransactionDetails']:
-                    handler.update_advertising_transaction_to_db(settlement, item)
-            SettlementDataRecord.objects.create(settlement=settlement, start_time=settlement_data['StartDate'],
-                                                end_time=settlement_data['EndDate'], type=SettlementDataRecord.SETTLEMENT)
-        if not last_settle_end_date or settlement_data['StartDate'] == last_settle_end_date:
+            pass
+        handler = SettlementDbHandler(market)
+        settlement = handler.update_settlement_to_db(settlement_data)
+        SettlementDataRecord.objects.create(data_type=SettlementDataRecord.SETTLEMENT, start_time=settlement.StartDate,
+                                         end_time=settlement.EndDate, settlement=settlement)
+        if not last_settle_end_date or settlement_data['SettlementData']['StartDate'] == last_settle_end_date:
             break
 
 
@@ -120,14 +105,14 @@ def update_removal_report(market, settlement):
     # 更新移除报告
     service = ProductRemovalReportService(market)
     try:
-        SettlementDataRecord.objects.create(settlement=settlement, start_time=settlement.StartDate,
-                                            end_time=settlement.EndDate, type=SettlementDataRecord.REMOVAL)
+        SettlementDataRecord.objects.get(settlement=settlement, start_time=settlement.StartDate,
+                                            end_time=settlement.EndDate, data_type=SettlementDataRecord.REMOVAL)
     except SettlementDataRecord.DoesNotExist, ex:
         items = service.get_list(settlement.StartDate, settlement.EndDate)
         if items:
             RemovalDbHandler().update_to_db(settlement, items)
             SettlementDataRecord.objects.create(settlement=settlement, start_time=settlement.StartDate,
-                                                end_time=settlement.EndDate, type=SettlementDataRecord.REMOVAL)
+                                                end_time=settlement.EndDate, data_type=SettlementDataRecord.REMOVAL)
 
 
 def update_advertising_report(market, settlement):
@@ -142,36 +127,38 @@ def update_advertising_report(market, settlement):
             # 数据库中是否已更新了相关数据
             try:
                 SettlementDataRecord.objects.get(settlement=settlement, start_time=tmp_start,
-                                                 end_time=tmp_start+datetime.timedelta(days=1), type=SettlementDataRecord.ADVERTISE)
+                                                 end_time=tmp_start+datetime.timedelta(days=1), data_type=SettlementDataRecord.ADVERTISE)
             except SettlementDataRecord.DoesNotExist, ex:
                 items = service.get_by_day(tmp_start)
                 if items:
                     update_product_advertising_to_db(settlement, items)
                     SettlementDataRecord.objects.create(settlement=settlement, start_time=tmp_start,
-                                                     end_time=tmp_start+datetime.timedelta(days=1), type=SettlementDataRecord.ADVERTISE)
+                                                     end_time=tmp_start+datetime.timedelta(days=1), data_type=SettlementDataRecord.ADVERTISE)
+            logger.info('settlement: %s, get advertising dally at : %s', settlement.StartDate, tmp_start)
             tmp_start = tmp_start + datetime.timedelta(days=1)
         else:
             # 增加一个周请求
             # 数据库中是否已更新了相关数据
             try:
                 SettlementDataRecord.objects.get(settlement=settlement, start_time=tmp_start,
-                                                 end_time=tmp_start+datetime.timedelta(days=7), type=SettlementDataRecord.ADVERTISE)
+                                                 end_time=tmp_start+datetime.timedelta(days=7), data_type=SettlementDataRecord.ADVERTISE)
             except SettlementDataRecord.DoesNotExist, ex:
                 items = service.get_by_week(tmp_start)
                 if items:
                     update_product_advertising_to_db(settlement, items)
                     SettlementDataRecord.objects.create(settlement=settlement, start_time=tmp_start,
-                                                     end_time=tmp_start+datetime.timedelta(days=7), type=SettlementDataRecord.ADVERTISE)
+                                                     end_time=tmp_start+datetime.timedelta(days=7), data_type=SettlementDataRecord.ADVERTISE)
+            logger.info('settlement: %s, get advertising weekly at : %s', settlement.StartDate, tmp_start)
             tmp_start = tmp_start + datetime.timedelta(days=7)
 
 
 def update_all(market):
     # 总的更新入口
-    # update_settlement(market)
+    update_settlement(market)
 
     settlements = Settlement.objects.filter(returns__isnull=True)
     if settlements.exists():
         for settlement in settlements:
-            # update_removal_report(market, settlement)
             update_advertising_report(market, settlement)
-    # update_product(market)
+            update_removal_report(market, settlement)
+    update_product(market)

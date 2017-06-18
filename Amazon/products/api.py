@@ -143,6 +143,31 @@ class SettlementDbHandler(object):
     def update_settlement_to_db(self, data):
         if not data:
             return None
+        settlement = self._update_settlement_to_db(data['SettlementData'])
+        if not settlement:
+            logger.error('create settlement failed: %s', json.dumps(data['SettlementData']))
+            return None
+        # 更新详细内容
+        if 'Order' in data:
+            for item in data['Order']:
+                self._update_order_to_db(settlement, item)
+        if 'Refund' in data:
+            for item in data['Refund']:
+                self._update_refund_to_db(settlement, item)
+        if 'OtherTransactions' in data:
+            for item in data['OtherTransactions']:
+                self._update_transaction_to_db(settlement, item)
+        if 'SellerDealPayment' in data:
+            for item in data['SellerDealPayment']:
+                self._update_deal_payment_to_db(settlement, item)
+        if 'AdvertisingTransactionDetails' in data:
+            for item in data['AdvertisingTransactionDetails']:
+                self._update_advertising_transaction_to_db(settlement, item)
+        return settlement
+
+    def _update_settlement_to_db(self, data):
+        if not data:
+            return None
         settlement, created = Settlement.objects.get_or_create(MarketplaceId=self.MarketplaceId, AmazonSettlementID=data['AmazonSettlementID'])
         if created:
             for key, value in data.items():
@@ -150,7 +175,12 @@ class SettlementDbHandler(object):
             settlement.save()
         return settlement
 
-    def update_order_to_db(self, settlement, data):
+    def calc_and_update_amount(self, settlement):
+        """
+        计算订单或退款信息中的总收入amount，并更新到数据库中
+        """
+
+    def _update_order_to_db(self, settlement, data):
         """
         更新结算订单信息至数据库
         """
@@ -185,13 +215,13 @@ class SettlementDbHandler(object):
         data['SellerSKU'] = product.SellerSKU
         # 单价
         if data['Quantity'] and int(data['Quantity']) > 0:
-            data['UnitPrice'] = float(data['Principal']) / int(data['Quantity'])
+            data['UnitPrice'] = float(data['ItemPriceAmount']) / int(data['Quantity'])
         # s实收金额
-        data['Amount'] = float(data.get('Principal')) + float(data.get('Shipping', 0)) + float(data.get('FBAPerUnitFulfillmentFee', 0)) + \
+        data['amount'] = float(data.get('ItemPriceAmount')) + float(data.get('Shipping', 0)) + float(data.get('FBAPerUnitFulfillmentFee', 0)) + \
                           float(data.get('ShippingChargeback', 0)) + float(data.get('Commission', 0)) + float(data.get('PromotionShipping', 0))
         return SettleOrderItem.objects.create(**data)
 
-    def update_refund_to_db(self, settlement, data):
+    def _update_refund_to_db(self, settlement, data):
         if not data:
             return None
         try:
@@ -222,6 +252,7 @@ class SettlementDbHandler(object):
         data['MarketplaceId'] = refund.MarketplaceId
         data['settlement'] = refund.settlement
         data['refund'] = refund
+        data['AmazonOrderId'] = refund.AmazonOrderId
         product, created = Product.objects.get_or_create(SellerSKU=data['SellerSKU'],
                                                          MarketplaceId=self.MarketplaceId)
         data['product'] = product
@@ -232,43 +263,55 @@ class SettlementDbHandler(object):
             data['quantity'] = soi.Quantity
         except SettleOrderItem.DoesNotExist, ex:
             pass
-        data['amount'] = get_float(data, 'Principal') + get_float(data, 'Shipping') + get_float(data, 'Commission') + \
+        data['amount'] = get_float(data, 'PriceAdjustmentAmount') + get_float(data, 'Shipping') + get_float(data, 'Commission') + \
                          get_float(data, 'RefundCommission') + get_float(data, 'PromotionPrincipal') + \
                          get_float(data, 'PromotionShipping') + get_float(data, 'ShippingChargeback') + \
                          get_float(data, 'ShippingChargeback')
         return RefundItem.objects.create(**data)
 
-    def update_transaction_to_db(self, settlement, data):
+    def _update_transaction_to_db(self, settlement, data):
         if not data:
             return None
         try:
-            fees = data.get('fees', None)
-            items = data.get('items', None)
-            del data['fees']
-            del data['items']
             obj = OtherTransaction.objects.get(settlement=settlement, TransactionID=data['TransactionID'])
-            print 'OtherTransaction exist:　%s' % json.dumps(data)
+            print 'Transaction already exist: %s' % data['TransactionID']
             return obj
         except OtherTransaction.DoesNotExist, ex:
             pass
         data['MarketplaceId'] = self.MarketplaceId
         data['settlement'] = settlement
-        return OtherTransaction.objects.create(**data)
+        fees = data.get('fees', None)
+        items = data.get('items', None)
+        if 'fees' in data:
+            del data['fees']
+        if 'items' in data:
+            del data['items']
+        obj = OtherTransaction.objects.create(**data)
+        self._update_transaction_fees_to_db(obj, fees)
+        self._update_transaction_items_to_db(obj, items)
+        self._update_custom_return_fee(settlement)      # 将FBACustomReturn的退货费用更新到退款表中
+        return obj
 
     def _update_transaction_fees_to_db(self, transaction, data):
+        if not data:
+            return
         fields = ['MarketplaceId', 'TransactionID', 'AmazonOrderId', 'TransactionType', 'PostedDate']
-        for field in fields:
-            data[field] = getattr(transaction, field)
-        OtherTransactionFee.objects.create(transaction=transaction, settlement=transaction.settlement, **data)
+        for item in data:
+            for field in fields:
+                item[field] = getattr(transaction, field)
+            OtherTransactionFee.objects.create(transaction=transaction, settlement=transaction.settlement, **item)
 
     def _update_transaction_items_to_db(self, transaction, data):
+        if not data:
+            return
         fields = ['MarketplaceId', 'TransactionID', 'AmazonOrderId', 'TransactionType', 'PostedDate']
-        for field in fields:
-            data[field] = getattr(transaction, field)
-        product, created = Product.objects.get_or_create(MarketplaceId=transaction.MarketplaceId, SellerSKU=data['SellerSKU'])
-        OtherTransactionItem.objects.create(transaction=transaction, settlement=transaction.settlement, product=product, **data)
+        for item in data:
+            for field in fields:
+                item[field] = getattr(transaction, field)
+            product, created = Product.objects.get_or_create(MarketplaceId=transaction.MarketplaceId, SellerSKU=item['SellerSKU'])
+            OtherTransactionItem.objects.create(transaction=transaction, settlement=transaction.settlement, product=product, **item)
 
-    def update_deal_payment_to_db(self, settlement, data):
+    def _update_deal_payment_to_db(self, settlement, data):
         if not data:
             return None
         try:
@@ -281,7 +324,7 @@ class SettlementDbHandler(object):
         data['settlement'] = settlement
         return SellerDealPayment.objects.create(**data)
 
-    def update_advertising_transaction_to_db(self, settlement, data):
+    def _update_advertising_transaction_to_db(self, settlement, data):
         if not data:
             return None
         try:
@@ -293,6 +336,24 @@ class SettlementDbHandler(object):
         data['MarketplaceId'] = self.MarketplaceId
         data['settlement'] = settlement
         return AdvertisingTransactionDetails.objects.create(**data)
+
+    def _update_custom_return_fee(self, settlement):
+        """
+        退货费
+        """
+        return_fees = OtherTransaction.objects.filter(settlement=settlement, TransactionType='FBACustomerReturn')
+        for fee in return_fees:
+            try:
+                refund = RefundItem.objects.get(AmazonOrderId=fee.AmazonOrderId)
+                fee.refund_item = refund
+                fee.save()
+                refund.FBAReturnFee = fee.Amount     # 将退货费加到refund里
+                refund.amount += fee.Amount
+                refund.save()
+            except RefundItem.DoesNotExist, ex:
+                continue
+            except RefundItem.MultipleObjectsReturned, ex:
+                logger.error('FBACustomReturn: multi object return when find AmazonOrderId in RefundItem:%s', fee.AmazonOrderId)
 
 
 class RemovalDbHandler(object):
@@ -565,8 +626,8 @@ class SettlementCalc(object):
         计算每个订单的成本
         :return:
         """
-        if not order.Principal:
-            logger.info('order %s principal is None or 0', order.AmazonOrderId)
+        if not order.ItemPriceAmount:
+            logger.info('order %s ItemPriceAmount is None or 0', order.AmazonOrderId)
             return
         order.inbound_fee = -product.domestic_cost * order.Quantity
         order.outbound_fee = -product.oversea_cost * order.Quantity
