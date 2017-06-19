@@ -1,5 +1,7 @@
 #-*- coding:utf-8 -*-
 __author__ = 'liucaiyun'
+import os, datetime, chardet
+from django.conf import settings
 from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
@@ -7,8 +9,10 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import detail_route, list_route
 from django_filters.rest_framework import DjangoFilterBackend
+from amazon_services.exception import TextParseException
 from models import *
 from serializer import *
+from api import FileImporter
 
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
@@ -200,6 +204,23 @@ class RemovalViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = ProductRemovalItem.objects.all()
     serializer_class = ProductRemovalItemSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
+
+    @list_route(methods=['post'])
+    def upload(self, request, *args, **kwargs):
+
+        my_file = request.FILES.get("file", None)    # 获取上传的文件，如果没有文件，则默认为None
+        if not my_file:
+            return Response({'errno': -1})
+        text = ''
+        for chunk in my_file.chunks():      # 分块写入文件
+            text += unicode(chunk, chardet.detect(chunk)['encoding'])
+        try:
+            parent_query_dict = self.get_parents_query_dict()
+            settlement = Settlement.objects.get(pk=parent_query_dict['settlement'])
+            items = FileImporter().import_removals(text, settlement)
+        except TextParseException, ex:
+            return Response({'errno': 1})
+        return Response({'error': 0, 'data': ProductRemovalItemSerializer(items, many=True).data})
 
 
 class ProductLostViewSet(NestedViewSetMixin, ModelViewSet):

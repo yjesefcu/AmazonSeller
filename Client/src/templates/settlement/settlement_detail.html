@@ -10,6 +10,7 @@
         font-size: 16px;
     }
 </style>
+
 <div class="row" ng-controller="settlementDetailCtrl">
     <div class="col-md-12">
         <div class="box box-primary">
@@ -33,50 +34,11 @@
                 </div>
         </div>
     </div>
-    <div class="col-md-12" style="display:none;">
-        <!-- general form elements -->
-        <div class="box box-primary">
-            <div class="box-header with-border">
-                <h3 class="box-title">商品列表</h3>
-            </div>
-            <!-- /.box-header -->
-            <div class="box-body">
-                <table id="productsTable" class="table table-bordered table-hover">
-                    <thead>
-                    <tr>
-                        <th>序号</th>
-                        <th>SKU</th>
-                        <th>数量</th>
-                        <th>总收入({{ currency }})</th>
-                        <th>销售总成本({{ currency }})</th>
-                        <th>仓储费({{ currency }})</th>
-                        <th>订阅费({{ currency }})</th>
-                        <th>总利润({{ currency }})</th>
-                        <th>利润率</th>
-                        <th>备注</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr ng-repeat="p in products"table-repeat-directive>
-                        <td>{{ $index + 1 }}</td>
-                        <td>{{ p.SellerSKU }}</td>
-                        <td>{{ p.PostedDate }}</td>
-                        <td>{{ p.UnitPrice }}</td>
-                        <td>{{ p.Quantity}}</td>
-                        <td></td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
-            <!-- /.box-body -->
-        </div>
-        <!-- /.box -->
-    </div>  <!-- product table -->
-    <div class="col-md-12" ng-if="orders.length">
+    <div class="col-md-12">
         <!-- general form elements -->
         <div class="box box-primary">
             <div class="box-header with-border" onclick="$(this).next().toggle()">
-                <h3 class="box-title">所有订单</h3>
+                <h3 class="box-title">所有订单（{{ orders.length }}）</h3>
             </div>
             <!-- /.box-header -->
             <div class="box-body">
@@ -122,11 +84,11 @@
         </div>
         <!-- /.box -->
     </div>  <!-- order table -->
-    <div class="col-md-12" ng-if="refunds.length">
+    <div class="col-md-12">
         <!-- general form elements -->
         <div class="box box-primary">
             <div class="box-header with-border" onclick="$(this).next().toggle()">
-                <h3 class="box-title">退货</h3>
+                <h3 class="box-title">退货（{{ refunds.length }}）</h3>
             </div>
             <!-- /.box-header -->
             <div class="box-body">
@@ -163,14 +125,27 @@
         </div>
         <!-- /.box -->
     </div>  <!-- refund table -->
-    <div class="col-md-12" ng-if="removals.length">
+    <div class="col-md-12">
         <!-- general form elements -->
         <div class="box box-primary">
             <div class="box-header with-border" onclick="$(this).next().toggle()">
-                <h3 class="box-title">弃置/移除</h3>
+                <h3 class="box-title">弃置/移除（{{ removals.length }}）</h3>
             </div>
             <!-- /.box-header -->
             <div class="box-body">
+                <div class="row" style="margin-bottom: 16px;">
+                    <div class="form-group">
+                        <label class="col-sm-2 control-label" >上传移除报告</label>
+                        <div class="col-sm-6 col-xs-8">
+                            <input id='removalFile' type="file" class="filestyle" data-buttonName="btn-primary" file-model="fileToUpload" accept="text/plain" style="display: inline-block;">
+
+                        </div>
+                        <div class="col-sm-1">
+                            <button class="btn btn-primary" ng-click="sendFile()">上传</button>
+                        </div>
+                    </div>
+                </div>
+                <!--<input type="file" file-model="fileToUpload" accept="text/plain" placeholder="上传移除报告">-->
                 <table id="removalTable" class="table table-bordered table-hover">
                     <thead>
                     <tr>
@@ -179,10 +154,10 @@
                         <th>SKU</th>
                         <th>商品图片</th>
                         <th>商品描述</th>
-                        <th class="td-sale">原因</th>
+                        <th>原因</th>
                         <th class="td-sale">数量</th>
                         <th class="td-sale">弃置费({{ currency }})</th>
-                        <th class="td-sale">单位成本({{ currency }})</th>
+                        <th class="td-cost">单位成本({{ currency }})</th>
                         <th class="td-cost">总成本({{ currency }})</th>
                     </tr>
                     </thead>
@@ -206,11 +181,11 @@
         </div>
         <!-- /.box -->
     </div>  <!-- removal table -->
-    <div class="col-md-12" ng-if="losts.length">
+    <div class="col-md-12">
         <!-- general form elements -->
         <div class="box box-primary">
             <div class="box-header with-border" onclick="$(this).next().toggle()">
-                <h3 class="box-title">赔偿</h3>
+                <h3 class="box-title">赔偿（{{ losts.length }}）</h3>
             </div>
             <!-- /.box-header -->
             <div class="box-body">
@@ -252,11 +227,11 @@
         <!-- /.box -->
     </div>  <!-- compensate table -->
 
-    <div class="col-md-12" ng-if="products.length">
+    <div class="col-md-12">
         <!-- general form elements -->
         <div class="box box-primary">
             <div class="box-header with-border" onclick="$(this).next().toggle()">
-                <h3 class="box-title">商品统计</h3>
+                <h3 class="box-title">商品统计（{{ products.length }}）</h3>
             </div>
             <!-- /.box-header -->
             <div class="box-body">

@@ -22,7 +22,7 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
     });
 });
 
-app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $stateParams, $uibModal, serviceFactory) {
+app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $stateParams, $uibModal, serviceFactory, fileUpload) {
     var settlementId = $stateParams.id;
     $scope.products = [];
     $scope.orders = [];
@@ -33,9 +33,9 @@ app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $sta
     $http.get(serviceFactory.settlementDetail(settlementId))
         .then(function (result) {
              $scope.settlement = result.data;
-             if (!$scope.settlement.subscribe_fee){
-                 openSetModal();
-             }
+             // if (!$scope.settlement.subscribe_fee){
+             //     openSetModal();
+             // }
         });
 
     getOrders();
@@ -99,6 +99,21 @@ app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $sta
     $scope.$on("subscribeFeeChange", function (event, msg) {
          $scope.settlement.subscribe_fee = msg;
      });
+
+    $scope.sendFile = function(){
+        var url = serviceFactory.uploadRemovals(settlementId),
+            file = $scope.fileToUpload;
+        if ( !file ) return;
+        fileUpload.uploadFileToUrl(file, url, function (data) {
+            if (!data.errno){
+                $rootScope.addAlert('success', '上传成功，一共找到' + data.data.length + '条记录');
+                $scope.removals = data.data;
+            }else {
+                $rootScope.addAlert('error', '上传失败，请确认上传文件是否移除报告');
+            }
+        });
+    };
+    $("#removalFile").filestyle({buttonName: "btn-default", placeholder: "选择亚马逊下载的移除报告", buttonText: "浏览"});
 })
 .controller('setFeeCtrl', function($scope, $rootScope, $http, $state, serviceFactory, $uibModalInstance, data) {
     $scope.settlement = data;

@@ -1,6 +1,4 @@
 #-*- coding:utf-8 -*-
-import os, datetime
-from django.conf import settings
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.conf import settings
@@ -31,3 +29,18 @@ def sync_orders(request):
     update_all(market)
 
     return HttpResponse('success')
+
+
+# def upload_file(request):
+#     if request.method == 'POST':
+#         form = UploadFileForm(request.POST, request.FILES)
+#
+#         if form.is_valid():
+#             handle_upload_file(request.FILES.get('file', None))
+#             ftemp = request.FILES.get('file', None)
+#             print('ftemp: ', ftemp)
+#             return HttpResponseRedirect('/success/')
+#     else:
+#         form = UploadFileForm()
+#
+#     return render(request, 'upload.html', {'form':form})

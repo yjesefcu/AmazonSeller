@@ -1,6 +1,7 @@
 #-*- coding:utf-8 -*-
 __author__ = 'liucaiyun'
 import os, datetime, urllib, json, logging
+import dateutil.parser
 from django.conf import settings
 from django.db.models import Q, F
 from amazon_services.service import OrderService, OrderItemService
@@ -8,6 +9,7 @@ from models import *
 
 
 logger = logging.getLogger('product')
+DT_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 
 
 def get_float(data, key):
@@ -359,13 +361,26 @@ class SettlementDbHandler(object):
 class RemovalDbHandler(object):
 
     def update_to_db(self, settlement, data):
+        results = list()
+        start_date = settlement.StartDate.strftime(DT_FORMAT)
+        end_date = settlement.EndDate.strftime(DT_FORMAT)
         for item in data:
-            item['settlement'] = settlement
-            item['MarketplaceId'] = settlement.MarketplaceId
-            product, created = Product.objects.get_or_create(SellerSKU=item['SellerSKU'], MarketplaceId=settlement.MarketplaceId)
-            item['product'] = product
-            item['Fee'] = -float(item['Fee'])
-            ProductRemovalItem.objects.create(**item)
+            update_data = dateutil.parser.parse(item['UpdateDate']).replace(tzinfo=None).strftime(DT_FORMAT)
+            if update_data > end_date \
+                or update_data < start_date:   # 如果报告日期超出结算日期，则不处理
+                continue
+            try:
+                obj = ProductRemovalItem.objects.get(OrderId=item['OrderId'], SellerSKU=item['SellerSKU'],
+                                                     RequestDate=item['RequestDate'])
+                results.append(obj)
+            except ProductRemovalItem.DoesNotExist,ex:
+                item['settlement'] = settlement
+                item['MarketplaceId'] = settlement.MarketplaceId
+                product, created = Product.objects.get_or_create(SellerSKU=item['SellerSKU'], MarketplaceId=settlement.MarketplaceId)
+                item['product'] = product
+                item['Fee'] = -float(item['Fee'])
+                results.append(ProductRemovalItem.objects.create(**item))
+        return results
 
 
 def update_product_advertising_to_db(settlement, data):
@@ -640,3 +655,20 @@ class SettlementCalc(object):
 def update_returns_to_db(settlement, item):
     product, created = Product.objects.get_or_create(MarketplaceId=settlement.MarketplaceId, SellerSKU=item['SellerSKU'])
     ProductReturn.objects.create(settlement=settlement, product=product, **item)
+
+
+##################  文件导入 ####################
+class FileImporter(object):
+
+    @classmethod
+    def import_removals(cls, text, settlement=None):
+        """
+        导入移除报告并保存到数据库
+        :param text:
+        """
+        from amazon_services.text_parser import ProductRemovalParser
+        from amazon_services.exception import TextParseException
+        parser = ProductRemovalParser(text)
+        items = parser.get_items()
+        removals = RemovalDbHandler().update_to_db(settlement=settlement, data=items)
+        return removals

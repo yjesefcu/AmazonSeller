@@ -68,5 +68,8 @@ app.factory('serviceFactory', function ($rootScope) {
     services.mediaPath = function (imagePath) {
         return host + imagePath;
     };
+    services.uploadRemovals = function (settlementId) {
+        return host + '/api/settlements/' + settlementId + '/removals/upload/';
+    };
     return services;
 });

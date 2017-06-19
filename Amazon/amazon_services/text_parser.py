@@ -1,5 +1,6 @@
 #-*- coding:utf-8 -*-
 __author__ = 'liucaiyun'
+from exception import TextParseException
 
 
 class BaseTextParser(object):
@@ -11,19 +12,22 @@ class BaseTextParser(object):
         self.lines = list()
         lines = s.split('\r\n')
         # 第一行作为关键字
-        keys = lines[0].strip().split('\t')
-        for l in lines[1:]:
-            values = l.strip().split('\t')
-            if len(values) < len(keys):
-                continue
-            i = 0
-            item = dict()
-            while i < len(keys):
-                item[keys[i]] = values[i]
-                i += 1
-            self.lines.append(item)
-        self.items = list()
-        self._parse()
+        try:
+            keys = lines[0].strip().split('\t')
+            for l in lines[1:]:
+                values = l.strip().split('\t')
+                if len(values) < len(keys):
+                    continue
+                i = 0
+                item = dict()
+                while i < len(keys):
+                    item[keys[i]] = values[i]
+                    i += 1
+                self.lines.append(item)
+            self.items = list()
+            self._parse()
+        except Exception, ex:
+            raise TextParseException('text parser exception')
 
     def _parse(self):
         pass

@@ -25,4 +25,5 @@ urlpatterns = patterns('',
     url(r'^api/', include(router.urls)),
     url('^image/upload/$', 'products.views.image_upload'),
     url(r'^sync$', 'products.views.sync_orders'),
+    # url('^file/upload/$', 'products.views.file_upload'),
 )
