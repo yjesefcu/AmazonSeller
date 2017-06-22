@@ -4,6 +4,14 @@ from rest_framework import serializers
 from models import *
 
 
+class ProfitRateField(serializers.CharField):
+
+    def to_representation(self, value):
+        if not value:
+            return '0%'
+        return '%d%%' % (round(value, 3) * 100)
+
+
 class FloatRoundField(serializers.FloatField):
 
     def to_representation(self, value):
@@ -38,6 +46,7 @@ class SettlementSerializer(serializers.ModelSerializer):
     StartDate = DateFormat()
     EndDate = DateFormat()
     profit = FloatRoundField()
+    profit_rate = ProfitRateField()
     sales_amount = FloatRoundField()
     total_cost = FloatRoundField()
 
@@ -56,8 +65,10 @@ class ProductSerializer(serializers.ModelSerializer):
 class ProductSettlementSerializer(serializers.ModelSerializer):
     settlement = SettlementSerializer()
     profit = FloatRoundField()
+    profit_rate = ProfitRateField()
     sales_amount = FloatRoundField()
     total_cost = FloatRoundField()
+    product = ProductSerializer(read_only=True)
 
     class Meta:
         model = ProductSettlement
@@ -65,7 +76,9 @@ class ProductSettlementSerializer(serializers.ModelSerializer):
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
+    product = ProductSerializer(read_only=True)
     PostedDate = DateTimeFormat()
+    profit = FloatRoundField()
 
     class Meta:
         model = SettleOrderItem
@@ -105,6 +118,8 @@ class OutboundShipmentSerializer(serializers.ModelSerializer):
 
 class ProductRemovalItemSerializer(serializers.ModelSerializer):
     UpdateDate = DateFormatField(read_only=True)
+    product = ProductSerializer(read_only=True)
+    profit = FloatRoundField()
 
     class Meta:
         model = ProductRemovalItem
@@ -121,6 +136,7 @@ class AdvertisingItemSerializer(serializers.ModelSerializer):
 class ProductLostSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
     PostedDate = DateFormatField(read_only=True)
+    profit = FloatRoundField()
 
     class Meta:
         model = OtherTransactionItem
@@ -130,6 +146,7 @@ class ProductLostSerializer(serializers.ModelSerializer):
 class RefundItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
     PostedDate = DateFormatField(read_only=True)
+    profit = FloatRoundField()
 
     class Meta:
         model = RefundItem

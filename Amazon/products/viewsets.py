@@ -12,7 +12,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from amazon_services.exception import TextParseException
 from models import *
 from serializer import *
-from api import FileImporter
+from api import FileImporter, to_float, get_float
 
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
@@ -29,14 +29,14 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
 
 
 class SettlementProductViewSet(NestedViewSetMixin, ModelViewSet):
-    queryset = ProductSettlement.objects.all()
+    queryset = ProductSettlement.objects.select_related('product').all()
     serializer_class = ProductSettlementSerializer
     filter_backends = (DjangoFilterBackend,)
     filter_fields = ('settlement',)
 
 
 class ProductViewSet(NestedViewSetMixin, ModelViewSet):
-    queryset = Product.objects.all()
+    queryset = Product.objects.select_related('product').all()
     serializer_class = ProductSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
     filter_backends = (DjangoFilterBackend,)
@@ -51,11 +51,25 @@ class ProductViewSet(NestedViewSetMixin, ModelViewSet):
 
 
 class SupplyViewSet(NestedViewSetMixin, ModelViewSet):
-    queryset = InboundShipment.objects.all()
+    queryset = InboundShipment.objects.select_related('product').all()
     serializer_class = InboundShipmentSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
     filter_backends = (DjangoFilterBackend,)
     filter_fields = ('product',)
+
+    def perform_create(self, serializer):
+        serializer.save()
+        instance = serializer.instance
+        # 计算单位成本
+        instance.inventory = instance.count
+        instance.real_inventory = instance.count
+        instance.unit_cost = to_float(instance.unit_price) + (to_float(instance.total_freight)+to_float(instance.charges)) / instance.count
+        instance.save()
+        # 更新product的库存
+        _query_dict = self.get_s_query_dict()
+        product = Product.objects.get(pk=_query_dict['product'])
+        product.domestic_inventory += instance.inventory
+        product.save()
 
 
 class ProductShipmentItemViewSet(NestedViewSetMixin, ModelViewSet):
@@ -64,7 +78,7 @@ class ProductShipmentItemViewSet(NestedViewSetMixin, ModelViewSet):
 
 
 class OrderViewSet(NestedViewSetMixin, ModelViewSet):
-    queryset = SettleOrderItem.objects.all()
+    queryset = SettleOrderItem.objects.select_related('product').all()
     serializer_class = OrderItemSerializer
     filter_backends = (DjangoFilterBackend,)
     filter_fields = ('settlement', 'MarketplaceId')
@@ -173,8 +187,8 @@ class OutboundShipmentViewSet(NestedViewSetMixin, ModelViewSet):
                                     float(item['package_height']) / float(5000), 2)
 
             # 计算总运费
-            item['total_freight'] = max(float(item['volume_weight']), float(item['package_weight'])) * \
-                                    (1 + float(item['fuel_tax'])) * float(item['unit_freight']) * int(item['QuantityShipped'])
+            item['total_freight'] = max(get_float(item, 'volume_weight'), get_float(item, 'package_weight')) * \
+                                    (1 + get_float(item, 'fuel_tax')) * get_float(item, 'unit_freight') * int(item['QuantityShipped'])
             s, created = OutboundShipmentItem.objects.get_or_create(shipment=shipment, MarketplaceId=shipment.MarketplaceId, product=product)
             # 商品库存信息修改
             if int(item['QuantityShipped']) != s.QuantityShipped:
@@ -182,26 +196,52 @@ class OutboundShipmentViewSet(NestedViewSetMixin, ModelViewSet):
             s.inventory += int(item['QuantityShipped']) - s.QuantityShipped
             for key, value in item.items():
                 setattr(s, key, value)
+            s.unit_cost = get_float(item, 'total_freight') / int(item['QuantityShipped'])
+            # s.domestic_unit_cost = self._calc_supply_cost(s.product)
+            # s.inventory = int(item['QuantityShipped'])
+            # s.total_unit_cost = s.unit_cost + s.domestic_unit_cost
             s.save()
             items.append(s)
         return items
 
+    def _calc_supply_cost(self, product):
+        # 计算商品当前的国内平均入库成本
+        inbounds = InboundShipment.objects.filter(product=product, inventory__gt=0)
+        amount = 0
+        quantity = 0
+        for inbound in inbounds:
+            quantity += inbound.inventory
+            amount += inbound.inventory * inbound.unit_cost
+        return amount / quantity if quantity else 0
+
     def _update_inventory(self, shipment_item, count):
+        # 更新商品库存
         product = shipment_item.product
         product.domestic_inventory -= count   # 如果数量变更，需要相应的更改商品的库存信息
         product.amazon_inventory += count
         product.save()
+        # 更新InboundShipment的库存
+        inbounds = InboundShipment.objects.filter(product=product, real_inventory__gt=0)
+        tmp_count = count
+        for inbound in inbounds:
+            if tmp_count <= inbound.real_inventory:
+                inbound.real_inventory -= tmp_count
+                inbound.save()
+                break
+            tmp_count -= inbound.real_inventory
+            inbound.real_inventory = 0
+            inbound.save()
 
 
 class RefundViewSet(NestedViewSetMixin, ModelViewSet):
-    queryset = RefundItem.objects.all()
+    queryset = RefundItem.objects.select_related('product').all()
     serializer_class = RefundItemSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
 
 
 class RemovalViewSet(NestedViewSetMixin, ModelViewSet):
 
-    queryset = ProductRemovalItem.objects.all()
+    queryset = ProductRemovalItem.objects.select_related('product').all()
     serializer_class = ProductRemovalItemSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
 
@@ -215,8 +255,8 @@ class RemovalViewSet(NestedViewSetMixin, ModelViewSet):
         for chunk in my_file.chunks():      # 分块写入文件
             text += unicode(chunk, chardet.detect(chunk)['encoding'])
         try:
-            parent_query_dict = self.get_parents_query_dict()
-            settlement = Settlement.objects.get(pk=parent_query_dict['settlement'])
+            _query_dict = self.get_s_query_dict()
+            settlement = Settlement.objects.get(pk=_query_dict['settlement'])
             items = FileImporter().import_removals(text, settlement)
         except TextParseException, ex:
             return Response({'errno': 1})
@@ -224,12 +264,12 @@ class RemovalViewSet(NestedViewSetMixin, ModelViewSet):
 
 
 class ProductLostViewSet(NestedViewSetMixin, ModelViewSet):
-    queryset = OtherTransactionItem.objects.all()
+    queryset = OtherTransactionItem.objects.select_related('product').all()
     serializer_class = ProductLostSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
 
 
 class AdvertisingViewSet(NestedViewSetMixin, ModelViewSet):
-    queryset = AdvertisingProductItems.objects.all()
+    queryset = AdvertisingProductItems.objects.select_related('product').all()
     serializer_class = AdvertisingItemSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)

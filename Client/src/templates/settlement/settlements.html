@@ -27,10 +27,10 @@
                         <tbody>
                         <tr ng-repeat="s in settlements"table-repeat-directive>
                             <td><a ui-sref="index.settlement.detail({id: s.id})">{{ s.StartDate }} - {{s.EndDate}}</a></td>
-                            <td>{{ p.sales_amount}}</td>
-                            <td>{{ p.total_cost }}</td>
-                            <td>{{ p.profit }}</td>
-                            <td>{{ p.profit_rate }}</td>
+                            <td>{{ s.TotalAmount}}</td>
+                            <td>{{ s.total_cost }}</td>
+                            <td>{{ s.profit }}</td>
+                            <td>{{ s.profit_rate }}</td>
                         </tr>
                         </tbody>
                     </table>

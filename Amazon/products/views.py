@@ -1,4 +1,5 @@
 #-*- coding:utf-8 -*-
+import os
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.conf import settings
@@ -26,9 +27,65 @@ def sync_orders(request):
     if not market_place_id:
         market_place_id = 'ATVPDKIKX0DER'
     market = MarketAccount.objects.get(MarketplaceId=market_place_id)
-    update_all(market)
+    # update_all(market)
+    settlement = Settlement.objects.first()
+    # _init_shipment()
+    product = Product.objects.all().order_by('pk').first()
+    from api import ProductProfitCalc, SettlementCalc
+    for product in Product.objects.all():
+        ProductProfitCalc(settlement).calc_product_profit(product)
+    SettlementCalc(settlement).calc_settlement()
+    # from api import SettlementDbHandler
+    # SettlementDbHandler(market)._init_settlement_products(settlement)
+    # return HttpResponse('success')
 
-    return HttpResponse('success')
+
+def _init_inbounds():
+    import requests
+    for product in Product.objects.all().order_by('pk'):
+        data = {
+            'count': '500',
+            'unit_price': '1.58',
+            'total_freight': '625',
+            'charges': '25',
+            'ship_date': '2017-05-23',
+            'product': '%d' % product.pk
+        }
+        url = 'http://127.0.0.1:8000/api/products/%d/supply/' % product.pk
+        r = requests.post(url, data=data)
+        if r.status_code != 201:
+            print r.text
+            break
+
+
+def _init_shipment():
+    outbound = None
+    products = list()
+    import requests
+    for product in Product.objects.all().order_by('pk'):
+        if not outbound:
+            outbound = {
+                'MarketplaceId': product.MarketplaceId,
+                'ShipmentId': 'abcdefghi',
+                'ship_date': '2017-05-03'
+            }
+        item = {
+            'SellerSKU': product.SellerSKU,
+            'QuantityShipped': '199',
+            'unit_freight': '1.19',
+            'fuel_tax': '0.15',
+            'duty': '53',
+            'package_length': '10.9',
+            'package_width': '3.1',
+            'package_height': '1.9',
+            'package_weight': '1.1'
+        }
+        products.append(item)
+    outbound['products'] = products
+    url = 'http://127.0.0.1:8000/api/shipments/'
+    import json
+    r = requests.post(url, data=json.dumps(outbound), headers={'content-type': 'application/json'})
+    print r.status_code
 
 
 # def upload_file(request):

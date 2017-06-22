@@ -103,7 +103,7 @@
                         <th class="td-sale">数量</th>
                         <th class="td-sale">退款金额({{ currency }})</th>
                         <th class="td-cost">单位成本({{ currency }})</th>
-                        <th class="td-cost">总成本({{ currency }})</th>
+                        <th class="td-cost">利润({{ currency }})</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -116,7 +116,7 @@
                         <td class="td-sale">{{ o.quantity }}</td>
                         <td class="td-sale"> {{ o.amount }}</td>
                         <td class="td-cost"> {{ o.cost }}</td>
-                        <td class="td-cost">{{ o.total_cost }}</td>
+                        <td class="td-cost">{{ o.profit }}</td>
                     </tr>
                     </tbody>
                 </table>
@@ -158,7 +158,7 @@
                         <th class="td-sale">数量</th>
                         <th class="td-sale">弃置费({{ currency }})</th>
                         <th class="td-cost">单位成本({{ currency }})</th>
-                        <th class="td-cost">总成本({{ currency }})</th>
+                        <th class="td-cost">利润({{ currency }})</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -172,7 +172,7 @@
                         <td class="td-sale">{{ o.Quantity }}</td>
                         <td class="td-sale"> {{ o.Fee }}</td>
                         <td class="td-cost"> {{ o.cost }}</td>
-                        <td class="td-cost">{{ o.total_cost }}</td>
+                        <td class="td-cost">{{ o.profit }}</td>
                     </tr>
                     </tbody>
                 </table>
@@ -202,7 +202,7 @@
                         <th class="td-sale">数量</th>
                         <th class="td-sale">赔偿费用({{ currency }})</th>
                         <th class="td-cost">单位成本({{ currency }})</th>
-                        <th class="td-cost">总成本({{ currency }})</th>
+                        <th class="td-cost">利润({{ currency }})</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -217,7 +217,7 @@
                         <td class="td-sale">{{ o.Quantity }}</td>
                         <td class="td-sale"> {{ o.Amount }}</td>
                         <td class="td-cost"> {{ o.cost }}</td>
-                        <td class="td-cost">{{ o.total_cost }}</td>
+                        <td class="td-cost">{{ o.profit }}</td>
                     </tr>
                     </tbody>
                 </table>
@@ -242,7 +242,7 @@
                         <th>SKU</th>
                         <th>商品图片</th>
                         <th>商品描述</th>
-                        <th class="td-sale">数量</th>
+                        <th>数量</th>
                         <th class="td-sale">总收入({{ currency }})</th>
                         <th class="td-sale">总成本({{ currency }})</th>
                         <th class="td-cost">广告费({{ currency }})</th>
@@ -252,7 +252,7 @@
                     </tr>
                     </thead>
                     <tbody>
-                    <tr ng-repeat="o in compensations"table-repeat-directive>
+                    <tr ng-repeat="o in products"table-repeat-directive>
                         <td>{{ $index+1 }}</td>
                         <td>{{ o.product.SellerSKU }}</td>
                         <td><img src="{{ host }}{{ o.product.Image }}"></td>
