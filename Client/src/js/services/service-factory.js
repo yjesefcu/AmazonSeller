@@ -29,6 +29,15 @@ app.factory('serviceFactory', function ($rootScope) {
     services.getProductOrders = function (id) {
         return host + '/api/products/' + id + '/orders';
     };
+    services.getProductRefunds = function (id) {
+        return host + '/api/products/' + id + '/refunds';
+    };
+    services.getProductLosts = function (id) {
+        return host + '/api/products/' + id + '/losts';
+    };
+    services.getProductRemovals = function (id) {
+        return host + '/api/products/' + id + '/removals';
+    };
     services.supplyList = function (productId) {
         return host + '/api/products/' + productId + '/supply/';
     };

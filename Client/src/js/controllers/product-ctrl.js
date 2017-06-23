@@ -185,31 +185,81 @@ app.controller("ProductEditCtrl", function ($scope, $http, $rootScope, $location
 
 app.controller('ProductOrdersCtrl', function ($scope, $rootScope, $http, $location, $state, $stateParams, $timeout, serviceFactory) {
     var productId = $stateParams.id, settlementId=$stateParams.settlementId;
-    $scope.orders = [];
     $scope.settlements = [];
+    $scope.settlement = {};
+    $scope.orders = [];
+    $scope.refunds = [];
+    $scope.removals = [];
+    $scope.losts = [];
+    $scope.productLoading = true;
+    $scope.orderLoading = true;
+    $scope.refundLoading = true;
+    $scope.removalLoading = true;
+    $scope.lostLoading = true;
 
-    getOrders(productId, settlementId);
+    getOrders();
+    getRefunds();
+    getRemovals();
+    getLosts();
 
-    function getOrders(productId, settlementId) {
-        if (settlementId){
-            $http.get(serviceFactory.getProductOrders(productId), {
-                params: {
-                    settlement: settlementId,
-                    MarketplaceId: $rootScope.MarketplaceId
-                }
-            }).then(function (result) {
+    $http.get(serviceFactory.settlementDetail(settlementId))
+        .then(function (result) {
+            $scope.settlement = result.data;
+        });
+    function getOrders() {
+        $http.get(serviceFactory.getProductOrders(productId), {
+            params: {
+                settlement: settlementId
+            }
+        })
+            .then(function (result) {
                 $scope.orders = result.data;
-                $timeout(function(){
-                    angular.element('#ordersTable').DataTable({
-                        "paging": true,
-                        "lengthChange": true,
-                        "searching": true,
-                        "ordering": false,
-                        "info": true,
-                        "autoWidth": false
-                    });
-                }, 1000);
-            });
-        }
+                $scope.productLoading = false;
+            }).catch(function (result) {
+                $scope.productLoading = false;
+                $rootScope.addAlert('warning', '获取商品列表失败');
+        });
+    }
+    function getRefunds() {
+        $http.get(serviceFactory.getProductRefunds(productId), {
+            params: {
+                settlement: settlementId
+            }
+        })
+            .then(function (result) {
+                $scope.refunds = result.data;
+                $scope.refundLoading = false;
+            }).catch(function (result) {
+                $scope.refundLoading = false;
+                $rootScope.addAlert('warning', '获取商品列表失败');
+        });
+    }
+    function getRemovals() {
+        $http.get(serviceFactory.getProductRemovals(productId), {
+            params: {
+                settlement: settlementId
+            }
+        })
+            .then(function (result) {
+                $scope.removals = result.data;
+                $scope.removalLoading = false;
+            }).catch(function (result) {
+                $scope.removalLoading = false;
+                $rootScope.addAlert('warning', '获取商品列表失败');
+        });
+    }
+    function getLosts() {
+        $http.get(serviceFactory.getProductLosts(productId), {
+            params: {
+                settlement: settlementId
+            }
+        })
+            .then(function (result) {
+                $scope.losts = result.data;
+                $scope.lostLoading = false;
+            }).catch(function (result) {
+                $scope.lostLoading = false;
+                $rootScope.addAlert('warning', '获取商品列表失败');
+        });
     }
 });

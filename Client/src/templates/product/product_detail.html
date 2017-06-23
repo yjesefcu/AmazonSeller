@@ -79,7 +79,7 @@
                     </tr>
                     </thead>
                     <tbody>
-                    <tr ng-repeat="p in supplies"table-repeat-directive>
+                    <tr ng-repeat="p in supplies" table-repeat-directive>
                         <td>{{ $index + 1 }}</td>
                         <td>{{ p.ship_date }}</td>
                         <td>{{ p.count }}</td>
@@ -119,7 +119,7 @@
                     </tr>
                     </thead>
                     <tbody>
-                    <tr ng-repeat="p in shipments"table-repeat-directive>
+                    <tr ng-repeat="p in shipments" table-repeat-directive>
                         <td>{{ $index + 1 }}</td>
                         <td>{{ p.shipment.ship_date }}</td>
                         <td><a ui-sref="index.shipmentDetail({id: p.shipment.id})">{{ p.shipment.ShipmentId }}</a></td>
@@ -158,10 +158,9 @@
                     </tr>
                     </thead>
                     <tbody>
-                    <tr ng-repeat="p in settlements"table-repeat-directive>
+                    <tr ng-repeat="p in settlements" table-repeat-directive>
                         <td>{{ $index + 1 }}</td>
-                        <td>{{ p.settlement.StartDate }}</td>
-                        <td>{{ p.settlement.EndDate }}</td>
+                        <td><a ui-sref="index.productDetail.settlement({settlementId: p.settlement.id})">{{ p.settlement.StartDate }} ~ {{p.settlement.EndDate}}</a></td>
                         <td>{{ p.sales_amount }}</td>
                         <td>{{ p.total_cost}}</td>
                         <td>{{ p.profit }}</td>
@@ -175,14 +174,5 @@
         <!-- /.box -->
     </div>
     </div>
-    <!--&lt;!&ndash;<div ng-include="'templates/product/product_orders.html'" ng-controller="ProductOrdersCtrl"></div>&ndash;&gt;-->
-    <!--<div class="row" style="text-align: center;">-->
-        <!--<label>结算周期</label>-->
-        <!--<div class="form-group" style="width: 200px;display: inline-block">-->
-            <!--<select class="form-control" ng-model="selectedSettlement" id="settlementSelection">-->
-                <!--<option ng-repeat="s in settlements" value="{{ s.id }}">{{ s.StartDate}} - {{ s.EndDate }}</option>-->
-            <!--</select>-->
-        <!--</div>-->
-    <!--</div>-->
-    <!--<div ui-view ng-show="isDetail"></div>-->
+    <div class="row" ui-view></div>
 </section>

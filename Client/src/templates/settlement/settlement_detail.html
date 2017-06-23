@@ -39,9 +39,10 @@
         <div class="box box-primary">
             <div class="box-header with-border" onclick="$(this).next().toggle()">
                 <h3 class="box-title">所有订单（{{ orders.length }}）</h3>
+                <i class="fa fa-refresh fa-spin" ng-if="productLoading"></i>
             </div>
             <!-- /.box-header -->
-            <div class="box-body">
+            <div class="box-body" style="display: none;">
                 <table id="orderTable" class="table table-bordered table-hover">
                     <thead>
                     <tr>
@@ -52,18 +53,20 @@
                         <th>商品描述</th>
                         <th class="td-sale">数量</th>
                         <th class="td-sale">单价({{ currency }})</th>
-                        <th class="td-sale">总价({{ currency }})</th>
                        <!-- <th>佣金({{ currency }})</th>
                         <th>基础服务费({{ currency }})</th>
                         <th>运费({{ currency }})</th> -->
                         <th class="td-sale">实收金额({{ currency }})</th>
                         <th class="td-cost">单位成本({{ currency }})</th>
                         <th class="td-cost">订阅费({{currency}})</th>
+                        <th class="td-cost">其他补偿金额({{currency}})</th>
+                        <th class="td-cost">余额调整({{currency}})</th>
+                        <th class="td-cost">总成本({{currency}})</th>
                         <th>利润({{currency}})</th>
                     </tr>
                     </thead>
                     <tbody>
-                    <tr ng-repeat="o in orders"table-repeat-directive>
+                    <tr ng-repeat="o in orders" table-repeat-directive>
                         <td>{{ o.PostedDate }}</td>
                         <td>{{ o.AmazonOrderId}}</td>
                         <td>{{ o.product.SellerSKU }}</td>
@@ -71,10 +74,12 @@
                         <td>{{ o.product.TitleCn}}</td>
                         <td class="td-sale">{{ o.Quantity }}</td>
                         <td class="td-sale"> {{ o.UnitPrice }}</td>
-                        <td class="td-sale"> {{ o.Principal }}</td>
-                        <td class="td-sale">{{ o.Amount }}</td>
+                        <td class="td-sale">{{ o.amount }}</td>
                         <td class="td-cost"> {{ o.cost }}</td>
-                        <td class="td-cost">{{o.subscription_fee}}</td>
+                        <td class="td-cost">{{o.subscribe_fee}}</td>
+                        <td class="td-cost">{{o.subscription_fee_adjust}}</td>
+                        <td class="td-cost">{{o.balanced_adjust}}</td>
+                        <td class="td-cost">{{o.total_cost}}</td>
                         <td> {{ o.profit }}</td>
                     </tr>
                     </tbody>
@@ -89,9 +94,10 @@
         <div class="box box-primary">
             <div class="box-header with-border" onclick="$(this).next().toggle()">
                 <h3 class="box-title">退货（{{ refunds.length }}）</h3>
+                <i class="fa fa-refresh fa-spin" ng-if="refundLoading"></i>
             </div>
             <!-- /.box-header -->
-            <div class="box-body">
+            <div class="box-body" style="display: none;">
                 <table id="refundTable" class="table table-bordered table-hover">
                     <thead>
                     <tr>
@@ -107,7 +113,7 @@
                     </tr>
                     </thead>
                     <tbody>
-                    <tr ng-repeat="o in refunds"table-repeat-directive>
+                    <tr ng-repeat="o in refunds" table-repeat-directive>
                         <td>{{ o.PostedDate }}</td>
                         <td>{{ o.AmazonOrderId}}</td>
                         <td>{{ o.product.SellerSKU }}</td>
@@ -130,9 +136,10 @@
         <div class="box box-primary">
             <div class="box-header with-border" onclick="$(this).next().toggle()">
                 <h3 class="box-title">弃置/移除（{{ removals.length }}）</h3>
+                <i class="fa fa-refresh fa-spin" ng-if="removalLoading"></i>
             </div>
             <!-- /.box-header -->
-            <div class="box-body">
+            <div class="box-body" style="display: none;">
                 <div class="row" style="margin-bottom: 16px;">
                     <div class="form-group">
                         <label class="col-sm-2 control-label" >上传移除报告</label>
@@ -186,9 +193,10 @@
         <div class="box box-primary">
             <div class="box-header with-border" onclick="$(this).next().toggle()">
                 <h3 class="box-title">赔偿（{{ losts.length }}）</h3>
+                <i class="fa fa-refresh fa-spin" ng-if="lostLoading"></i>
             </div>
             <!-- /.box-header -->
-            <div class="box-body">
+            <div class="box-body" style="display: none;">
                 <table id="lostTable" class="table table-bordered table-hover">
                     <thead>
                     <tr>
@@ -232,9 +240,10 @@
         <div class="box box-primary">
             <div class="box-header with-border" onclick="$(this).next().toggle()">
                 <h3 class="box-title">商品统计（{{ products.length }}）</h3>
+                <i class="fa fa-refresh fa-spin" ng-if="productLoading"></i>
             </div>
             <!-- /.box-header -->
-            <div class="box-body">
+            <div class="box-body" style="display: none;">
                 <table id="summaryTable" class="table table-bordered table-hover">
                     <thead>
                     <tr>

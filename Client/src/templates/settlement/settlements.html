@@ -17,8 +17,9 @@
                         <thead>
                         <tr>
                             <th>日期</th>
-                            <th>收入({{ currency }})</th>
-                            <th>成本({{ currency }})</th>
+                            <th class="td-sale">收入({{ currency }})</th>
+                            <th class="td-cost">广告费({{currency}})</th>
+                            <th class="td-cost">成本({{ currency }})</th>
                             <th>利润({{ currency }})</th>
                             <th>利润率</th>
                             <!--<th>操作</th>-->
@@ -27,8 +28,9 @@
                         <tbody>
                         <tr ng-repeat="s in settlements"table-repeat-directive>
                             <td><a ui-sref="index.settlement.detail({id: s.id})">{{ s.StartDate }} - {{s.EndDate}}</a></td>
-                            <td>{{ s.TotalAmount}}</td>
-                            <td>{{ s.total_cost }}</td>
+                            <td class="td-sale">{{ s.TotalAmount}}</td>
+                            <td class="td-cost">{{s.subscription_fee_adjust}}</td>
+                            <td class="td-cost">{{ s.total_cost }}</td>
                             <td>{{ s.profit }}</td>
                             <td>{{ s.profit_rate }}</td>
                         </tr>

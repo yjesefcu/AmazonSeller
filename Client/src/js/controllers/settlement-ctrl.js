@@ -30,6 +30,11 @@ app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $sta
     $scope.removals = [];
     $scope.losts = [];
     $scope.settlement = {};
+    $scope.productLoading = true;
+    $scope.orderLoading = true;
+    $scope.refundLoading = true;
+    $scope.removalLoading = true;
+    $scope.lostLoading = true;
     $http.get(serviceFactory.settlementDetail(settlementId))
         .then(function (result) {
              $scope.settlement = result.data;
@@ -47,41 +52,51 @@ app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $sta
         $http.get(serviceFactory.settlementProducts(settlementId))
             .then(function (result) {
                 $scope.products = result.data;
+                $scope.productLoading = false;
             }).catch(function (result) {
-            $rootScope.addAlert('warning', '获取商品列表失败');
+                $scope.productLoading = false;
+                $rootScope.addAlert('warning', '获取商品列表失败');
         });
     }
 
     function getOrders() {
         $http.get(serviceFactory.settlementOrders(settlementId))
             .then(function (result) {
+                $scope.orderLoading = false;
                 $scope.orders = result.data;
             }).catch(function (result) {
-            $rootScope.addAlert('warning', '获取商品列表失败');
+                $scope.orderLoading = false;
+                $rootScope.addAlert('warning', '获取商品列表失败');
         });
     }
     function getRefunds() {
         $http.get(serviceFactory.settlementRefunds(settlementId))
             .then(function (result) {
+                $scope.refundLoading = false;
                 $scope.refunds = result.data;
             }).catch(function (result) {
-            $rootScope.addAlert('warning', '获取商品列表失败');
+                $scope.refundLoading = false;
+                $rootScope.addAlert('warning', '获取商品列表失败');
         });
     }
     function getRemovals() {
         $http.get(serviceFactory.settlementRemovals(settlementId))
             .then(function (result) {
+                $scope.removalLoading = false;
                 $scope.removals = result.data;
             }).catch(function (result) {
-            $rootScope.addAlert('warning', '获取商品列表失败');
+                $scope.removalLoading = false;
+                $rootScope.addAlert('warning', '获取商品列表失败');
         });
     }
     function getLosts() {
         $http.get(serviceFactory.settlementLosts(settlementId))
             .then(function (result) {
+                $scope.lostLoading = false;
                 $scope.losts = result.data;
             }).catch(function (result) {
-            $rootScope.addAlert('warning', '获取商品列表失败');
+                $scope.lostLoading = false;
+                $rootScope.addAlert('warning', '获取商品列表失败');
         });
     }
 

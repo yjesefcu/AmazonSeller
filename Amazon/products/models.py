@@ -204,6 +204,10 @@ class Settlement(models.Model):
     StartDate = models.DateTimeField(null=True, blank=True, verbose_name=u'结算开始日期')
     EndDate = models.DateTimeField(null=True, blank=True, verbose_name=u'结算结束日期')
     subscribe_fee = models.FloatField(null=True, blank=True, verbose_name=u'订阅费') # 手动
+    subscription_fee_adjust = models.FloatField(null=True, blank=True, verbose_name=u'补偿金额')    # OtherTransaction.SubscriptionFeeAdj的总和
+    balanced_adjust = models.FloatField(null=True, blank=True, verbose_name=u'余额调整')
+    advertising_fee = models.FloatField(null=True, blank=True, verbose_name=u'从商品中统计的广告费')
+    advertising_fee_adjust = models.FloatField(null=True, blank=True, verbose_name=u'实际支付的总广告费')   # 如果advertising_fee<advertising_fee_adjust，那么需要将多余的平均到商品中
     sales_amount = models.FloatField(null=True, blank=True, verbose_name=u'总收入')   # 计算
     quantity = models.IntegerField(null=True, blank=True, verbose_name=u'销售数量')           # 销售数量
     total_cost = models.FloatField(null=True, blank=True, verbose_name=u'总成本')      # 计算

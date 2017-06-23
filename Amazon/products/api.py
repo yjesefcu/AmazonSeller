@@ -3,7 +3,7 @@ __author__ = 'liucaiyun'
 import os, datetime, urllib, json, logging
 import dateutil.parser
 from django.conf import settings
-from django.db.models import Q, F
+from django.db.models import Q, F, Sum
 from amazon_services.service import OrderService, OrderItemService
 from models import *
 
@@ -283,14 +283,28 @@ class SettlementDbHandler(object):
         # 获取该订单的商品数量、以及退款的总额
         try:
             soi = SettleOrderItem.objects.get(OrderItemId=data['OrderItemId'])
+            data['order_item'] = soi
             data['quantity'] = soi.Quantity
         except SettleOrderItem.DoesNotExist, ex:
-            pass
+            data['quantity'] = self._get_order_item_quantity_from_amazon(data['OrderItemId'], data['AmazonOrderId'])
         data['amount'] = get_float(data, 'PriceAdjustmentAmount') + get_float(data, 'Shipping') + get_float(data, 'Commission') + \
                          get_float(data, 'RefundCommission') + get_float(data, 'PromotionPrincipal') + \
                          get_float(data, 'PromotionShipping') + get_float(data, 'ShippingChargeback') + \
                          get_float(data, 'ShippingChargeback')
+
+        # 找到对应的订单信息
         return RefundItem.objects.create(**data)
+
+    def _get_order_item_quantity_from_amazon(self, order_item_id, amazon_order_id):
+        # 从亚马逊请求订单数量
+        from amazon_services.models import MarketAccount
+        market = MarketAccount.objects.get(MarketplaceId=self.MarketplaceId)
+        orders = OrderItemService(market).list_items(amazon_order_id)
+        for order in orders:
+            if order['OrderItemId'] == order_item_id:
+                return order.get('QuantityShipped', 0)
+        return None
+
 
     def _update_transaction_to_db(self, settlement, data):
         if not data:
@@ -480,10 +494,28 @@ class ProductProfitCalc(object):
         self.sale_quantity = 0
         self.unfound_refund_quantity = 0
 
+    def _clear(self, product):
+        """
+        清除，主要是恢复库存，不影响时间成本的计算
+        :param product:
+        :return:
+        """
+        """
+        清除计算的结果
+        :return:
+        """
+        try:
+            ps = ProductSettlement.objects.get(settlement=self.settlement, product=product)
+            if ps.quantity:
+                self._update_inventory(product, -ps.quantity)        # 先将库存补充上
+        except ProductSettlement.DoesNotExist, ex:
+            return
+
     def calc_product_profit(self, product):
         # 首先更新商品当前单位成本
         self.sale_quantity = 0       # 每个商品计算时都先清零
         self.unfound_refund_quantity = 0
+        self._clear(product)    # 先恢复库存
         CostCalculate.calc_current_cost(product)
         total_cost = 0
         result1 = self._calc_order_profit(product)
@@ -491,13 +523,14 @@ class ProductProfitCalc(object):
         result3 = self._calc_removals(product)
         result4 = self._calc_with_refunds(product)
         result5 = self._calc_lost(product)
-
+        advertising_cost = self._calc_advertising(product)
         # 更新库存
         self._update_inventory(product, self.sale_quantity)
         ps, created = ProductSettlement.objects.get_or_create(settlement=self.settlement, product=product)
         ps.quantity = self.sale_quantity
         ps.sales_amount = result1[0] + result2[0] + result3[0] + result4[0] + result5[0]
-        ps.total_cost = result1[1] + result2[1] + result3[1] + result4[1] + result5[1]
+        ps.advertising_fee = -advertising_cost
+        ps.total_cost = result1[1] + result2[1] + result3[1] + result4[1] + result5[1] + advertising_cost
         ps.profit = ps.sales_amount + ps.total_cost
         ps.profit_rate = ps.profit / ps.sales_amount if ps.sales_amount else 0
         ps.save()
@@ -548,21 +581,13 @@ class ProductProfitCalc(object):
         amount = 0
         cost = 0
         for refund in refunds:
-            try:
-                order = SettleOrderItem.objects.get(OrderItemId=refund.OrderItemId)
-            except SettleOrderItem.DoesNotExist, ex:
-                logger.warning('cannot find refund order: %s', refund.OrderItemId)
-                order = None
-                self.unfound_refund_quantity += 1
-            if order:
-                refund.cost = -order.cost
-                refund.quantity = order.Quantity
+            if refund.order_item:
+                refund.cost = -refund.order_item.cost
             else:
-                refund.cost = 0
-                refund.quantity = 1
+                refund.cost = -product.cost
+                self.unfound_refund_quantity += 1
             refund.total_cost = refund.cost * refund.quantity
             refund.profit = refund.total_cost + refund.amount
-            refund.order_item = order
             refund.save()
             quantity += refund.quantity
             amount += refund.amount
@@ -631,11 +656,12 @@ class ProductProfitCalc(object):
                     supply.inventory = 0
                     supply.save()
         else:
+            count = -count
             for i in [0, 1]:
                 items = class_list[i].objects.filter(product=product, inventory__lt=F(quantity_key[i])).order_by('-'+order_list[i])
                 tmp = count
                 for item in items:
-                    if tmp < getattr(item, quantity_key[i]) - item.inventory:
+                    if tmp <= getattr(item, quantity_key[i]) - item.inventory:
                         item.inventory += tmp
                         item.save()
                         break
@@ -643,16 +669,9 @@ class ProductProfitCalc(object):
                     item.inventory = item.count
                     item.save()
 
-    def clear(self, product):
-        """
-        清除计算的结果
-        :return:
-        """
-        try:
-            ps = ProductSettlement.objects.get(settlement=self.settlement, product=product)
-            self._update_inventory(product, ps.quantity)        # 先将库存补充上
-        except ProductSettlement.DoesNotExist, ex:
-            return
+    def _calc_advertising(self, product):
+        # 统计广告费
+        return AdvertisingProductItems.objects.filter(product=product).aggregate(Sum('TotalSpend'))
 
 
 class SettlementCalc(object):
@@ -672,8 +691,14 @@ class SettlementCalc(object):
         items = ProductSettlement.objects.filter(settlement=self.settlement)
         amount = sum([item.sales_amount for item in items])
         cost = sum([item.total_cost for item in items])
-        self.settlement.sales_amount = amount
-        self.settlement.total_cost = cost
+        self.settlement.subscription_fee_adjust = OtherTransaction.objects.filter(TransactionType='NonSubscriptionFeeAdj').aggregate(Sum('Amount'))
+        self.settlement.balanced_adjust = OtherTransaction.objects.filter(TransactionType='BalanceAdjustment').aggregate(Sum('Amount'))
+        self.settlement.sales_amount = amount + self.settlement.subscription_fee_adjust + self.settlement.balanced_adjust
+
+        if self.settlement.advertising_fee is None:
+            self.settlement.advertising_fee = ProductSettlement.objects.filter(settlement=self.settlement).aggregate(Sum('advertising_fee'))
+        self.settlement.advertising_fee_adjust = ProductSettlement.objects.filter(settlement=self.settlement).aggregate(Sum('advertising_fee'))
+        self.settlement.total_cost = cost + self.settlement.advertising_fee
         self.settlement.profit = amount + cost
         self.settlement.profit_rate = self.settlement.profit / amount if amount else 0
         self.settlement.save()

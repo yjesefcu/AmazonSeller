@@ -36,7 +36,7 @@ class SettlementProductViewSet(NestedViewSetMixin, ModelViewSet):
 
 
 class ProductViewSet(NestedViewSetMixin, ModelViewSet):
-    queryset = Product.objects.select_related('product').all()
+    queryset = Product.objects.all()
     serializer_class = ProductSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
     filter_backends = (DjangoFilterBackend,)
@@ -81,7 +81,7 @@ class OrderViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = SettleOrderItem.objects.select_related('product').all()
     serializer_class = OrderItemSerializer
     filter_backends = (DjangoFilterBackend,)
-    filter_fields = ('settlement', 'MarketplaceId')
+    filter_fields = ('settlement',)
 
 
 class OutboundShipmentViewSet(NestedViewSetMixin, ModelViewSet):
@@ -237,6 +237,7 @@ class RefundViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = RefundItem.objects.select_related('product').all()
     serializer_class = RefundItemSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
+    filter_fields = ('settlement',)
 
 
 class RemovalViewSet(NestedViewSetMixin, ModelViewSet):
@@ -244,6 +245,7 @@ class RemovalViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = ProductRemovalItem.objects.select_related('product').all()
     serializer_class = ProductRemovalItemSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
+    filter_fields = ('settlement',)
 
     @list_route(methods=['post'])
     def upload(self, request, *args, **kwargs):
@@ -267,6 +269,7 @@ class ProductLostViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = OtherTransactionItem.objects.select_related('product').all()
     serializer_class = ProductLostSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
+    filter_fields = ('settlement',)
 
 
 class AdvertisingViewSet(NestedViewSetMixin, ModelViewSet):
