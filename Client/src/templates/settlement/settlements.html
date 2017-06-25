@@ -17,9 +17,15 @@
                         <thead>
                         <tr>
                             <th>日期</th>
-                            <th class="td-sale">收入({{ currency }})</th>
-                            <th class="td-cost">广告费({{currency}})</th>
-                            <th class="td-cost">成本({{ currency }})</th>
+                            <th>数量</th>
+                            <th class="td-sale">商品价格({{ currency }})</th>
+                            <th class="td-sale">促销返点({{ currency }})</th>
+                            <th class="td-sale">亚马逊收取({{ currency }})</th>
+                            <th class="td-sale">实收({{ currency }})</th>
+                            <th class="td-cost">总成本({{ currency }})</th>
+                            <th class="td-cost">广告费({{ currency }})</th>
+                            <th class="td-cost">仓储费({{ currency }})</th>
+                            <th class="td-cost">订阅费({{ currency }})</th>
                             <th>利润({{ currency }})</th>
                             <th>利润率</th>
                             <!--<th>操作</th>-->
@@ -27,12 +33,18 @@
                         </thead>
                         <tbody>
                         <tr ng-repeat="s in settlements"table-repeat-directive>
-                            <td><a ui-sref="index.settlement.detail({id: s.id})">{{ s.StartDate }} - {{s.EndDate}}</a></td>
-                            <td class="td-sale">{{ s.TotalAmount}}</td>
-                            <td class="td-cost">{{s.subscription_fee_adjust}}</td>
-                            <td class="td-cost">{{ s.total_cost }}</td>
-                            <td>{{ s.profit }}</td>
-                            <td>{{ s.profit_rate }}</td>
+                            <td><a ui-sref="index.settlement.detail({settlementId: s.id})">{{ s.StartDate }} - {{s.EndDate}}</a></td>
+                            <td>{{ s.quantity }}</td>
+                            <td class="td-sale">{{ s.income }}</td>
+                            <td class="td-sale"> {{ s.promotion }}</td>
+                            <td class="td-sale">{{s.amazon_cost}}</td>
+                            <td class="td-sale">{{s.amount}}</td>
+                            <td class="td-cost">{{s.total_cost}}</td>
+                            <td class="td-cost"> {{ s.advertising_fee }}</td>
+                            <td class="td-cost">{{ s.storage_fee }}</td>
+                            <td class="td-cost">{{s.subscription_fee}}</td>
+                            <td>{{ o.profit }}</td>
+                            <td>{{ o.profit_rate }}</td>
                         </tr>
                         </tbody>
                     </table>

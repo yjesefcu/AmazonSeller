@@ -21,6 +21,7 @@
     "angular": "angular2#^1.6.4",
     "angular-atomic-notify": "^1.0.4",
     "angular-bootstrap": "^2.5.0",
-    "angularjs-datepicker": "^2.1.19"
+    "angularjs-datepicker": "^2.1.19",
+    "jquery_lazyload": "jquery.lazyload#^1.9.7"
   }
 }

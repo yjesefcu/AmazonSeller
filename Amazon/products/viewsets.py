@@ -87,11 +87,24 @@ class ProductShipmentItemViewSet(NestedViewSetMixin, ModelViewSet):
     serializer_class = OutboundShipmentItemSerializer
 
 
+class ProfitProductFilter(object):
+
+    def filter_queryset(self, request, queryset, view):
+        data = request.query_params
+        if 'product' in data:
+            product = data.get('product')
+            if not product:
+                queryset = queryset.filter(product__isnull=True)
+            else:
+                queryset = queryset.filter(product__pk=product)
+        return queryset
+
+
 class OrderViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = SettleOrderItem.objects.select_related('product').all()
     serializer_class = OrderItemSerializer
-    filter_backends = (DjangoFilterBackend,)
-    filter_fields = ('settlement',)
+    filter_backends = (DjangoFilterBackend, ProfitProductFilter,)
+    filter_fields = ('settlement', 'product', 'is_total')
 
 
 class OutboundShipmentViewSet(NestedViewSetMixin, ModelViewSet):
@@ -247,7 +260,8 @@ class RefundViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = RefundItem.objects.select_related('product').all()
     serializer_class = RefundItemSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
-    filter_fields = ('settlement',)
+    filter_backends = (DjangoFilterBackend, ProfitProductFilter,)
+    filter_fields = ('settlement', 'product', 'is_total')
 
 
 class RemovalViewSet(NestedViewSetMixin, ModelViewSet):
@@ -255,7 +269,8 @@ class RemovalViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = ProductRemovalItem.objects.select_related('product').all()
     serializer_class = ProductRemovalItemSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
-    filter_fields = ('settlement',)
+    filter_backends = (DjangoFilterBackend, ProfitProductFilter,)
+    filter_fields = ('settlement', 'product', 'is_total')
 
     @list_route(methods=['post'])
     def upload(self, request, *args, **kwargs):
@@ -279,7 +294,8 @@ class ProductLostViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = OtherTransactionItem.objects.select_related('product').all()
     serializer_class = ProductLostSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
-    filter_fields = ('settlement',)
+    filter_backends = (DjangoFilterBackend, ProfitProductFilter,)
+    filter_fields = ('settlement', 'product', 'is_total')
 
 
 class AdvertisingViewSet(NestedViewSetMixin, ModelViewSet):

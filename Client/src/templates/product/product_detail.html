@@ -68,6 +68,7 @@
             <!-- /.box-header -->
             <div class="box-body" ng-show="showSupplies">
                 <table id="inboundShipements" class="table table-bordered table-hover">
+                    <thead>
                     <tr>
                         <th>序号</th>
                         <th>日期</th>
@@ -106,6 +107,7 @@
             <!-- /.box-header -->
             <div class="box-body" ng-show="showShipments">
                 <table id="outboundShipements" class="table table-bordered table-hover">
+                    <thead>
                     <tr>
                         <th>序号</th>
                         <th>日期</th>
@@ -148,23 +150,37 @@
             <!-- /.box-header -->
             <div class="box-body" ng-show="showSettlements">
                 <table id="settlements" class="table table-bordered table-hover">
+                    <thead>
                     <tr>
-                        <th>序号</th>
                         <th>日期</th>
-                        <th>收入({{ currency }})</th>
-                        <th>成本({{ currency }})</th>
+                        <th>数量</th>
+                        <th class="td-sale">商品价格({{ currency }})</th>
+                        <th class="td-sale">促销返点({{ currency }})</th>
+                        <th class="td-sale">亚马逊收取({{ currency }})</th>
+                        <th class="td-sale">实收({{ currency }})</th>
+                        <th class="td-cost">总成本({{ currency }})</th>
+                        <th class="td-cost">广告费({{ currency }})</th>
+                        <th class="td-cost">仓储费({{ currency }})</th>
+                        <th class="td-cost">订阅费({{ currency }})</th>
                         <th>利润({{ currency }})</th>
                         <th>利润率</th>
+                        <!--<th>操作</th>-->
                     </tr>
                     </thead>
                     <tbody>
-                    <tr ng-repeat="p in settlements" table-repeat-directive>
-                        <td>{{ $index + 1 }}</td>
-                        <td><a ui-sref="index.productDetail.settlement({settlementId: p.settlement.id})">{{ p.settlement.StartDate }} ~ {{p.settlement.EndDate}}</a></td>
-                        <td>{{ p.sales_amount }}</td>
-                        <td>{{ p.total_cost}}</td>
-                        <td>{{ p.profit }}</td>
-                        <td>{{ p.profit_rate }}</td>
+                    <tr ng-repeat="s in settlements"table-repeat-directive>
+                        <td><a ui-sref="index.settlement.detail({settlementId: s.id})">{{ s.settlement.StartDate }} - {{s.settlement.EndDate}}</a></td>
+                        <td>{{ s.quantity }}</td>
+                        <td class="td-sale">{{ s.income }}</td>
+                        <td class="td-sale"> {{ s.promotion }}</td>
+                        <td class="td-sale">{{s.amazon_cost}}</td>
+                        <td class="td-sale">{{s.amount}}</td>
+                        <td class="td-cost">{{s.total_cost}}</td>
+                        <td class="td-cost"> {{ s.advertising_fee }}</td>
+                        <td class="td-cost">{{ s.storage_fee }}</td>
+                        <td class="td-cost">{{s.subscription_fee}}</td>
+                        <td>{{ s.profit }}</td>
+                        <td>{{ s.profit_rate }}</td>
                     </tr>
                     </tbody>
                 </table>

@@ -45,9 +45,12 @@ class DateFormat(serializers.DateTimeField):
 class SettlementSerializer(serializers.ModelSerializer):
     StartDate = DateFormat()
     EndDate = DateFormat()
+    income = FloatRoundField()
+    amazon_cost = FloatRoundField()
+    promotion = FloatRoundField()
+    amount = FloatRoundField()
     profit = FloatRoundField()
     profit_rate = ProfitRateField()
-    sales_amount = FloatRoundField()
     total_cost = FloatRoundField()
 
     class Meta:
@@ -64,11 +67,15 @@ class ProductSerializer(serializers.ModelSerializer):
 
 class ProductSettlementSerializer(serializers.ModelSerializer):
     settlement = SettlementSerializer()
+    product = ProductSerializer(read_only=True)
+    income = FloatRoundField()
+    amazon_cost = FloatRoundField()
+    promotion = FloatRoundField()
+    amount = FloatRoundField()
     profit = FloatRoundField()
     profit_rate = ProfitRateField()
-    sales_amount = FloatRoundField()
     total_cost = FloatRoundField()
-    product = ProductSerializer(read_only=True)
+    subscription_fee = FloatRoundField()
 
     class Meta:
         model = ProductSettlement
@@ -78,7 +85,13 @@ class ProductSettlementSerializer(serializers.ModelSerializer):
 class OrderItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
     PostedDate = DateTimeFormat()
+    income = FloatRoundField()
+    amazon_cost = FloatRoundField()
+    amount = FloatRoundField()
     profit = FloatRoundField()
+    total_cost = FloatRoundField()
+    subscription_fee = FloatRoundField()
+    cost = FloatRoundField()
 
     class Meta:
         model = SettleOrderItem
@@ -119,7 +132,11 @@ class OutboundShipmentSerializer(serializers.ModelSerializer):
 class ProductRemovalItemSerializer(serializers.ModelSerializer):
     UpdateDate = DateFormatField(read_only=True)
     product = ProductSerializer(read_only=True)
+    amazon_cost = FloatRoundField()
+    amount = FloatRoundField()
     profit = FloatRoundField()
+    total_cost = FloatRoundField()
+    cost = FloatRoundField()
 
     class Meta:
         model = ProductRemovalItem
@@ -137,6 +154,9 @@ class ProductLostSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
     PostedDate = DateFormatField(read_only=True)
     profit = FloatRoundField()
+    Amount = FloatRoundField()
+    total_cost = FloatRoundField()
+    cost = FloatRoundField()
 
     class Meta:
         model = OtherTransactionItem
@@ -147,6 +167,8 @@ class RefundItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
     PostedDate = DateFormatField(read_only=True)
     profit = FloatRoundField()
+    cost = FloatRoundField()
+    total_cost = FloatRoundField()
 
     class Meta:
         model = RefundItem

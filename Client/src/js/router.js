@@ -18,16 +18,21 @@ app.config(['$stateProvider', '$urlRouterProvider', function($stateProvider, $ur
             templateUrl: 'templates/product/product_edit.html'
         })
         .state('index.productDetail', {
-            url: 'product/:id',
+            url: 'product/:productId',
             templateUrl: 'templates/product/product_detail.html'
         })
         .state('index.productDetailEdit', {
-            url: 'product/:id/edit',
+            url: 'product/:productId/edit',
             templateUrl: 'templates/product/product_edit.html'
         })
         .state('index.productDetail.settlement', {
             url: '/settlement/:settlementId',
             templateUrl: 'templates/product/product_orders.html'
+        })
+        .state('index.productDetail.settlement.orders', {
+            url: '/orders',
+            templateUrl: 'templates/settlement_order_detail.html',
+            controller: 'settlementOrdersCtrl'
         })
         .state('index.shipment', {
             url: 'shipment',
@@ -50,8 +55,13 @@ app.config(['$stateProvider', '$urlRouterProvider', function($stateProvider, $ur
             templateUrl: 'templates/settlement/settlements.html'
         })
         .state('index.settlement.detail', {
-            url: '/:id',
+            url: '/:settlementId',
             templateUrl: 'templates/settlement/settlement_detail.html'
+        })
+        .state('index.settlement.detail.orders', {
+            url: '/orders',
+            templateUrl: 'templates/settlement_order_detail.html',
+            controller: 'settlementOrdersCtrl'
         })
     ;
 }]);

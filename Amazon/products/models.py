@@ -230,6 +230,7 @@ class ProductSettlement(models.Model):
     storage_fee = models.FloatField(null=True, blank=True)           # 仓储费，需以负数保存
 
     quantity = models.IntegerField(null=True, blank=True)           # 销售数量
+    subscription_fee = models.FloatField(null=True, blank=True, verbose_name=u'订阅费')
     income = models.FloatField(null=True, blank=True)         # 总销售
     amazon_cost = models.FloatField(null=True, blank=True, verbose_name=u'亚马逊所收费用')
     promotion = models.FloatField(null=True, blank=True, verbose_name=u'促销返点')
@@ -238,6 +239,7 @@ class ProductSettlement(models.Model):
     profit = models.FloatField(null=True, blank=True, verbose_name=u'利润')
     profit_rate = models.FloatField(null=True, blank=True, verbose_name=u'利润率')
 
+    is_total = models.BooleanField(default=False)
 
 class Refund(models.Model):
     """
@@ -280,6 +282,7 @@ class RefundItem(models.Model):
     order_item = models.ForeignKey('SettleOrderItem', null=True, blank=True)        # 退款关联的订单
     quantity = models.IntegerField(null=True, blank=True)   # 销售的数量，从SettleOrderItem中读取
     cost = models.FloatField(null=True, blank=True, verbose_name=u'单位成本')         # 成本，应该为正数
+    UnitPrice = models.FloatField(null=True, blank=True, verbose_name=u'销售单价')
     # 汇总
     total_cost = models.FloatField(null=True, blank=True, verbose_name=u'总成本')  # subscription_fee + cost
     income = models.FloatField(null=True, blank=True, verbose_name=u'订单付款') #　= PriceAdjustmentAmount
@@ -373,8 +376,10 @@ class OtherTransactionItem(models.Model):
     # 其他
     product = models.ForeignKey(Product, null=True, blank=True)
     cost = models.FloatField(null=True, blank=True, verbose_name=u'单位成本')     # 如果是仓库丢失，需要扣除成本
+    UnitPrice = models.FloatField(null=True, blank=True, verbose_name=u'商品销售单价')   # Amount/Quantity
 
     # 汇总
+    income = models.FloatField(null=True, blank=True)       # = Amount
     total_cost = models.FloatField(null=True, blank=True, verbose_name=u'总成本')
     profit = models.FloatField(null=True, blank=True)   # 利润
 

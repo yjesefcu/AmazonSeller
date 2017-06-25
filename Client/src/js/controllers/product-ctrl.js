@@ -61,7 +61,8 @@ app.directive('tableRepeatDirective', function($timeout) {
         if (scope.$last){   // 表格repeat完毕
             $timeout(function(){
                 if (angular.element(element.parent().parent())[0].nodeName == 'TABLE'){
-                    angular.element(element.parent().parent()).DataTable({
+                    angular.element(element.parent().parent())
+                        .DataTable({
                         "paging": true,
                         "lengthChange": true,
                         "searching": true,
@@ -84,7 +85,7 @@ app.controller("ProductEditCtrl", function ($scope, $http, $rootScope, $location
     $scope.showSupplies = false;    // 是否显示入库货件列表
     $scope.showShipments = false;   // 是否显示移库货件列表
     $scope.showSettlements = true;  // 是否显示结算列表
-    $scope.productId = $stateParams.id;
+    $scope.productId = $stateParams.productId;
     var settlementId = $stateParams.settlementId;
     $scope.isDetail = $scope.productId ? true : false;
     if ($scope.productId){     // 编辑页面
@@ -184,82 +185,11 @@ app.controller("ProductEditCtrl", function ($scope, $http, $rootScope, $location
 });
 
 app.controller('ProductOrdersCtrl', function ($scope, $rootScope, $http, $location, $state, $stateParams, $timeout, serviceFactory) {
-    var productId = $stateParams.id, settlementId=$stateParams.settlementId;
+    var productId = $stateParams.productId, settlementId=$stateParams.settlementId;
     $scope.settlements = [];
     $scope.settlement = {};
-    $scope.orders = [];
-    $scope.refunds = [];
-    $scope.removals = [];
-    $scope.losts = [];
-    $scope.productLoading = true;
-    $scope.orderLoading = true;
-    $scope.refundLoading = true;
-    $scope.removalLoading = true;
-    $scope.lostLoading = true;
-
-    getOrders();
-    getRefunds();
-    getRemovals();
-    getLosts();
-
     $http.get(serviceFactory.settlementDetail(settlementId))
         .then(function (result) {
             $scope.settlement = result.data;
         });
-    function getOrders() {
-        $http.get(serviceFactory.getProductOrders(productId), {
-            params: {
-                settlement: settlementId
-            }
-        })
-            .then(function (result) {
-                $scope.orders = result.data;
-                $scope.productLoading = false;
-            }).catch(function (result) {
-                $scope.productLoading = false;
-                $rootScope.addAlert('warning', '获取商品列表失败');
-        });
-    }
-    function getRefunds() {
-        $http.get(serviceFactory.getProductRefunds(productId), {
-            params: {
-                settlement: settlementId
-            }
-        })
-            .then(function (result) {
-                $scope.refunds = result.data;
-                $scope.refundLoading = false;
-            }).catch(function (result) {
-                $scope.refundLoading = false;
-                $rootScope.addAlert('warning', '获取商品列表失败');
-        });
-    }
-    function getRemovals() {
-        $http.get(serviceFactory.getProductRemovals(productId), {
-            params: {
-                settlement: settlementId
-            }
-        })
-            .then(function (result) {
-                $scope.removals = result.data;
-                $scope.removalLoading = false;
-            }).catch(function (result) {
-                $scope.removalLoading = false;
-                $rootScope.addAlert('warning', '获取商品列表失败');
-        });
-    }
-    function getLosts() {
-        $http.get(serviceFactory.getProductLosts(productId), {
-            params: {
-                settlement: settlementId
-            }
-        })
-            .then(function (result) {
-                $scope.losts = result.data;
-                $scope.lostLoading = false;
-            }).catch(function (result) {
-                $scope.lostLoading = false;
-                $rootScope.addAlert('warning', '获取商品列表失败');
-        });
-    }
 });
