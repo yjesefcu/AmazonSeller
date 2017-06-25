@@ -67,6 +67,11 @@ def update_settlement(market=None):
 
     for report in reports:
         settlement_data = service.get_one(report['ReportId'])
+        start_date = dateutil.parser.parse(settlement_data['SettlementData']['StartDate']).replace(tzinfo=None)
+        end_date = dateutil.parser.parse(settlement_data['SettlementData']['EndDate']).replace(tzinfo=None)
+        # 如果EndDate与StartDate不是相差14天，则不计算
+        if (end_date - start_date).days != 14:
+            continue
         try:
             SettlementDataRecord.objects.get(data_type=SettlementDataRecord.SETTLEMENT, start_time=settlement_data['SettlementData']['StartDate'])
             continue
@@ -160,5 +165,5 @@ def update_all(market):
     if settlements.exists():
         for settlement in settlements:
             update_advertising_report(market, settlement)
-            update_removal_report(market, settlement)
+            # update_removal_report(market, settlement)
     update_product(market)

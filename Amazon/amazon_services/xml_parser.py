@@ -321,8 +321,9 @@ class SettlementReportParser(BaseParser):
         item['SellerSKU'] = self.find(ele, 'SKU').text
         item['Quantity'] = self.find(ele, 'Quantity').text
         for component in self.findall(ele, 'ItemPrice/Component'):  # 获取商品总价和运费
-            item['ItemPriceType'] = self.find(component, 'Type').text
-            item['ItemPriceAmount'] = self.find(component, 'Amount').text
+            if self.find(component, 'Type').text not in ['Principal', 'Shipping']:
+                continue
+            item[self.find(component, 'Type').text] = self.find(component, 'Amount').text
         if self.find(ele, 'ItemFees') is not None:      # 亚马逊物流基础服务费
             for fee in self.findall(ele, 'ItemFees/Fee'):
                 item[self.find(fee, 'Type').text] = self.find(fee, 'Amount').text

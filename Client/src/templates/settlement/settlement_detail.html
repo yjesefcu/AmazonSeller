@@ -263,7 +263,7 @@
                     <tbody>
                     <tr ng-repeat="o in products"table-repeat-directive>
                         <td>{{ $index+1 }}</td>
-                        <td>{{ o.product.SellerSKU }}</td>
+                        <td><a ui-sref="index.productDetail({id: o.product.id})"> {{ o.product.SellerSKU }}</a></td>
                         <td><img src="{{ host }}{{ o.product.Image }}"></td>
                         <td>{{ o.product.TitleCn}}</td>
                         <td>{{ o.quantity }}</td>

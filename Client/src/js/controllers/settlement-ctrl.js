@@ -51,8 +51,8 @@ app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $sta
     function getProducts() {
         $http.get(serviceFactory.settlementProducts(settlementId))
             .then(function (result) {
-                $scope.products = result.data;
                 $scope.productLoading = false;
+                $scope.products = result.data;
             }).catch(function (result) {
                 $scope.productLoading = false;
                 $rootScope.addAlert('warning', '获取商品列表失败');

@@ -27,6 +27,16 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
     filter_backends = (DjangoFilterBackend,)
     filter_fields = ('MarketplaceId',)
 
+    @detail_route(methods=['get'])
+    def calc(self, request, pk):
+        from api import SettlementCalc, ProductProfitCalc
+        instance = self.get_object()
+        product_calc = ProductProfitCalc(instance)
+        for product in Product.objects.all():
+            product_calc.calc_product_profit(product)
+        instance = SettlementCalc(settlement=instance).calc_settlement()
+        return Response(SettlementSerializer(instance).data)
+
 
 class SettlementProductViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = ProductSettlement.objects.select_related('product').all()
@@ -66,7 +76,7 @@ class SupplyViewSet(NestedViewSetMixin, ModelViewSet):
         instance.unit_cost = to_float(instance.unit_price) + (to_float(instance.total_freight)+to_float(instance.charges)) / instance.count
         instance.save()
         # 更新product的库存
-        _query_dict = self.get_s_query_dict()
+        _query_dict = self.get_parents_query_dict()
         product = Product.objects.get(pk=_query_dict['product'])
         product.domestic_inventory += instance.inventory
         product.save()

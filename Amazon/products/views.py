@@ -6,6 +6,7 @@ from django.conf import settings
 from api import create_image_path
 from amazon_services.models import MarketAccount
 from models import *
+from api import *
 
 
 def image_upload(request):
@@ -28,16 +29,37 @@ def sync_orders(request):
         market_place_id = 'ATVPDKIKX0DER'
     market = MarketAccount.objects.get(MarketplaceId=market_place_id)
     # update_all(market)
+    from django.db.models import Sum
+    total = SettleOrderItem.objects.all().aggregate(total=Sum('Principal')).get('total')
+    # # update_all(market)
     settlement = Settlement.objects.first()
+    # _init_inbounds()
     # _init_shipment()
-    product = Product.objects.all().order_by('pk').first()
-    from api import ProductProfitCalc, SettlementCalc
+    # 成本计算
+    calc = ProductProfitCalc(settlement)
     for product in Product.objects.all():
-        ProductProfitCalc(settlement).calc_product_profit(product)
+        calc.calc_product_profit(product)
     SettlementCalc(settlement).calc_settlement()
-    # from api import SettlementDbHandler
-    # SettlementDbHandler(market)._init_settlement_products(settlement)
-    # return HttpResponse('success')
+
+
+def _init_refund_orders():
+    from api import SettlementDbHandler
+    market = MarketAccount.objects.first()
+    handler = SettlementDbHandler(market)
+    # for refund in RefundItem.objects.filter(order_item__isnull=True, quantity__isnull=True):
+    #     quantity = handler._get_order_item_quantity_from_amazon(refund.OrderItemId, refund.AmazonOrderId)
+    #     refund.quantity = quantity
+    #     refund.save()
+
+    for refund in RefundItem.objects.filter(order_item__isnull=True):
+        try:
+            order = SettleOrderItem.objects.get(OrderItemId=refund.OrderItemId)
+            print 'found'
+            refund.quantity = order.Quantity
+            refund.order_item = order
+            refund.save()
+        except:
+            pass
 
 
 def _init_inbounds():
