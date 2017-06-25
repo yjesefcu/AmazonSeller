@@ -218,6 +218,11 @@ class Settlement(models.Model):
     profit = models.FloatField(null=True, blank=True, verbose_name=u'利润')           # 计算
     profit_rate = models.FloatField(null=True, blank=True, verbose_name=u'利润率')     # 计算
 
+    # 数据和计算状态
+    is_getting_report = models.BooleanField(default=False)
+    is_calculating = models.BooleanField(default=False)
+    is_downloading = models.BooleanField(default=False)
+
     class Meta:
         ordering = ['-EndDate']
 
@@ -225,7 +230,7 @@ class Settlement(models.Model):
 class ProductSettlement(models.Model):
     MarketplaceId = models.CharField(max_length=30, db_index=True)     # 市场Id
     settlement = models.ForeignKey(Settlement, related_name='products')
-    product = models.ForeignKey(Product)
+    product = models.ForeignKey(Product, null=True, blank=True)
     advertising_fee = models.FloatField(null=True, blank=True)       # 广告费，需以负数保存
     storage_fee = models.FloatField(null=True, blank=True)           # 仓储费，需以负数保存
 
@@ -240,6 +245,7 @@ class ProductSettlement(models.Model):
     profit_rate = models.FloatField(null=True, blank=True, verbose_name=u'利润率')
 
     is_total = models.BooleanField(default=False)
+
 
 class Refund(models.Model):
     """

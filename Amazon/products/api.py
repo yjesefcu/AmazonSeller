@@ -1,6 +1,6 @@
 #-*- coding:utf-8 -*-
 __author__ = 'liucaiyun'
-import os, datetime, urllib, json, logging
+import os, datetime, urllib, json, logging, traceback
 import dateutil.parser
 from django.conf import settings
 from django.db.models import Q, F, Sum
@@ -550,14 +550,14 @@ class ProductProfitCalc(object):
                       + get_float_from_model(removal_total, 'Quantity') + get_float_from_model(lost_total, 'Quantity')
         ps.income = get_float_from_model(order_total, 'income') + get_float_from_model(refund_total, 'income')
         ps.amazon_cost = get_float_from_model(order_total, 'amazon_cost') + get_float_from_model(refund_total, 'amazon_cost') + \
-                         get_float_from_model(removal_total, 'amazon_cost') + deal_payment - advertising_cost
+                         get_float_from_model(removal_total, 'amazon_cost') - advertising_cost
         ps.promotion = get_float_from_model(order_total, 'promotion') + get_float_from_model(refund_total, 'promotion')
         ps.amount = get_float_from_model(order_total, 'amount') + get_float_from_model(refund_total, 'amount') + \
                     get_float_from_model(removal_total, 'amount') + get_float_from_model(lost_total, 'Amount')
 
         ps.total_cost = get_float_from_model(order_total, 'total_cost') + get_float_from_model(refund_total, 'total_cost') + \
                         get_float_from_model(removal_total, 'total_cost') + get_float_from_model(lost_total, 'total_cost')
-        ps.profit = ps.amount - ps.total_cost
+        ps.profit = ps.amount + ps.total_cost
         ps.profit_rate = ps.profit / ps.income if ps.income else 0
         ps.save()
 
@@ -592,9 +592,6 @@ class ProductProfitCalc(object):
         :return:
         """
         subscribe_fee = to_float(order.subscription_fee)
-        # if not order.Principal:
-        #     logger.info('order %s Principal is None or 0', order.AmazonOrderId)
-        #     return subscribe_fee
         order.supply_cost = -product.supply_cost
         order.shipment_cost = -product.shipment_cost
         order.cost = -product.cost
@@ -805,16 +802,19 @@ class SettlementCalc(object):
         total_item.amazon_cost = sum_queryset(query_set, 'amazon_cost')
         total_item.amount = sum_queryset(query_set, 'amount')
         total_item.total_cost = sum_queryset(query_set, 'total_cost')
+        total_item.subscription_fee = sum_queryset(query_set, 'subscription_fee')
+        total_item.advertising_fee = sum_queryset(query_set, 'advertising_fee')
+        total_item.storage_fee = sum_queryset(query_set, 'storage_fee')
         total_item.profit = sum_queryset(query_set, 'profit')
         total_item.profit_rate = total_item.profit / total_item.income if total_item.income else 0
         total_item.save()
-
 
     def _aggregate(self):
         self._aggregate_orders()
         self._aggregate_refunds()
         self._aggregate_removals()
         self._aggregate_losts()
+        self._aggregate_product()
 
     def calc_settlement(self, recalc_product=True):
         """
@@ -823,11 +823,28 @@ class SettlementCalc(object):
         :return:
         """
         settlement = self.settlement
+        logger.info('settlement(%s ~ %s) start calculating', settlement.StartDate, settlement.EndDate)
+        if settlement.is_calculating:
+            logger.info('settlement(%s ~ %s) is calculating, cannot calculate again', settlement.StartDate, settlement.EndDate)
+            return
+        settlement.is_calculating = True
+        settlement.save()
+        try:
+            self._calculate(recalc_product=recalc_product)
+        except BaseException, ex:
+            logger.error(traceback)
+        settlement.is_calculating = False
+        settlement.save()
+        logger.info('settlement(%s ~ %s) end calculating', settlement.StartDate, settlement.EndDate)
+        return settlement
+
+    def _calculate(self, recalc_product=True):
+        settlement = self.settlement
         # 先初始化，如将订阅费平摊到每个订单
         orders = SettleOrderItem.objects.filter(settlement=settlement)
+        subscription_fee = sum_queryset(OtherTransaction.objects.filter(settlement=settlement,
+                                                                        TransactionType='Subscription Fee'), 'Amount')
         if orders.exists():
-            subscription_fee = sum_queryset(OtherTransaction.objects.filter(settlement=settlement,
-                                                                            TransactionType='Subscription Fee'), 'Amount')
             orders.update(subscription_fee=subscription_fee/orders.count())
         # 先计算所有商品的利润
         if recalc_product:
@@ -836,6 +853,7 @@ class SettlementCalc(object):
                 product_calc.calc_product_profit(product)
         self._aggregate()
         # end calc products
+        settlement.subscription_fee = subscription_fee
         query_set = ProductSettlement.objects.filter(settlement=settlement)
         settlement.total_cost = sum_queryset(query_set, 'total_cost')
         settlement.income = sum_queryset(query_set, 'income')
@@ -844,8 +862,10 @@ class SettlementCalc(object):
         settlement.amount = sum_queryset(query_set, 'amount')
         settlement.quantity = sum_queryset(query_set, 'quantity')
 
-        settlement.subscription_fee_adjust =sum_queryset(OtherTransaction.objects.filter(TransactionType='NonSubscriptionFeeAdj'), 'Amount')
-        settlement.balanced_adjust = sum_queryset(OtherTransaction.objects.filter(TransactionType='BalanceAdjustment'), 'Amount')
+        settlement.subscription_fee_adjust = sum_queryset(OtherTransaction.objects.filter(settlement=settlement,
+                                                                                          TransactionType='NonSubscriptionFeeAdj'), 'Amount')
+        settlement.balanced_adjust = sum_queryset(OtherTransaction.objects.filter(settlement=settlement,
+                                                                                  TransactionType='BalanceAdjustment'), 'Amount')
 
         if settlement.advertising_fee is None:
             settlement.advertising_fee = sum_queryset(query_set, 'advertising_fee')
@@ -854,7 +874,6 @@ class SettlementCalc(object):
         settlement.profit = settlement.amount + settlement.total_cost
         settlement.profit_rate = settlement.profit / settlement.income if settlement.income else 0
         settlement.save()
-        return settlement
 
     def _handle_returns(self, product):
         """

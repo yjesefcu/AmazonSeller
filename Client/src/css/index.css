@@ -71,3 +71,6 @@ table tr.no-hover:hover{
 .bootstrap-filestyle{
   /*width: 300px;*/
 }
+.table-lg{
+  min-width: 1500px;
+}

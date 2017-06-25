@@ -7,7 +7,7 @@
             <i class="fa fa-refresh fa-spin" ng-if="productLoading"></i>
         </div>
         <!-- /.box-header -->
-        <div class="box-body" style="display: none;">
+        <div class="box-body" style="display: none;overflow-x: auto;">
             <table id="summaryTable" class="table table-bordered table-hover">
                 <thead>
                 <tr>
@@ -20,10 +20,10 @@
                     <th class="td-sale">促销返点({{ currency }})</th>
                     <th class="td-sale">亚马逊收取({{ currency }})</th>
                     <th class="td-sale">实收({{ currency }})</th>
-                    <th class="td-cost">总成本({{ currency }})</th>
                     <th class="td-cost">广告费({{ currency }})</th>
                     <th class="td-cost">仓储费({{ currency }})</th>
                     <th class="td-cost">订阅费({{ currency }})</th>
+                    <th class="td-cost">总成本({{ currency }})</th>
                     <th>利润({{ currency }})</th>
                     <th>利润率</th>
                 </tr>
@@ -37,10 +37,10 @@
                     <th class="td-sale"> {{ productSummary.promotion }}</th>
                     <th class="td-sale">{{productSummary.amazon_cost}}</th>
                     <th class="td-sale">{{productSummary.amount}}</th>
-                    <th class="td-cost">{{productSummary.total_cost}}</th>
                     <th class="td-cost"> {{ productSummary.advertising_fee }}</th>
                     <th class="td-cost">{{ productSummary.storage_fee }}</th>
                     <th class="td-cost">{{productSummary.subscription_fee}}</th>
+                    <th class="td-cost">{{productSummary.total_cost}}</th>
                     <th>{{ productSummary.profit }}</th>
                     <th>{{ productSummary.profit_rate }}</th>
                 </tr>
@@ -56,10 +56,10 @@
                     <td class="td-sale"> {{ o.promotion }}</td>
                     <td class="td-sale">{{o.amazon_cost}}</td>
                     <td class="td-sale">{{o.amount}}</td>
-                    <td class="td-cost">{{o.total_cost}}</td>
                     <td class="td-cost"> {{ o.advertising_fee }}</td>
                     <td class="td-cost">{{ o.storage_fee }}</td>
                     <td class="td-cost">{{o.subscription_fee}}</td>
+                    <th class="td-cost">{{o.total_cost}}</th>
                     <td>{{ o.profit }}</td>
                     <td>{{ o.profit_rate }}</td>
                 </tr>
@@ -78,8 +78,8 @@
             <i class="fa fa-refresh fa-spin" ng-if="orderLoading"></i>
         </div>
         <!-- /.box-header -->
-        <div class="box-body" style="display: none;">
-            <table id="orderTable" class="table table-bordered table-hover">
+        <div class="box-body" style="display: none;overflow-x: auto;">
+            <table id="orderTable" class="table table-bordered table-hover" class="table-lg">
                 <thead>
                     <tr>
                         <th>日期</th>
@@ -149,7 +149,7 @@
             <i class="fa fa-refresh fa-spin" ng-if="refundLoading"></i>
         </div>
         <!-- /.box-header -->
-        <div class="box-body" style="display: none;">
+        <div class="box-body" style="display: none;overflow-x: auto;">
             <table id="refundTable" class="table table-bordered table-hover">
                 <thead>
                 <tr>
@@ -217,7 +217,7 @@
             <i class="fa fa-refresh fa-spin" ng-if="removalLoading"></i>
         </div>
         <!-- /.box-header -->
-        <div class="box-body" style="display: none;">
+        <div class="box-body" style="display: none;overflow-x: auto;">
             <div class="row" style="margin-bottom: 16px;" ng-if="isSettlement">
                 <div class="form-group">
                     <label class="col-sm-2 control-label" >上传移除报告</label>
@@ -289,7 +289,7 @@
             <i class="fa fa-refresh fa-spin" ng-if="lostLoading"></i>
         </div>
         <!-- /.box-header -->
-        <div class="box-body" style="display: none;">
+        <div class="box-body" style="display: none;overflow-x: auto;">
             <table id="lostTable" class="table table-bordered table-hover">
                 <thead>
                 <tr>

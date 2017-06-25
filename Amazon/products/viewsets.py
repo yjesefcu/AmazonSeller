@@ -38,13 +38,6 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
         return Response(SettlementSerializer(instance).data)
 
 
-class SettlementProductViewSet(NestedViewSetMixin, ModelViewSet):
-    queryset = ProductSettlement.objects.select_related('product').all()
-    serializer_class = ProductSettlementSerializer
-    filter_backends = (DjangoFilterBackend,)
-    filter_fields = ('settlement',)
-
-
 class ProductViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
@@ -98,6 +91,13 @@ class ProfitProductFilter(object):
             else:
                 queryset = queryset.filter(product__pk=product)
         return queryset
+
+
+class SettlementProductViewSet(NestedViewSetMixin, ModelViewSet):
+    queryset = ProductSettlement.objects.select_related('product').all()
+    serializer_class = ProductSettlementSerializer
+    filter_backends = (DjangoFilterBackend, ProfitProductFilter,)
+    filter_fields = ('settlement', 'product', 'is_total')
 
 
 class OrderViewSet(NestedViewSetMixin, ModelViewSet):
