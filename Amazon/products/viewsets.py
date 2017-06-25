@@ -34,16 +34,15 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
         from api import SettlementCalc, ProductProfitCalc
         instance = self.get_object()
         recalc_product = request.query_params.get('withProduct', True)
-        if instance.is_calculating:
-            return Response({'errno': Error.CALC_RUNNING})
+        if instance.calc_status == Error.RUNNING:
+            return Response({'errno': Error.RUNNING})
         threading.Thread(target=SettlementCalc(settlement=instance).calc_settlement, args=[recalc_product, ]).start()
         return Response({'errno': Error.SUCCESS})
 
     @detail_route(methods=['get'])
     def calcStatus(self, request, pk):
         instance = self.get_object()
-        errno = Error.RUNNING if instance.is_calculating else Error.SUCCESS
-        return Response({'errno': errno})
+        return Response({'errno': instance.calc_status})
 
     @list_route(methods=['get'])
     def sync(self, request):

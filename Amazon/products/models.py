@@ -224,7 +224,7 @@ class Settlement(models.Model):
     profit_rate = models.FloatField(null=True, blank=True, verbose_name=u'利润率')     # 计算
 
     # 数据和计算状态
-    is_calculating = models.BooleanField(default=False)
+    calc_status = models.IntegerField(default=0)        # 0：成功，1：失败，10：正在计算
     is_downloading = models.BooleanField(default=False)
 
     class Meta:

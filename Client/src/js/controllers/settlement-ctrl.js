@@ -2,20 +2,28 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
     $scope.settlements = [];
     $scope.selectedSettlement = '';
     $scope.isCalculating = false;
+    $scope.calcIndex = 0;
     var calcStatusInterval = null;
     $scope.readingReport = false;
     var readingReportInterval = null;
-    $http.get(serviceFactory.settlements(), {
-        params: {
-            MarketplaceId: $rootScope.MarketplaceId
-        }
-    }).then(function (result) {
-        $scope.settlements = result.data;
-    });
+
     var settlementId = $stateParams.id;
     $scope.selected = '';
     if (settlementId){
         $scope.selectedSettlement = parseInt(settlementId);
+    }
+    getSettlements();
+    function getSettlements(){
+
+        $http.get(serviceFactory.settlements(), {
+            params: {
+                MarketplaceId: $rootScope.MarketplaceId
+            }
+        }).then(function (result) {
+            $scope.settlements = result.data;
+        }).catch(function () {
+            $rootScope.addAlert('error', '获取结算列表失败')
+        });
     }
     $scope.$watch('selectedSettlement', function (newValue, oldValue) {
         console.log('change');
@@ -25,29 +33,37 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
         }
     });
 
-    $scope.startCalculate = function (id) {
+    $scope.startCalculate = function (index, id) {
+        $scope.calcIndex = index;
         $http.get(serviceFactory.settlementDetail(id) + 'calc/')
             .then(function (result) {
                 var errno = result.data.errno;
                 $rootScope.addAlert('info', '正在计算，请稍候...');
-                $scope.isCalculating = true;
+                $scope.settlements[index]['calc_status'] = errno ? 1 : 10;
                 if (!calcStatusInterval){
                     calcStatusInterval = $interval(function () {
                         console.log('query calculating status');
                         $http.get(serviceFactory.settlementDetail(id) + 'calcStatus/').then(function (result) {
-                            if (!result.data.errno){
-                                $scope.isCalculating = false;
+                            var errno = result.data.errno;
+                            if (errno == 0){
                                 $rootScope.addAlert('info', '计算完成');
                                 $interval.cancel(calcStatusInterval);
                                 calcStatusInterval = null;
+                                getSettlements();
+                            }else if (errno == 1){
+                                $rootScope.addAlert('info', '计算失败');
+                                $interval.cancel(calcStatusInterval);
+                                calcStatusInterval = null;
                             }
-                            console.log('calculating status: ' + result.data.errno);
+                            $scope.settlements[index]['calc_status'] = errno;
+                            console.log('calculating status: ' + errno);
                         }).catch(function (result) {
                             console.log('query calculating status error');
                         });
                     }, 5000);
                 }
             }).catch(function (result) {
+                $scope.settlements[index]['calc_status'] = 10;
                 $rootScope.addAlert('error', '启动计算失败');
             });
     };
@@ -70,6 +86,7 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
                              $rootScope.addAlert('info', '同步完成');
                              $interval.cancel(readingReportInterval);
                              readingReportInterval = null;
+                             getSettlements();
                          }
                          console.log('getting report: ' + result.data.errno);
                      }).catch(function (result) {
@@ -96,7 +113,6 @@ app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $sta
     $scope.settlementId = $stateParams.settlementId;
     var settlementId = $scope.settlementId;
     $scope.isSettlement = true;
-    $scope.fileToUpload = null;
     $http.get(serviceFactory.settlementDetail(settlementId))
         .then(function (result) {
              $scope.settlement = result.data;
@@ -119,21 +135,6 @@ app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $sta
     $scope.$on("subscribeFeeChange", function (event, msg) {
          $scope.settlement.subscribe_fee = msg;
      });
-
-    $scope.sendFile = function(){
-        var url = serviceFactory.uploadRemovals(settlementId),
-            file = $scope.fileToUpload;
-        if ( !file ) return;
-        fileUpload.uploadFileToUrl(file, url, function (data) {
-            if (!data.errno){
-                $rootScope.addAlert('success', '上传成功，一共找到' + data.data.length + '条记录');
-                $scope.removals = data.data;
-            }else {
-                $rootScope.addAlert('error', '上传失败，请确认上传文件是否移除报告');
-            }
-        });
-    };
-    $("#removalFile").filestyle({buttonName: "btn-default", placeholder: "选择亚马逊下载的移除报告", buttonText: "浏览"});
 })
 .controller('setFeeCtrl', function($scope, $rootScope, $http, $state, serviceFactory, $uibModalInstance, data) {
     $scope.settlement = data;

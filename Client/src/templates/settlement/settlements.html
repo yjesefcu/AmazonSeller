@@ -45,8 +45,9 @@
                             <td>{{ s.profit }}</td>
                             <td>{{ s.profit_rate }}</td>
                             <td>
-                                <button ng-click="startCalculate(s.id)" class="btn btn-primary" ng-if="isCalculating==false">重新计算</button>
-                                <i class="fa fa-refresh fa-spin" ng-if="isCalculating"></i>
+                                <button ng-click="startCalculate($index, s.id)" class="btn btn-danger" ng-if="s.calc_status==1">计算失败</button>
+                                <button ng-click="startCalculate($index, s.id)" class="btn btn-primary" ng-if="s.calc_status==0">重新计算</button>
+                                <i class="fa fa-refresh fa-spin" ng-if="s.calc_status==10"></i>
                             </td>
                         </tr>
                         </tbody>

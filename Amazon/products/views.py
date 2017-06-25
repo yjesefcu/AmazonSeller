@@ -37,9 +37,9 @@ def sync_orders(request):
     # _init_shipment()
     # 成本计算
     calc = ProductProfitCalc(settlement)
-    for product in Product.objects.all():
-        calc.calc_product_profit(product)
-    SettlementCalc(settlement).calc_settlement()
+    # for product in Product.objects.all():
+    #     calc._create_refund_inventory(product)
+    SettlementCalc(settlement).calc_settlement(recalc_product=True)
 
 
 def _init_refund_orders():
