@@ -1,6 +1,10 @@
-app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $stateParams, serviceFactory) {
+app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $stateParams, $interval, serviceFactory) {
     $scope.settlements = [];
     $scope.selectedSettlement = '';
+    $scope.isCalculating = false;
+    var calcStatusInterval = null;
+    $scope.readingReport = false;
+    var readingReportInterval = null;
     $http.get(serviceFactory.settlements(), {
         params: {
             MarketplaceId: $rootScope.MarketplaceId
@@ -20,6 +24,72 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
             $state.go('index.settlement.detail', {id: newValue});
         }
     });
+
+    $scope.startCalculate = function (id) {
+        $http.get(serviceFactory.settlementDetail(id) + 'calc/')
+            .then(function (result) {
+                var errno = result.data.errno;
+                $rootScope.addAlert('info', '正在计算，请稍候...');
+                $scope.isCalculating = true;
+                if (!calcStatusInterval){
+                    calcStatusInterval = $interval(function () {
+                        console.log('query calculating status');
+                        $http.get(serviceFactory.settlementDetail(id) + 'calcStatus/').then(function (result) {
+                            if (!result.data.errno){
+                                $scope.isCalculating = false;
+                                $rootScope.addAlert('info', '计算完成');
+                                $interval.cancel(calcStatusInterval);
+                                calcStatusInterval = null;
+                            }
+                            console.log('calculating status: ' + result.data.errno);
+                        }).catch(function (result) {
+                            console.log('query calculating status error');
+                        });
+                    }, 5000);
+                }
+            }).catch(function (result) {
+                $rootScope.addAlert('error', '开始计算失败');
+            });
+    };
+
+    $scope.startReadingReport = function () {
+         $http.get(serviceFactory.settlements() + 'sync/', {
+             params: {
+                 MarketplaceId: $rootScope.MarketplaceId
+             }
+         }).then(function (result) {
+             if (!readingReportInterval){
+                 readingReportInterval = $interval(function () {
+                     console.log('query getting report status');
+                     $http.get(serviceFactory.settlements() + 'syncStatus/', {
+                         params: {
+                             MarketplaceId: $rootScope.MarketplaceId
+                         }}).then(function (result) {
+                         if (!result.data.errno){
+                             $scope.readingReport = false;
+                             $rootScope.addAlert('info', '同步完成');
+                             $interval.cancel(readingReportInterval);
+                             readingReportInterval = null;
+                         }
+                         console.log('getting report: ' + result.data.errno);
+                     }).catch(function (result) {
+                         console.log('query getting report error');
+                     });
+
+                 }, 10000);
+             }
+             $scope.readingReport = true;
+             $rootScope.addAlert('info', '正在同步...请勿关闭系统');
+         }).catch(function () {
+             $rootScope.addAlert('error', '启动失败！')
+         })
+    };
+    $scope.$on('destroy',function(){
+        calcStatusInterval && $interval.cancel(calcStatusInterval);
+        readingReportInterval && $interval.cancel(readingReportInterval);
+        calcStatusInterval = null;
+        readingReportInterval = null;
+    })  //在控制器里，添加$on函数
 });
 
 app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $stateParams, $uibModal, serviceFactory, fileUpload) {

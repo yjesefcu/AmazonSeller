@@ -10,17 +10,17 @@
             <div class="box box-primary">
                 <div class="box-header with-border">
                     <h3 class="box-title">结算记录</h3>
+                    <button class="btn btn-primary" ng-if="readingReport==false" ng-click="startReadingReport()">同步数据</button>
+                    <button class="btn btn-primary" ng-if="readingReport"><i class="fa fa-refresh fa-spin"></i>正中同步数据，请勿关闭系统...</button>
                 </div>
                 <!-- /.box-header -->
-                <div class="box-body">
+                <div class="box-body" style="overflow-x: auto;">
                     <table id="overseaTable" class="table table-bordered table-hover">
                         <thead>
                         <tr>
                             <th>日期</th>
                             <th>数量</th>
                             <th class="td-sale">商品价格({{ currency }})</th>
-                            <th class="td-sale">促销返点({{ currency }})</th>
-                            <th class="td-sale">亚马逊收取({{ currency }})</th>
                             <th class="td-sale">实收({{ currency }})</th>
                             <th class="td-cost">总成本({{ currency }})</th>
                             <th class="td-cost">广告费({{ currency }})</th>
@@ -28,6 +28,7 @@
                             <th class="td-cost">订阅费({{ currency }})</th>
                             <th>利润({{ currency }})</th>
                             <th>利润率</th>
+                            <th>操作</th>
                             <!--<th>操作</th>-->
                         </tr>
                         </thead>
@@ -36,8 +37,6 @@
                             <td><a ui-sref="index.settlement.detail({settlementId: s.id})">{{ s.StartDate }} - {{s.EndDate}}</a></td>
                             <td>{{ s.quantity }}</td>
                             <td class="td-sale">{{ s.income }}</td>
-                            <td class="td-sale"> {{ s.promotion }}</td>
-                            <td class="td-sale">{{s.amazon_cost}}</td>
                             <td class="td-sale">{{s.amount}}</td>
                             <td class="td-cost">{{s.total_cost}}</td>
                             <td class="td-cost"> {{ s.advertising_fee }}</td>
@@ -45,6 +44,10 @@
                             <td class="td-cost">{{s.subscription_fee}}</td>
                             <td>{{ s.profit }}</td>
                             <td>{{ s.profit_rate }}</td>
+                            <td>
+                                <button ng-click="startCalculate(s.id)" class="btn btn-primary" ng-if="isCalculating==false">重新计算</button>
+                                <i class="fa fa-refresh fa-spin" ng-if="isCalculating"></i>
+                            </td>
                         </tr>
                         </tbody>
                     </table>

@@ -1,11 +1,12 @@
 #-*- coding:utf-8 -*-
 __author__ = 'liucaiyun'
-import os, datetime, urllib, json, logging, traceback
+import os, datetime, urllib, json, logging, traceback, time
 import dateutil.parser
 from django.conf import settings
 from django.db.models import Q, F, Sum
 from amazon_services.service import OrderService, OrderItemService
 from models import *
+from errors import Error
 
 
 logger = logging.getLogger('product')
@@ -826,17 +827,22 @@ class SettlementCalc(object):
         logger.info('settlement(%s ~ %s) start calculating', settlement.StartDate, settlement.EndDate)
         if settlement.is_calculating:
             logger.info('settlement(%s ~ %s) is calculating, cannot calculate again', settlement.StartDate, settlement.EndDate)
-            return
+            return Error.RUNNING
         settlement.is_calculating = True
         settlement.save()
         try:
-            self._calculate(recalc_product=recalc_product)
+            # self._calculate(recalc_product=recalc_product)
+            time.sleep(100)
         except BaseException, ex:
+            #
             logger.error(traceback)
+            settlement.is_calculating = False
+            settlement.save()
+            return Error.FAIL
         settlement.is_calculating = False
         settlement.save()
         logger.info('settlement(%s ~ %s) end calculating', settlement.StartDate, settlement.EndDate)
-        return settlement
+        return Error.SUCCESS
 
     def _calculate(self, recalc_product=True):
         settlement = self.settlement

@@ -1,6 +1,6 @@
 #-*- coding:utf-8 -*-
 __author__ = 'liucaiyun'
-import os, datetime, chardet
+import os, datetime, chardet, threading
 from django.conf import settings
 from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework.viewsets import ModelViewSet
@@ -10,9 +10,11 @@ from rest_framework.response import Response
 from rest_framework.decorators import detail_route, list_route
 from django_filters.rest_framework import DjangoFilterBackend
 from amazon_services.exception import TextParseException
+from amazon_services.models import MarketAccount
 from models import *
 from serializer import *
 from api import FileImporter, to_float, get_float
+from errors import Error
 
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
@@ -31,11 +33,37 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
     def calc(self, request, pk):
         from api import SettlementCalc, ProductProfitCalc
         instance = self.get_object()
-        product_calc = ProductProfitCalc(instance)
-        for product in Product.objects.all():
-            product_calc.calc_product_profit(product)
-        instance = SettlementCalc(settlement=instance).calc_settlement()
-        return Response(SettlementSerializer(instance).data)
+        recalc_product = request.query_params.get('withProduct', True)
+        if instance.is_calculating:
+            return Response({'errno': Error.CALC_RUNNING})
+        threading.Thread(target=SettlementCalc(settlement=instance).calc_settlement, args=[recalc_product, ]).start()
+        return Response({'errno': Error.SUCCESS})
+
+    @detail_route(methods=['get'])
+    def calcStatus(self, request, pk):
+        instance = self.get_object()
+        errno = Error.RUNNING if instance.is_calculating else Error.SUCCESS
+        return Response({'errno': errno})
+
+    @list_route(methods=['get'])
+    def sync(self, request):
+        # 同步数据
+        from sync_handler import update_all
+        market_place_id = request.query_params.get('MarketplaceId')
+        market = MarketAccount.objects.get(MarketplaceId=market_place_id)
+        if market.is_getting_report:
+            return Response({'errno': Error.RUNNING})
+        threading.Thread(target=update_all, args=[market, ]).start()
+        return Response({'errno', Error.SUCCESS})
+
+    @list_route(methods=['get'])
+    def syncStatus(self, request):
+        # 查询同步数据的状态
+        market_place_id = request.query_params.get('MarketplaceId')
+        market = MarketAccount.objects.get(MarketplaceId=market_place_id)
+        if market.is_getting_report:
+            return Response({'errno': Error.RUNNING})
+        return Response({'errno', Error.SUCCESS})
 
 
 class ProductViewSet(NestedViewSetMixin, ModelViewSet):

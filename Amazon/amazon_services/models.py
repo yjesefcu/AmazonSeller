@@ -32,6 +32,7 @@ class MarketAccount(models.Model):
     currency_code = models.CharField(max_length=10)     # 货币编码
     period_start = models.DateField(null=True, blank=True)  # 结算周期起点
     period_days = models.IntegerField(default=14)       # 结算周期长度
+    is_getting_report = models.BooleanField(default=False)
 
 
 class ApiCategory(models.Model):
