@@ -48,7 +48,7 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
                     }, 5000);
                 }
             }).catch(function (result) {
-                $rootScope.addAlert('error', '开始计算失败');
+                $rootScope.addAlert('error', '启动计算失败');
             });
     };
 

@@ -520,6 +520,52 @@ class ProductProfitCalc(object):
         except ProductSettlement.DoesNotExist, ex:
             return
 
+    def _create_refund_inventory(self, product):
+        """
+        如果退货记录找不到相应的订单，则需要在国内、国际库存中增加这部分库存
+        :param product:
+        """
+        items = RefundItem.objects.filter(product=product, order_item__isnull=True, is_total=False)
+        quantity = items.aggregate(total=Sum('quantity')).get('total')
+        if not quantity:
+            return
+        logger.info('there has %d refunds cannot find order, product: %s', quantity, product.SellerSKU)
+        settlement = self.settlement
+        name = '%s ~ %s' % (self.settlement.StartDate.strftime('%Y-%m-%d'), self.settlement.EndDate.strftime('%Y-%m-%d'))
+        # 添加到国内库存
+        supply, created = InboundShipment.objects.get_or_create(product=product, ShipmentName=name,
+                                                                MarketplaceId=settlement.MarketplaceId)
+        if created:
+            supply.ship_date = datetime.date.today()
+        tmp = quantity - (supply.count if supply.count else 0)
+        product.domestic_inventory += tmp
+        supply.ship_date = datetime.date.today()
+        supply.count = quantity
+        supply.insert_time = datetime.datetime.now()
+        supply.unit_cost = product.supply_cost
+        supply.inventory = tmp + (supply.inventory if supply.inventory else 0)
+        supply.real_inventory = tmp + (supply.real_inventory if supply.real_inventory else 0)
+        supply.save()
+
+        # 添加到国际物流
+        shipment, created = OutboundShipment.objects.get_or_create(ShipmentId=name, MarketplaceId=settlement.MarketplaceId)
+        if created:
+            shipment.ship_date = datetime.date.today()
+            shipment.ShipmentName = 'auto created'
+            shipment.save()
+        # 添加国际物流的子项
+        item, created = OutboundShipmentItem.objects.get_or_create(shipment=shipment, product=product,
+                                                                   MarketplaceId=settlement.MarketplaceId)
+        tmp = quantity - (item.QuantityShipped if item.QuantityShipped else 0)
+        product.amazon_inventory += tmp
+        item.ShipmentId = shipment.ShipmentId
+        item.ship_date = shipment.ship_date
+        item.QuantityShipped = tmp + (item.QuantityShipped if item.QuantityShipped else 0)
+        item.inventory = tmp + (item.inventory if item.inventory else 0)
+        item.unit_cost = product.shipment_cost
+        item.save()
+        product.save()
+
     def calc_product_profit(self, product):
         # 首先更新商品当前单位成本
         self.sale_quantity = 0       # 每个商品计算时都先清零
@@ -561,6 +607,7 @@ class ProductProfitCalc(object):
         ps.profit = ps.amount + ps.total_cost
         ps.profit_rate = ps.profit / ps.income if ps.income else 0
         ps.save()
+        self._create_refund_inventory(product)
 
     def _calc_order_profit(self, product):
         """

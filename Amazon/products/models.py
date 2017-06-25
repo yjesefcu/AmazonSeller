@@ -58,18 +58,20 @@ class InboundShipment(models.Model):
     """
     发往国内的商品信息，以商品为维度
     """
+    MarketplaceId = models.CharField(max_length=30, db_index=True)     # 市场Id
     product = models.ForeignKey(Product, related_name='supplies')
-    count = models.IntegerField(verbose_name=u'数量')       # 商品数量
-    inventory = models.IntegerField(verbose_name=u'库存', default=0)      # 用于计算成本，在计算完订单后扣除
+    count = models.IntegerField(verbose_name=u'数量', null=True, blank=True)       # 商品数量
+    inventory = models.IntegerField(verbose_name=u'库存', default=0, null=True, blank=True)      # 用于计算成本，在计算完订单后扣除
     real_inventory = models.IntegerField(null=True, blank=True)            # 实际库存
     # remain_count = models.IntegerField(verbose_name=u'剩余数量', default=0)    # count-发往国外的数量
-    unit_price = models.FloatField(verbose_name=u'商品单价')
-    total_freight = models.FloatField(verbose_name=u'总运费')
+    unit_price = models.FloatField(verbose_name=u'商品单价', null=True, blank=True)
+    total_freight = models.FloatField(verbose_name=u'总运费', null=True, blank=True)
     charges = models.FloatField(null=True, blank=True, verbose_name=u'杂费')
     charges_comment = models.TextField(null=True, blank=True, verbose_name=u'杂费备注')
     ship_date = models.DateField(null=True, blank=True, verbose_name=u'到货日期')
     insert_time = models.DateTimeField(null=True, blank=True)   # 添加至数据库的时间
     unit_cost = models.FloatField(null=True, blank=True, verbose_name=u'单位成本')  # 包括单价与运费
+    ShipmentName = models.CharField(max_length=50, null=True, blank=True)      # 是否是自动生成的，如果退货记录找不到对应的订单，则会生成该记录
 
     class Meta:
         ordering = ('-ship_date', )
@@ -96,6 +98,7 @@ class OutboundShipment(models.Model):
 
     total_freight = models.FloatField(null=True, blank=True, verbose_name=u'总运费')        # 总运费
     unit_freight = models.FloatField(null=True, blank=True, verbose_name=u'运费单价')
+    comment = models.CharField(max_length=50, null=True, blank=True)      # 是否是自动生成的，如果退货记录找不到对应的订单，则会生成该记录
 
     class Meta:
         ordering = ['-ship_date']
@@ -107,6 +110,8 @@ class OutboundShipmentItem(models.Model):
     """
     MarketplaceId = models.CharField(max_length=30, db_index=True)     # 市场Id
     shipment = models.ForeignKey(OutboundShipment, related_name='products')
+    ShipmentId = models.CharField(max_length=50, null=True, blank=True)
+    ship_date = models.DateField(null=True, blank=True, verbose_name=u'发货时间')     # 发货时间
     product = models.ForeignKey(Product, related_name='shipsOversea')
     SellerSKU = models.CharField(max_length=50, null=True, blank=True)
     FulfillmentNetworkSKU = models.CharField(max_length=50, null=True, blank=True)      # 商品的亚马逊配送网络 SKU

@@ -113,7 +113,6 @@ class SimpleOutboundShipmentSerializer(serializers.ModelSerializer):
 
 
 class OutboundShipmentItemSerializer(serializers.ModelSerializer):
-    shipment = SimpleOutboundShipmentSerializer(read_only=True)
 
     class Meta:
         model = OutboundShipmentItem

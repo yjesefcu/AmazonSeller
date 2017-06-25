@@ -30,10 +30,11 @@ app.controller('ProductCtrl', function($scope, $http, $rootScope, $uibModal, $lo
 //模态框对应的Controller
 app.controller('supplyModalCtrl', function($scope, $rootScope, $http, serviceFactory, $uibModalInstance, data) {
     $scope.productId = data;
-    $scope.supply = {product: data};
+    $scope.supply = {product: data, MarketplaceId: $rootScope.MarketplaceId};
     //在这里处理要进行的操作
     $scope.save = function() {
         $scope.supply['inventory'] = $scope.supply['count'];       // 设置剩余数量与总数量一致
+
         $http.post(serviceFactory.supplyList($scope.productId), $scope.supply)
             .then(function (result) {
                 $rootScope.addAlert('success', '添加入库信息成功');

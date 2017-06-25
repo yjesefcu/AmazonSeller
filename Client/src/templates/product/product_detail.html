@@ -73,10 +73,12 @@
                         <th>序号</th>
                         <th>日期</th>
                         <th>商品数量</th>
+                        <th>库存</th>
                         <th>商品单价({{ currency }})</th>
                         <th>总运费({{ currency }})</th>
                         <th>杂费({{ currency }})</th>
                         <th>杂费说明</th>
+                        <th>单位成本</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -84,10 +86,12 @@
                         <td>{{ $index + 1 }}</td>
                         <td>{{ p.ship_date }}</td>
                         <td>{{ p.count }}</td>
+                        <td>{{p.real_inventory}}</td>
                         <td>{{ p.unit_price }}</td>
                         <td>{{ p.total_freight}}</td>
                         <td>{{ p.charges }}</td>
                         <td>{{ p.charges_comment }}</td>
+                        <td>{{p.unit_cost}}</td>
                     </tr>
                     </tbody>
                 </table>
@@ -118,19 +122,21 @@
                         <th>关税({{ currency }})</th>
                         <th>总运费({{ currency }})</th>
                         <th>库存</th>
+                        <th>单位成本({{currency}})</th>
                     </tr>
                     </thead>
                     <tbody>
                     <tr ng-repeat="p in shipments" table-repeat-directive>
                         <td>{{ $index + 1 }}</td>
-                        <td>{{ p.shipment.ship_date }}</td>
-                        <td><a ui-sref="index.shipmentDetail({id: p.shipment.id})">{{ p.shipment.ShipmentId }}</a></td>
+                        <td>{{ p.ship_date }}</td>
+                        <td><a ui-sref="index.shipmentDetail({id: p.shipment.id})">{{ p.ShipmentId }}</a></td>
                         <td>{{ p.QuantityShipped }}</td>
                         <td>{{ p.unit_freight}}</td>
                         <td>{{ p.fuel_tax }}</td>
                         <td>{{ p.duty }}</td>
                         <td>{{ p.total_freight }}</td>
                         <td>{{ p.inventory }}</td>
+                        <td>{{p.unit_cost}}</td>
                     </tr>
                     </tbody>
                 </table>

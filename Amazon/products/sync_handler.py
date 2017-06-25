@@ -163,17 +163,16 @@ def update_all(market):
         return
     market.is_getting_report = True
     market.save()
-    time.sleep(100)
-    # try:
-    #     update_settlement(market)
-    #
-    #     settlements = Settlement.objects.filter(returns__isnull=True)
-    #     if settlements.exists():
-    #         for settlement in settlements:
-    #             update_advertising_report(market, settlement)
-    #             # update_removal_report(market, settlement)
-    #     update_product(market)
-    # except BaseException, ex:
-    #     logger.error(traceback.format_exc())
+    try:
+        update_settlement(market)
+
+        settlements = Settlement.objects.filter(returns__isnull=True)
+        if settlements.exists():
+            for settlement in settlements:
+                update_advertising_report(market, settlement)
+                # update_removal_report(market, settlement)
+        update_product(market)
+    except BaseException, ex:
+        logger.error(traceback.format_exc())
     market.is_getting_report = False
     market.save()

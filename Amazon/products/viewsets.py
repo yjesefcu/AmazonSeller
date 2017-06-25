@@ -251,6 +251,8 @@ class OutboundShipmentViewSet(NestedViewSetMixin, ModelViewSet):
             # s.domestic_unit_cost = self._calc_supply_cost(s.product)
             # s.inventory = int(item['QuantityShipped'])
             # s.total_unit_cost = s.unit_cost + s.domestic_unit_cost
+            s.ShipmentId = shipment.ShipmentId
+            s.ship_date = shipment.ship_date
             s.save()
             items.append(s)
         return items
