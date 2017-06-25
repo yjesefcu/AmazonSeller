@@ -311,7 +311,7 @@ class RemovalViewSet(NestedViewSetMixin, ModelViewSet):
         for chunk in my_file.chunks():      # 分块写入文件
             text += unicode(chunk, chardet.detect(chunk)['encoding'])
         try:
-            _query_dict = self.get_s_query_dict()
+            _query_dict = self.get_parents_query_dict()
             settlement = Settlement.objects.get(pk=_query_dict['settlement'])
             items = FileImporter().import_removals(text, settlement)
         except TextParseException, ex:

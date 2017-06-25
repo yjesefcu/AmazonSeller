@@ -1,37 +1,36 @@
 /**
  * Created by liucaiyun on 2017/6/19.
  */
-app.directive( "fileModel", [ "$parse", function( $parse ){
+
+app.directive('fileModel', ['$parse', function ($parse) {
     return {
-        restrict: "A",
-        link: function( scope, element, attrs ){
-            var model = $parse( attrs.fileModel );
+        restrict: 'A',
+        link: function(scope, element, attrs) {
+            var model = $parse(attrs.fileModel);
             var modelSetter = model.assign;
 
-            element.bind( "change", function(){
-                scope.$apply( function(){
-                    modelSetter( scope, element[0].files[0] );
-                    // console.log( scope );
-                } )
-            } )
+            element.bind('change', function(){
+                scope.$apply(function(){
+                    modelSetter(scope, element[0].files[0]);
+                });
+            });
         }
-    }
-}])
-.service( "fileUpload", ["$http", '$rootScope', function( $http, $rootScope){
-    this.uploadFileToUrl = function( file, uploadUrl, cb){
+    };
+}]);
+
+app.service('fileUpload', ['$http', '$rootScope', function ($http, $rootScope) {
+    this.uploadFileToUrl = function(file, uploadUrl, cb){
         var fd = new FormData();
-        fd.append( "file", file );
-        $http.post( uploadUrl, fd, {
+        fd.append('file', file);
+
+        $http.post(uploadUrl, fd, {
             transformRequest: angular.identity,
-            headers: { "Content-Type": undefined }
+            headers: {'Content-Type': undefined}
+        }).then(function(result){
+            cb && cb(result.data);
         })
-            .then(function(result){
-                // blabla...
-                cb && cb(result.data);
-            })
-            .catch( function(){
-                // blabla...
-                $rootScope.addAlert('error', '导入文件失败');
-            })
+        .catch(function(){
+            $rootScope.addAlert('error', '上传失败');
+        });
     }
-}])
+}]);

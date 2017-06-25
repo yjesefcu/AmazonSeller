@@ -106,7 +106,9 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
         readingReportInterval && $interval.cancel(readingReportInterval);
         calcStatusInterval = null;
         readingReportInterval = null;
-    })  //在控制器里，添加$on函数
+    }) ; //在控制器里，添加$on函数
+
+
 });
 
 app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $stateParams, $uibModal, serviceFactory, fileUpload) {
@@ -155,10 +157,11 @@ app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $sta
 });
 
 
-app.controller('settlementOrdersCtrl', function ($scope, $rootScope, $http, $stateParams, $uibModal, serviceFactory, fileUpload) {
+app.controller('settlementOrdersCtrl', function ($scope, $rootScope, $http, $stateParams, $uibModal, serviceFactory, fileUpload, $timeout) {
     var settlementId = $stateParams.settlementId, productId = $stateParams.productId ? $stateParams.productId : '';
     $scope.settlementId = settlementId;
     $scope.isSettlement = productId ? false : true;
+    $scope.fileToUpload = null;
     $scope.productSummary = {};
     $scope.products = [];
     $scope.orderSummary = {};
@@ -313,7 +316,12 @@ app.controller('settlementOrdersCtrl', function ($scope, $rootScope, $http, $sta
     $scope.$on("subscribeFeeChange", function (event, msg) {
         $scope.settlement.subscribe_fee = msg;
     });
+    $timeout(function () {
 
+        angular.element("#removalFile").on('change', function(){
+            $scope.fileToUpload = this.files[0];
+        });
+    }, 1000);
     $scope.sendFile = function(){
         var url = serviceFactory.uploadRemovals(settlementId),
             file = $scope.fileToUpload;
@@ -327,5 +335,5 @@ app.controller('settlementOrdersCtrl', function ($scope, $rootScope, $http, $sta
             }
         });
     };
-    $("#removalFile").filestyle({buttonName: "btn-default", placeholder: "选择亚马逊下载的移除报告", buttonText: "浏览"});
+    // $("#removalFile").filestyle({buttonName: "btn-default", placeholder: "选择亚马逊下载的移除报告", buttonText: "浏览"});
 })
