@@ -86,6 +86,19 @@ class AdvertisingParser(BaseTextParser):
             })
 
 
+class MonthlyStorageFeeParser(BaseTextParser):
+    """
+    月度仓储费解析
+    """
+    def _parse(self):
+        for item in self.lines:
+            self.items.append({
+                'ASIN': item['asin'],
+                'ChargeDate': item['month-of-charge'],
+                'Fee': item['estimated-monthly-storage-fee']
+            })
+
+
 if __name__ == '__main__':
     f = open('text.txt', 'rb')
     string = f.readlines()

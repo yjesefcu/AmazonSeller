@@ -226,6 +226,8 @@ class Settlement(models.Model):
     # 数据和计算状态
     calc_status = models.IntegerField(default=0)        # 0：成功，1：失败，10：正在计算
     is_downloading = models.BooleanField(default=False)
+    storage_imported = models.BooleanField(default=False)       # 月度仓储费是否已导入
+    removal_imported = models.BooleanField(default=False)       # 移除报告是否已导入
 
     class Meta:
         ordering = ['-EndDate']

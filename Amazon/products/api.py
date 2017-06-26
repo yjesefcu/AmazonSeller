@@ -141,7 +141,7 @@ def create_image_path():
     p = os.path.join(settings.MEDIA_ROOT, 'icon')
     if not os.path.exists(p):
         os.mkdir(p)
-    return 'icon/' + timestamp + '.png'
+    return 'icon/' + timestamp + '.bmp'
 
 
 def download_image(img_url):
@@ -424,6 +424,30 @@ class RemovalDbHandler(object):
                 item['product'] = product
                 item['Fee'] = -float(item['Fee'])
                 results.append(ProductRemovalItem.objects.create(**item))
+        return results
+
+
+class StorageDbHandler(object):
+    """
+    月度仓促费数据库更新
+    """
+
+    def update_to_db(self, settlement, data):
+        results = list()
+        start_date = settlement.StartDate.strftime('%Y-%m-%d')
+        end_date = settlement.EndDate.strftime('%Y-%m-%d')
+        for item in data:
+            update_data = dateutil.parser.parse(item['ChargeDate']).replace(tzinfo=None).strftime(DT_FORMAT)
+            if update_data > end_date \
+                or update_data < start_date:   # 如果报告日期超出结算日期，则不处理
+                continue
+            try:
+                obj = ProductSettlement.objects.get(product__ASIN=item['ASIN'])
+                obj.storage_fee = item['Fee']
+                obj.save()
+                results.append(obj)
+            except ProductRemovalItem.DoesNotExist,ex:
+                logger.warning('cannot find Product for ASIN:%s', item['ASIN'])
         return results
 
 
@@ -981,4 +1005,18 @@ class FileImporter(object):
         parser = ProductRemovalParser(text)
         items = parser.get_items()
         removals = RemovalDbHandler().update_to_db(settlement=settlement, data=items)
+        return removals
+
+    @classmethod
+    def import_storage(cls, text, settlement):
+        """
+        导入月度仓储费
+        :param text:
+        :param settlement:
+        """
+        from amazon_services.text_parser import MonthlyStorageFeeParser
+        from amazon_services.exception import TextParseException
+        parser = MonthlyStorageFeeParser(text)
+        items = parser.get_items()
+        removals = StorageDbHandler().update_to_db(settlement=settlement, data=items)
         return removals

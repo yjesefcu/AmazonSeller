@@ -111,7 +111,7 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
 
 });
 
-app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $stateParams, $uibModal, serviceFactory, fileUpload) {
+app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $stateParams, $uibModal, $timeout, serviceFactory, fileUpload) {
     $scope.settlementId = $stateParams.settlementId;
     var settlementId = $scope.settlementId;
     $scope.isSettlement = true;
@@ -137,6 +137,25 @@ app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $sta
     $scope.$on("subscribeFeeChange", function (event, msg) {
          $scope.settlement.subscribe_fee = msg;
      });
+    $timeout(function () {
+
+        angular.element("#storageFile").on('change', function(){
+            $scope.storageFile = this.files[0];
+        });
+    }, 1000);
+    $scope.sendStorageFile = function(){
+        var url = serviceFactory.settlementDetail(settlementId) + 'storage_upload/',
+            file = $scope.storageFile;
+        if ( !file ) return;
+        fileUpload.uploadFileToUrl(file, url, function (data) {
+            if (!data.errno){
+                $rootScope.addAlert('success', '上传成功，一共找到' + data.data.length + '条记录');
+                $scope.removals = data.data;
+            }else {
+                $rootScope.addAlert('error', '上传失败，请确认上传文件是否移除报告');
+            }
+        });
+    };
 })
 .controller('setFeeCtrl', function($scope, $rootScope, $http, $state, serviceFactory, $uibModalInstance, data) {
     $scope.settlement = data;

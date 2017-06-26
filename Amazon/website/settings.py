@@ -42,7 +42,10 @@ INSTALLED_APPS = (
     'django_filters',
     'chardet',
     'dateutil',
+    'xlrd',
+    'xlwt',
     'dcors',
+    'PIL',
     'products',
 )
 

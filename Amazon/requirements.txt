@@ -5,3 +5,5 @@ django-dcors
 django-filter
 py-dateutil
 chardet
+xlrd
+xlwt

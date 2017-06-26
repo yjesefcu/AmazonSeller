@@ -64,6 +64,23 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
             return Response({'errno': Error.RUNNING})
         return Response({'errno', Error.SUCCESS})
 
+    @detail_route(methods=['post'])
+    def storage_upload(self, request, pk):
+        instance = self.get_object()
+        my_file = request.FILES.get("file", None)    # 获取上传的文件，如果没有文件，则默认为None
+        if not my_file:
+            return Response({'errno': -1})
+        text = ''
+        for chunk in my_file.chunks():      # 分块写入文件
+            text += unicode(chunk, chardet.detect(chunk)['encoding'])
+        try:
+            items = FileImporter().import_storage(text, instance)
+        except TextParseException, ex:
+            return Response({'errno': 1})
+        instance.storage_imported = True
+        instance.save()
+        return Response({'error': 0, 'data': ProductRemovalItemSerializer(items, many=True).data})
+
 
 class ProductViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = Product.objects.all()
@@ -316,6 +333,8 @@ class RemovalViewSet(NestedViewSetMixin, ModelViewSet):
             items = FileImporter().import_removals(text, settlement)
         except TextParseException, ex:
             return Response({'errno': 1})
+        settlement.removal_imported = True
+        settlement.save()
         return Response({'error': 0, 'data': ProductRemovalItemSerializer(items, many=True).data})
 
 
