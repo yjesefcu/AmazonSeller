@@ -80,5 +80,8 @@ app.factory('serviceFactory', function ($rootScope) {
     services.uploadRemovals = function (settlementId) {
         return host + '/api/settlements/' + settlementId + '/removals/upload/';
     };
+    services.downloadPath = function (path) {
+        return host + path;
+    };
     return services;
 });

@@ -65,9 +65,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class ProductSettlementSerializer(serializers.ModelSerializer):
-    settlement = SettlementSerializer()
-    product = ProductSerializer(read_only=True)
+class SimpleProductSettlementSerializer(serializers.ModelSerializer):
     income = FloatRoundField()
     amazon_cost = FloatRoundField()
     promotion = FloatRoundField()
@@ -79,11 +77,19 @@ class ProductSettlementSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductSettlement
+        exclude = ['settlement', 'product']
+
+
+class ProductSettlementSerializer(serializers.ModelSerializer):
+    settlement = SettlementSerializer()
+    product = ProductSerializer(read_only=True)
+
+    class Meta:
+        model = ProductSettlement
         fields = '__all__'
 
 
-class OrderItemSerializer(serializers.ModelSerializer):
-    product = ProductSerializer(read_only=True)
+class SimpleOrderItemSerializer(serializers.ModelSerializer):
     PostedDate = DateTimeFormat()
     income = FloatRoundField()
     amazon_cost = FloatRoundField()
@@ -92,6 +98,14 @@ class OrderItemSerializer(serializers.ModelSerializer):
     total_cost = FloatRoundField()
     subscription_fee = FloatRoundField()
     cost = FloatRoundField()
+
+    class Meta:
+        model = SettleOrderItem
+        exclude = ['product']
+
+
+class OrderItemSerializer(SimpleOrderItemSerializer):
+    product = ProductSerializer(read_only=True)
 
     class Meta:
         model = SettleOrderItem
@@ -128,9 +142,15 @@ class OutboundShipmentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class ProductRemovalItemSerializer(serializers.ModelSerializer):
+class AdvertisingItemSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = AdvertisingProductItems
+        fields = '__all__'
+
+
+class SimpleProductRemovalItemSerializer(serializers.ModelSerializer):
     UpdateDate = DateFormatField(read_only=True)
-    product = ProductSerializer(read_only=True)
     amazon_cost = FloatRoundField()
     amount = FloatRoundField()
     profit = FloatRoundField()
@@ -139,19 +159,19 @@ class ProductRemovalItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductRemovalItem
-        fields = '__all__'
+        exclude = ['product']
 
 
-class AdvertisingItemSerializer(serializers.ModelSerializer):
+class ProductRemovalItemSerializer(serializers.ModelSerializer):
+    product = ProductSerializer(read_only=True)
 
     class Meta:
-        model = AdvertisingProductItems
+        model = ProductRemovalItem
         fields = '__all__'
 
 
-class ProductLostSerializer(serializers.ModelSerializer):
-    product = ProductSerializer(read_only=True)
-    PostedDate = DateFormatField(read_only=True)
+class SimpleProductLostSerializer(serializers.ModelSerializer):
+    PostedDate = DateTimeFormat(read_only=True)
     profit = FloatRoundField()
     Amount = FloatRoundField()
     total_cost = FloatRoundField()
@@ -159,15 +179,30 @@ class ProductLostSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OtherTransactionItem
+        exclude = ['product']
+
+
+class ProductLostSerializer(serializers.ModelSerializer):
+    product = ProductSerializer(read_only=True)
+
+    class Meta:
+        model = OtherTransactionItem
         fields = '__all__'
+
+
+class SimpleRefundItemSerializer(serializers.ModelSerializer):
+    PostedDate = DateTimeFormat(read_only=True)
+    profit = FloatRoundField()
+    cost = FloatRoundField()
+    total_cost = FloatRoundField()
+
+    class Meta:
+        model = RefundItem
+        exclude = ['product']
 
 
 class RefundItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
-    PostedDate = DateFormatField(read_only=True)
-    profit = FloatRoundField()
-    cost = FloatRoundField()
-    total_cost = FloatRoundField()
 
     class Meta:
         model = RefundItem

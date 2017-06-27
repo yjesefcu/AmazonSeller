@@ -3,8 +3,9 @@
 将数据格式化成excel需要的格式
 """
 __author__ = 'liucaiyun'
-import sys, xlwt
+import sys, xlwt, os
 from xlwt import *
+from django.conf import settings
 from models import *
 from serializer import *
 reload(sys)
@@ -38,27 +39,39 @@ def add_product_info_to_fields(index, fields):
     fields.insert(index, u'SKU')
 
 
+def create_excel_path(settlement):
+    timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')
+    filename = '%s - %s_%s.xls' % (settlement.StartDate.date(), settlement.EndDate.date(), timestamp)
+    p = os.path.join(settings.MEDIA_ROOT, 'download')
+    if not os.path.exists(p):
+        os.mkdir(p)
+    return 'download/%s' % filename
+
+
 class DataExport(object):
 
     def __init__(self, settlement):
         self.settlement = settlement
         self.wb = Workbook()
 
-    def _save(self):
-        name = 'd:\\%s - %s.xls' % (self.settlement.StartDate.date(), self.settlement.EndDate.date())
+    def _save(self, filename):
+        # name = 'd:\\%s - %s.xls' % (self.settlement.StartDate.date(), self.settlement.EndDate.date())
         style = XFStyle()
         font = Font()
         font.name = 'SimSun' # 指定“宋体”
         style.font = font
-        self.wb.save(name)
+        self.wb.save(filename)
 
     def export(self):
+        filename = create_excel_path(self.settlement)
         records = ProductSettlement.objects.select_related('product').filter(settlement=self.settlement)\
             .order_by('product__SellerSKU', 'is_total')
         summary = self.format_product_settlement(records)
         self.add_sheet(u'总计', summary)
+        self._save_settlement_orders()
         self.add_products()
-        self._save()
+        self._save(os.path.join(settings.MEDIA_ROOT, filename))
+        return '/media/' + filename
 
     def format_product_settlement(self, records):
         """
@@ -73,7 +86,7 @@ class DataExport(object):
         for item in items:
             product = item['product']
             if item['is_total']:
-                product ={'SellerSKU': u'总计'}
+                product ={'SellerSKU': u'商品统计'}
             result = list()
             for field in fields:
                 if field == 'product':
@@ -91,10 +104,31 @@ class DataExport(object):
         :param product:
         :return:
         """
-        pass
+    def _save_settlement_orders(self):
+        sheet_name = u'订单详细'
+        ws = self.wb.add_sheet(sheet_name)
+        # 订单
+        orders = SettleOrderItem.objects.select_related('product').filter(settlement=self.settlement).exclude(is_total=True, product__isnull=False)\
+            .order_by('is_total', 'PostedDate')
+        row = self._format_orders(ws, 0, orders, is_product=False)
+        # 退货
+        refunds = RefundItem.objects.select_related('product').filter(settlement=self.settlement).exclude(is_total=True, product__isnull=False)\
+            .order_by('is_total', 'PostedDate')
+        row = self._format_refunds(ws, row+1, refunds, is_product=False)
+        # 赔偿
+        losts = OtherTransactionItem.objects.select_related('product').filter(settlement=self.settlement).exclude(is_total=True, product__isnull=False)\
+            .order_by('is_total', 'PostedDate')
+        row = self._format_losts(ws, row+1, losts, is_product=False)
+        # 弃置
+        removals = ProductRemovalItem.objects.select_related('product').filter(settlement=self.settlement).exclude(is_total=True, product__isnull=False)\
+            .order_by('is_total', 'UpdateDate')
+        row = self._format_removals(ws, row+1, removals, is_product=False)
+        # 结算
+        settlement = ProductSettlement.objects.get(settlement=self.settlement, product__isnull=True)
+        self._format_product_settlement(ws, row+1, settlement, is_product=True)
 
     def add_products(self):
-        for ps in ProductSettlement.objects.filter(product__isnull=False).select_related('product').filter(settlement=self.settlement):
+        for ps in ProductSettlement.objects.filter(settlement=self.settlement, product__isnull=False).select_related('product'):
             product = ps.product
             self._save_orders(product)
 
@@ -102,22 +136,22 @@ class DataExport(object):
         sheet_name = product.SellerSKU
         ws = self.wb.add_sheet(sheet_name)
         # 订单
-        orders = SettleOrderItem.objects.select_related('product').filter(settlement=self.settlement, product=product)\
-            .order_by('product__SellerSKU', 'is_total')
+        orders = SettleOrderItem.objects.filter(settlement=self.settlement, product=product)\
+            .order_by('is_total')
         # orders = SettleOrderItem.objects.select_related('product').filter(settlement=self.settlement)\
         #     .exclude(product__isnull=False, is_total=True).order_by('product__SellerSKU', 'is_total')
         row = self._format_orders(ws, 0, orders, is_product=True)
         # 退货
-        refunds = RefundItem.objects.select_related('product').filter(settlement=self.settlement, product=product)\
-            .order_by('product__SellerSKU', 'is_total')
+        refunds = RefundItem.objects.filter(settlement=self.settlement, product=product)\
+            .order_by('is_total')
         row = self._format_refunds(ws, row+1, refunds, is_product=True)
         # 赔偿
-        losts = OtherTransactionItem.objects.select_related('product').filter(settlement=self.settlement, product=product)\
-            .order_by('product__SellerSKU', 'is_total')
+        losts = OtherTransactionItem.objects.filter(settlement=self.settlement, product=product)\
+            .order_by( 'is_total')
         row = self._format_losts(ws, row+1, losts, is_product=True)
         # 弃置
-        removals = ProductRemovalItem.objects.select_related('product').filter(settlement=self.settlement, product=product)\
-            .order_by('product__SellerSKU', 'is_total')
+        removals = ProductRemovalItem.objects.filter(settlement=self.settlement, product=product)\
+            .order_by('is_total')
         row = self._format_removals(ws, row+1, removals, is_product=True)
         # 结算
         settlement = ProductSettlement.objects.get(settlement=self.settlement, product=product)
@@ -130,7 +164,8 @@ class DataExport(object):
                         u'订阅费', u'总成本', u'利润', u'利润率']
         fields = ['PostedDate', 'Quantity', 'income', 'promotion', 'amazon_cost', 'amount',
                   'subscription_fee', 'total_cost', 'profit', 'profit_rate']
-        items = OrderItemSerializer(orders, many=True).data
+        serializer_class = SimpleOrderItemSerializer if is_product else OrderItemSerializer
+        items = serializer_class(orders, many=True).data
         col_len = len(descriptions) if is_product else len(descriptions) + 3
         add_title(sheet, start_row+1, col_len, u'所有订单')
         return self._add_items_to_sheet(sheet, start_row+2, descriptions, fields, is_product, items)
@@ -142,7 +177,8 @@ class DataExport(object):
                         u'订阅费', u'总成本', u'利润', u'利润率']
         fields = ['PostedDate', 'Quantity', 'income', 'promotion', 'amazon_cost', 'amount',
                   'subscription_fee', 'total_cost', 'profit', 'profit_rate']
-        items = RefundItemSerializer(refunds, many=True).data
+        serializer_class = SimpleRefundItemSerializer if is_product else RefundItemSerializer
+        items = serializer_class(refunds, many=True).data
         col_len = len(descriptions) if is_product else len(descriptions) + 3
         add_title(sheet, start_row+1, col_len, u'退货')
         return self._add_items_to_sheet(sheet, start_row+2, descriptions, fields, is_product, items)
@@ -154,7 +190,8 @@ class DataExport(object):
                         u'订阅费', u'总成本', u'利润', u'利润率']
         fields = ['PostedDate', 'Quantity', 'income', 'promotion', 'amazon_cost', 'amount',
                   'subscription_fee', 'total_cost', 'profit', 'profit_rate']
-        items = ProductLostSerializer(losts, many=True).data
+        serializer_class = SimpleProductLostSerializer if is_product else ProductLostSerializer
+        items = serializer_class(losts, many=True).data
         col_len = len(descriptions) if is_product else len(descriptions) + 3
         add_title(sheet, start_row+1, col_len, u'赔偿')
         return self._add_items_to_sheet(sheet, start_row+2, descriptions, fields, is_product, items)
@@ -166,7 +203,8 @@ class DataExport(object):
                         u'订阅费', u'总成本', u'利润', u'利润率']
         fields = ['PostedDate', 'Quantity', 'income', 'promotion', 'amazon_cost', 'amount',
                   'subscription_fee', 'total_cost', 'profit', 'profit_rate']
-        items = ProductRemovalItemSerializer(removals, many=True).data
+        serializer_class = SimpleProductRemovalItemSerializer if is_product else ProductRemovalItemSerializer
+        items = serializer_class(removals, many=True).data
         col_len = len(descriptions) if is_product else len(descriptions) + 3
         add_title(sheet, start_row+1, col_len, u'弃置')
         return self._add_items_to_sheet(sheet, start_row+2, descriptions, fields, is_product, items)
@@ -176,7 +214,8 @@ class DataExport(object):
                         u'订阅费', u'总成本', u'利润', u'利润率']
         fields = ['PostedDate', 'Quantity', 'income', 'promotion', 'amazon_cost', 'amount',
                   'subscription_fee', 'total_cost', 'profit', 'profit_rate']
-        items = ProductSettlementSerializer(settlement).data
+        serializer_class = SimpleProductSettlementSerializer if is_product else ProductSettlementSerializer
+        items = serializer_class(settlement).data
         col_len = len(descriptions) if is_product else len(descriptions) + 3
         add_title(sheet, start_row+1, col_len, u'总计')
         return self._add_items_to_sheet(sheet, start_row+2, descriptions, fields, is_product, items)
@@ -193,7 +232,7 @@ class DataExport(object):
             items = [items]
         for item in items:
             current_row += 1
-            product = item['product']
+            product = item.get('product', {})
             is_total = item['is_total']
             if is_total:
                 product = {'SellerSKU': u'总计'}
@@ -201,6 +240,7 @@ class DataExport(object):
             for field in fields:
                 if field == 'product':
                     if not is_product:
+
                         add_to_col(sheet, current_row, col, product.get('SellerSKU', ''), is_total)
                         add_to_col(sheet, current_row, col+1, product.get('Image', ''), is_total)
                         add_to_col(sheet, current_row, col+2, product.get('TitleCn', ''), is_total)

@@ -15,6 +15,7 @@ from models import *
 from serializer import *
 from api import FileImporter, to_float, get_float
 from errors import Error
+from data_export import DataExport
 
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
@@ -80,6 +81,12 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
         instance.storage_imported = True
         instance.save()
         return Response({'error': 0, 'data': ProductRemovalItemSerializer(items, many=True).data})
+
+    @detail_route(methods=['get'])
+    def download(self, request, pk):
+        instance = self.get_object()
+        filename = DataExport(instance).export()
+        return Response({'path': filename})
 
 
 class ProductViewSet(NestedViewSetMixin, ModelViewSet):

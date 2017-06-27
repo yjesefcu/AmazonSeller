@@ -45,9 +45,11 @@
                             <td>{{ s.profit }}</td>
                             <td>{{ s.profit_rate }}</td>
                             <td>
-                                <button ng-click="startCalculate($index, s.id)" class="btn btn-danger" ng-if="s.calc_status==1">计算失败</button>
-                                <button ng-click="startCalculate($index, s.id)" class="btn btn-primary" ng-if="s.calc_status==0">重新计算</button>
-                                <i class="fa fa-refresh fa-spin" ng-if="s.calc_status==10"></i>
+                                <button ng-click="startCalculate($index, s.id)" class="btn btn-danger" ng-if="s.calc_status==1 && !isDownloading">计算失败</button>
+                                <button ng-click="startCalculate($index, s.id)" class="btn btn-primary" ng-if="s.calc_status==0 && !isDownloading">重新计算</button>
+                                <i class="fa fa-refresh fa-spin" ng-if="s.calc_status==10 && !isDownloading"></i>
+                                <button class="btn btn-default" ng-if="!isDownloading" ng-click="download(s.id)">下载</button>
+                                <button class="btn btn-default" ng-if="isDownloading"><i class="fa fa-refresh fa-spin"></i>正在生成</button>
                             </td>
                         </tr>
                         </tbody>

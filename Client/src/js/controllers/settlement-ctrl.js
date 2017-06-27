@@ -6,6 +6,7 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
     var calcStatusInterval = null;
     $scope.readingReport = false;
     var readingReportInterval = null;
+    $scope.isDownloading = false;
 
     var settlementId = $stateParams.id;
     $scope.selected = '';
@@ -108,7 +109,18 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
         readingReportInterval = null;
     }) ; //在控制器里，添加$on函数
 
-
+    $scope.download = function (id) {
+        $scope.isDownloading = true;
+        $http.get(serviceFactory.settlementDetail(id) + 'download/')
+            .then(function (result) {
+                $rootScope.addAlert('info', '报告已生成');
+                $scope.isDownloading = false;
+                window.location.href = serviceFactory.downloadPath(result.data.path);
+            }).catch(function (result) {
+                $scope.isDownloading = false;
+                $rootScope.addAlert('error', '报告生成失败');
+            });
+    }
 });
 
 app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $stateParams, $uibModal, $timeout, serviceFactory, fileUpload) {
