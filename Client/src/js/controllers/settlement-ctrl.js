@@ -7,6 +7,7 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
     $scope.readingReport = false;
     var readingReportInterval = null;
     $scope.isDownloading = false;
+    $scope.errorInfo = '';  //  错误信息
 
     var settlementId = $stateParams.id;
     $scope.selected = '';
@@ -35,6 +36,8 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
     });
 
     $scope.startCalculate = function (index, id) {
+        checkDataValidation(id);
+        return;
         $scope.calcIndex = index;
         $http.get(serviceFactory.settlementDetail(id) + 'calc/')
             .then(function (result) {
@@ -70,6 +73,7 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
     };
 
     $scope.startReadingReport = function () {
+
          $http.get(serviceFactory.settlements() + 'sync/', {
              params: {
                  MarketplaceId: $rootScope.MarketplaceId
@@ -120,6 +124,18 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
                 $scope.isDownloading = false;
                 $rootScope.addAlert('error', '报告生成失败');
             });
+    };
+
+    function checkDataValidation(id) {    // 检查商品订单与库存是否匹配
+        $scope.errorInfo = '';
+        $http.get(serviceFactory.settlementDetail(id) + 'check/').then(function (result) {
+            var products = result.data.products;
+            $scope.errorInfo = '以下商品所配置的库存与订单中的不符，请添加商品的入库或移库信息后重新计算：' + products;
+        }).catch(function (result) {
+            $scope.errorInfo = '';
+            $rootScope.addAlert('发生异常');
+        })
+
     }
 });
 

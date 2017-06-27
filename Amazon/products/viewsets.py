@@ -13,7 +13,7 @@ from amazon_services.exception import TextParseException
 from amazon_services.models import MarketAccount
 from models import *
 from serializer import *
-from api import FileImporter, to_float, get_float
+from api import FileImporter, to_float, get_float, ValidationChecker
 from errors import Error
 from data_export import DataExport
 
@@ -29,6 +29,16 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
     serializer_class = SettlementSerializer
     filter_backends = (DjangoFilterBackend,)
     filter_fields = ('MarketplaceId',)
+
+    @detail_route(methods=['get'])
+    def check(self, request, pk):
+        """
+        计算前检查数据的有效性
+        """
+        instance = self.get_object()
+        invalid_products = ValidationChecker(instance).check()
+        sku_list = [p.SellerSKU for p in invalid_products]
+        return Response({'products': ',  '.join(sku_list)})
 
     @detail_route(methods=['get'])
     def calc(self, request, pk):

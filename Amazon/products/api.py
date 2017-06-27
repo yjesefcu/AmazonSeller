@@ -151,6 +151,35 @@ def download_image(img_url):
 
 
 ##################  Settlement ####################
+def check_order_validation(settlement):
+    """
+    检查数据有效性:
+    """
+    # 检查每个商品库存与订单数是否匹配
+
+
+class ValidationChecker(object):
+
+    def __init__(self, settlement):
+        self.settlement = settlement
+        self.invalid_products = []
+
+    def check(self):
+        for product in ProductSettlement.objects.filter(settlement=self.settlement, product__isnull=False,
+                                                        is_total=False, is_calculated=False):
+            self.check_product(product)
+        return self.invalid_products
+
+    def check_product(self, product_settlement):
+        product = product_settlement.product
+        quantity = 0
+        quantity += sum_queryset(SettleOrderItem.objects.filter(settlement=self.settlement, product=product), 'Quantity')
+        quantity -= sum_queryset(RefundItem.objects.filter(settlement=self.settlement, product=product), 'quantity')
+        quantity += sum_queryset(OtherTransactionItem.objects.filter(settlement=self.settlement, product=product), 'Quantity')
+        quantity += sum_queryset(ProductRemovalItem.objects.filter(settlement=self.settlement, product=product), 'Quantity')
+        # 如果售出数量 大于 库存加上计算时扣除的数量，说明非法
+        if int(quantity) > int(product.amazon_inventory + get_float_from_model(product_settlement, 'quantity')):
+            self.invalid_products.append(product)
 
 
 class SettlementDbHandler(object):
@@ -631,6 +660,7 @@ class ProductProfitCalc(object):
                             get_float_from_model(removal_total, 'total_cost') + get_float_from_model(lost_total, 'total_cost')
             ps.profit = ps.amount + ps.total_cost
             ps.profit_rate = ps.profit / ps.income if ps.income else 0
+            ps.is_calculated = True
             ps.save()
             self._create_refund_inventory(product)
         except BaseException, ex:

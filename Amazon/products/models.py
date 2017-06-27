@@ -251,6 +251,7 @@ class ProductSettlement(models.Model):
     profit_rate = models.FloatField(null=True, blank=True, verbose_name=u'利润率')
 
     is_total = models.BooleanField(default=False)
+    is_calculated = models.BooleanField(default=False)       # 是否计算过
 
 
 class Refund(models.Model):

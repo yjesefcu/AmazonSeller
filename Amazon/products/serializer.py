@@ -80,7 +80,7 @@ class SimpleProductSettlementSerializer(serializers.ModelSerializer):
         exclude = ['settlement', 'product']
 
 
-class ProductSettlementSerializer(serializers.ModelSerializer):
+class ProductSettlementSerializer(SimpleProductSettlementSerializer):
     settlement = SettlementSerializer()
     product = ProductSerializer(read_only=True)
 
@@ -162,7 +162,7 @@ class SimpleProductRemovalItemSerializer(serializers.ModelSerializer):
         exclude = ['product']
 
 
-class ProductRemovalItemSerializer(serializers.ModelSerializer):
+class ProductRemovalItemSerializer(SimpleProductRemovalItemSerializer):
     product = ProductSerializer(read_only=True)
 
     class Meta:
@@ -182,7 +182,7 @@ class SimpleProductLostSerializer(serializers.ModelSerializer):
         exclude = ['product']
 
 
-class ProductLostSerializer(serializers.ModelSerializer):
+class ProductLostSerializer(SimpleProductLostSerializer):
     product = ProductSerializer(read_only=True)
 
     class Meta:
@@ -201,7 +201,7 @@ class SimpleRefundItemSerializer(serializers.ModelSerializer):
         exclude = ['product']
 
 
-class RefundItemSerializer(serializers.ModelSerializer):
+class RefundItemSerializer(SimpleRefundItemSerializer):
     product = ProductSerializer(read_only=True)
 
     class Meta:
