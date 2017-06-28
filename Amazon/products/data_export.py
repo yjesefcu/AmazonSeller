@@ -11,6 +11,11 @@ from serializer import *
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
+WIDTH = 256 * 12
+HEIGHT = 256 * 15
+DEFAULT_ROW_HEIGHT = xlwt.easyxf('font:height 480;')
+DEFAULT_IMAGE_HEIGHT = xlwt.easyxf('font:height 1280;')
+
 
 #styleBlueBkg = xlwt.easyxf('font: color-index red, bold on')
 #styleBlueBkg = xlwt.easyxf('font: background-color-index red, bold on')
@@ -66,8 +71,7 @@ class DataExport(object):
         filename = create_excel_path(self.settlement)
         records = ProductSettlement.objects.select_related('product').filter(settlement=self.settlement)\
             .order_by('product__SellerSKU', 'is_total')
-        summary = self.format_product_settlement(records)
-        self.add_sheet(u'总计', summary)
+        self.format_product_settlement(records)
         self._save_settlement_orders()
         self.add_products()
         self._save(os.path.join(settings.MEDIA_ROOT, filename))
@@ -81,22 +85,37 @@ class DataExport(object):
                         u'广告费', u'订阅费', u'总成本', u'利润', u'利润率']
         fields = ['product', 'quantity', 'income', 'promotion', 'amazon_cost', 'amount', 'storage_fee', 'advertising_fee',
                   'subscription_fee', 'total_cost', 'profit', 'profit_rate']
-        results = [descriptions]
+        sheet = self.wb.add_sheet(u'总计')
+        current_row = 1
+        for col in range(0, len(descriptions)):
+            set_row_height(sheet, current_row)
+            sheet.write(current_row, col+1, descriptions[col])
         items = ProductSettlementSerializer(records, many=True).data
         for item in items:
+            current_row += 1
             product = item['product']
             if item['is_total']:
-                product ={'SellerSKU': u'商品统计'}
-            result = list()
+                product = {'SellerSKU': u'商品统计'}
+                set_row_height(sheet, current_row)
+            else:
+                set_image_height(sheet, current_row)
+            col = 0
             for field in fields:
+                col += 1
                 if field == 'product':
-                    result.append(product.get('SellerSKU', ''))
-                    result.append(product.get('Image', ''))
-                    result.append(product.get('TitleCn'))
+                    set_col_width(sheet, col, 256*20)
+                    add_to_col(sheet, current_row, col, product.get('SellerSKU', ''), item.get('is_total'))
+                    image = product.get('Image', '')
+                    set_col_width(sheet, col+1, 256*14)
+                    if image:
+                        image_path = os.path.join(os.path.dirname(settings.MEDIA_ROOT), image[1:])
+                        sheet.insert_bitmap(image_path, current_row, col+1, x=0, y=0)
+                    else:
+                        add_to_col(sheet, current_row, col+1, '', item.get('is_total'))
+                    add_to_col(sheet, current_row, col+2, product.get('TitleCn', ''), item.get('is_total'))
+                    col += 2
                 else:
-                    result.append(item.get(field, ''))
-            results.append(result)
-        return results
+                    add_to_col(sheet, current_row, col, item.get(field, ''), item.get('is_total'))
 
     def _save_settlement_detail(self, settlement):
         """
@@ -158,7 +177,7 @@ class DataExport(object):
         self._format_product_settlement(ws, row+1, settlement, is_product=True)
 
     def _format_orders(self, sheet, start_row, orders, is_product=False):
-        if not orders.exists():
+        if orders.count() < 2:
             return start_row
         descriptions = [u'日期', u'数量', u'商品价格', u'促销返点', u'亚马逊收取', u'实收',
                         u'订阅费', u'总成本', u'利润', u'利润率']
@@ -171,7 +190,7 @@ class DataExport(object):
         return self._add_items_to_sheet(sheet, start_row+2, descriptions, fields, is_product, items)
 
     def _format_refunds(self, sheet, start_row, refunds, is_product=False):
-        if not refunds.exists():
+        if refunds.count() < 2:
             return start_row
         descriptions = [u'日期', u'数量', u'商品价格', u'促销返点', u'亚马逊收取', u'实收',
                         u'订阅费', u'总成本', u'利润', u'利润率']
@@ -184,7 +203,7 @@ class DataExport(object):
         return self._add_items_to_sheet(sheet, start_row+2, descriptions, fields, is_product, items)
 
     def _format_losts(self, sheet, start_row, losts, is_product=False):
-        if not losts.exists():
+        if losts.count() < 2:
             return start_row
         descriptions = [u'日期', u'数量', u'商品价格', u'促销返点', u'亚马逊收取', u'实收',
                         u'订阅费', u'总成本', u'利润', u'利润率']
@@ -197,7 +216,7 @@ class DataExport(object):
         return self._add_items_to_sheet(sheet, start_row+2, descriptions, fields, is_product, items)
 
     def _format_removals(self, sheet, start_row, removals, is_product=False):
-        if not removals.exists():
+        if removals.count() < 2:
             return start_row
         descriptions = [u'日期', u'数量', u'商品价格', u'促销返点', u'亚马逊收取', u'实收',
                         u'订阅费', u'总成本', u'利润', u'利润率']
@@ -227,6 +246,7 @@ class DataExport(object):
             fields.insert(1, 'product')
         current_row = start_row
         for col in range(0, len(descriptions)):
+            set_row_height(sheet, current_row)
             sheet.write(current_row, col, descriptions[col])
         if not isinstance(items, list):
             items = [items]
@@ -237,10 +257,12 @@ class DataExport(object):
             if is_total:
                 product = {'SellerSKU': u'总计'}
             col = 0
+            row = sheet.row(current_row)
+            tall_style = xlwt.easyxf('font:height 360;') # 36pt,类型小初的字号
+            row.set_style(tall_style)
             for field in fields:
                 if field == 'product':
                     if not is_product:
-
                         add_to_col(sheet, current_row, col, product.get('SellerSKU', ''), is_total)
                         add_to_col(sheet, current_row, col+1, product.get('Image', ''), is_total)
                         add_to_col(sheet, current_row, col+2, product.get('TitleCn', ''), is_total)
@@ -255,21 +277,49 @@ class DataExport(object):
         rows = len(data)
         cols = len(data[0])
         for row in range(0, rows):
+            set_row_height(ws, row)
             for col in range(0, cols):
+                set_col_width(ws, col)
                 ws.write(row + 1, col+1, data[row][col])
 
 
 def add_to_col(sheet, r, c, value, is_total):
     if is_total:
-        sheet.write(r, c, value, bgLightBlue)
+        sheet.write(r, c, value, bgIceBlue)
     else:
         sheet.write(r, c, value)
+
+
+def set_row_height(sheet, row_index):
+    row = sheet.row(row_index)
+    tall_style = DEFAULT_ROW_HEIGHT # 36pt,类型小初的字号
+    row.set_style(tall_style)
+
+
+def set_col_width(sheet, col_index, width=None):
+    col = sheet.col(col_index)
+    col.width = width if width else WIDTH
+
+
+def set_image_height(sheet, row_index):
+    row = sheet.row(row_index)
+    tall_style = DEFAULT_IMAGE_HEIGHT # 36pt,类型小初的字号
+    row.set_style(tall_style)
 
 
 def add_title(sheet, r, col_len, value):
     bg = bgLightYellow
     sheet.write(r, 0, value, bg)
+    set_row_height(sheet, r)
     for c in range(1, col_len):
+        set_col_width(sheet, c)
         sheet.write(r, c, '', bg)
 
 
+def add_description(sheet, r, col_len, value):
+    bg = bgLightYellow
+    sheet.write(r, 0, value, bg)
+    set_row_height(sheet, r)
+    for c in range(1, col_len):
+        set_col_width(sheet, c)
+        sheet.write(r, c, '', bg)

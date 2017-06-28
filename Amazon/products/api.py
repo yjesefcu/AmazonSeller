@@ -1,6 +1,7 @@
 #-*- coding:utf-8 -*-
 __author__ = 'liucaiyun'
 import os, datetime, urllib, json, logging, traceback, time
+from PIL import Image
 import dateutil.parser
 from django.conf import settings
 from django.db.models import Q, F, Sum
@@ -146,7 +147,11 @@ def create_image_path():
 
 def download_image(img_url):
     name = create_image_path()
+    image_path = os.path.join(settings.MEDIA_ROOT, name)
     urllib.urlretrieve(img_url, os.path.join(settings.MEDIA_ROOT, name))
+    io = Image.open(image_path)
+    io.convert('RGB')
+    io.save(image_path)
     return settings.MEDIA_URL + name
 
 
@@ -973,7 +978,7 @@ class SettlementCalc(object):
                                                                                           TransactionType='NonSubscriptionFeeAdj'), 'Amount')
         settlement.balanced_adjust = sum_queryset(OtherTransaction.objects.filter(settlement=settlement,
                                                                                   TransactionType='BalanceAdjustment'), 'Amount')
-        settlement.subscription_fee = subscription_fee
+        settlement.subscribe_fee = subscription_fee
 
         product_total = ProductSettlement.objects.get(settlement=settlement, is_total=True)
         settlement.total_cost = product_total.total_cost

@@ -1,13 +1,16 @@
-app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $stateParams, $interval, serviceFactory) {
+app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $stateParams, $timeout, $interval, serviceFactory, fileUpload) {
     $scope.settlements = [];
     $scope.selectedSettlement = '';
     $scope.isCalculating = false;
     $scope.calcIndex = 0;
+    var calcSettlementId;
     var calcStatusInterval = null;
     $scope.readingReport = false;
     var readingReportInterval = null;
     $scope.isDownloading = false;
     $scope.errorInfo = '';  //  错误信息
+    $scope.storageInvalid = false;      // 仓储报告没有上传
+    $scope.removalInvalid = false;      // 移除报告没有上传
 
     var settlementId = $stateParams.id;
     $scope.selected = '';
@@ -36,40 +39,19 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
     });
 
     $scope.startCalculate = function (index, id) {
-        checkDataValidation(id);
-        return;
-        $scope.calcIndex = index;
-        $http.get(serviceFactory.settlementDetail(id) + 'calc/')
-            .then(function (result) {
-                var errno = result.data.errno;
-                $rootScope.addAlert('info', '正在计算，请稍候...');
-                $scope.settlements[index]['calc_status'] = errno ? 1 : 10;
-                if (!calcStatusInterval){
-                    calcStatusInterval = $interval(function () {
-                        console.log('query calculating status');
-                        $http.get(serviceFactory.settlementDetail(id) + 'calcStatus/').then(function (result) {
-                            var errno = result.data.errno;
-                            if (errno == 0){
-                                $rootScope.addAlert('info', '计算完成');
-                                $interval.cancel(calcStatusInterval);
-                                calcStatusInterval = null;
-                                getSettlements();
-                            }else if (errno == 1){
-                                $rootScope.addAlert('info', '计算失败');
-                                $interval.cancel(calcStatusInterval);
-                                calcStatusInterval = null;
-                            }
-                            $scope.settlements[index]['calc_status'] = errno;
-                            console.log('calculating status: ' + errno);
-                        }).catch(function (result) {
-                            console.log('query calculating status error');
-                        });
-                    }, 5000);
-                }
-            }).catch(function (result) {
+        calcSettlementId = id;
+        checkDataValidation(index, id, function () {
+            $http.get(serviceFactory.settlementDetail(id) + 'calc/')
+                .then(function (result) {
+                    var errno = result.data.errno;
+                    $rootScope.addAlert('info', '正在计算，请稍候...');
+                    $scope.settlements[index]['calc_status'] = errno ? 1 : 10;
+                    clacStatusCheckingInterval(index, id);
+                }).catch(function (result) {
                 $scope.settlements[index]['calc_status'] = 10;
                 $rootScope.addAlert('error', '启动计算失败');
             });
+        });
     };
 
     $scope.startReadingReport = function () {
@@ -126,17 +108,127 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
             });
     };
 
-    function checkDataValidation(id) {    // 检查商品订单与库存是否匹配
+    function checkDataValidation(index, id, cb) {    // 检查商品订单与库存是否匹配
         $scope.errorInfo = '';
+        $scope.calcIndex = index;
+        $scope.storageInvalid = false;
+        $scope.removalInvalid = false;
+        $scope.settlements[index]['calc_status'] = 10;
+        $rootScope.addAlert('info', '正在计算数据有效性...');
         $http.get(serviceFactory.settlementDetail(id) + 'check/').then(function (result) {
             var products = result.data.products;
-            $scope.errorInfo = '以下商品所配置的库存与订单中的不符，请添加商品的入库或移库信息后重新计算：' + products;
+            var isInvalid = false;
+            if (products.length)
+            {
+                isInvalid = true;
+                $scope.settlements[index]['calc_status'] = 1;
+                $scope.errorInfo = '以下商品所配置的库存与订单中的不符，请添加商品的入库或移库信息后重新计算：' + products;
+            }
+            if (!result.data.storage_imported){
+                isInvalid = true;
+                $scope.storageInvalid = true;
+            }
+            if (!result.data.removal_imported){
+                isInvalid = true;
+                $scope.removalInvalid = true;
+            }
+            if (!isInvalid){
+                cb && cb();
+            }else{
+                $scope.settlements[index]['calc_status'] = 1;
+                $scope.settlements[index].is_invalid = true;
+            }
         }).catch(function (result) {
             $scope.errorInfo = '';
+            $scope.settlements[index]['calc_status'] = 1;
             $rootScope.addAlert('发生异常');
         })
 
     }
+    
+    function clacStatusCheckingInterval(index, id) {
+        if (!calcStatusInterval){
+            calcStatusInterval = $interval(function () {
+                console.log('query calculating status');
+                $http.get(serviceFactory.settlementDetail(id) + 'calcStatus/').then(function (result) {
+                    var errno = result.data.errno;
+                    if (errno == 0){
+                        $rootScope.addAlert('info', '计算完成');
+                        $interval.cancel(calcStatusInterval);
+                        calcStatusInterval = null;
+                        getSettlements();
+                    }else if (errno == 1){
+                        $rootScope.addAlert('info', '计算失败');
+                        $interval.cancel(calcStatusInterval);
+                        calcStatusInterval = null;
+                    }
+                    $scope.settlements[index]['calc_status'] = errno;
+                    console.log('calculating status: ' + errno);
+                }).catch(function (result) {
+                    console.log('query calculating status error');
+                });
+            }, 5000);
+        }
+    }
+
+    // 仓储费和订阅费
+    $timeout(function () {
+        angular.element("#glbalStorageFile").on('change', function(){
+            $scope.glbalStorageFile = this.files[0];
+        });
+        angular.element("#globalRemovalFile").on('change', function(){
+            $scope.globalRemovalFile = this.files[0];
+        });
+    }, 1000);
+    $scope.sendRemovalFile = function(){
+        var url = serviceFactory.uploadRemovals(calcSettlementId),
+            file = $scope.globalRemovalFile;
+        if ( !file ) return;
+        fileUpload.uploadFileToUrl(file, url, function (data) {
+            if (!data.errno){
+                $rootScope.addAlert('success', '上传成功，一共找到' + data.data.length + '条记录');
+                $scope.removalInvalid = false;
+            }else {
+                $rootScope.addAlert('error', '上传失败，请确认上传文件是否移除报告');
+            }
+        });
+    };
+    $scope.sendStorageFile = function(){
+        var url = serviceFactory.settlementDetail(calcSettlementId) + 'storage_upload/',
+            file = $scope.glbalStorageFile;
+        if ( !file ) return;
+        fileUpload.uploadFileToUrl(file, url, function (data) {
+            if (!data.errno){
+                $rootScope.addAlert('success', '上传成功，一共找到' + data.data.length + '条记录');
+                $scope.storageInvalid = false;
+            }else {
+                $rootScope.addAlert('error', '上传失败，请确认上传文件是否移除报告');
+            }
+        });
+    };
+
+    $scope.skipStorageReport = function () {
+        $http.patch(serviceFactory.settlementDetail(calcSettlementId), {
+            storage_imported: 1
+        }).then(function (result) {
+            $rootScope.addAlert('info', '设置成功');
+            $scope.storageInvalid = false;
+        }).catch(function (result) {
+            $rootScope.addAlert('error', '发生异常');
+        });
+    };
+
+    $scope.skipRemovalReport = function () {
+        $http.patch(serviceFactory.settlementDetail(calcSettlementId), {
+            removal_imported: 1
+        }).then(function (result) {
+            $rootScope.addAlert('info', '设置成功');
+            $scope.removalInvalid = false;
+        }).catch(function (result) {
+            $rootScope.addAlert('error', '发生异常');
+        });
+
+    };
 });
 
 app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $stateParams, $uibModal, $timeout, serviceFactory, fileUpload) {
@@ -166,11 +258,26 @@ app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $sta
          $scope.settlement.subscribe_fee = msg;
      });
     $timeout(function () {
-
         angular.element("#storageFile").on('change', function(){
             $scope.storageFile = this.files[0];
         });
+        angular.element("#removalFile").on('change', function(){
+            $scope.fileToUpload = this.files[0];
+        });
     }, 1000);
+    $scope.sendRemovalFile = function(){
+        var url = serviceFactory.uploadRemovals(settlementId),
+            file = $scope.fileToUpload;
+        if ( !file ) return;
+        fileUpload.uploadFileToUrl(file, url, function (data) {
+            if (!data.errno){
+                $rootScope.addAlert('success', '上传成功，一共找到' + data.data.length + '条记录');
+                $scope.removals = data.data;
+            }else {
+                $rootScope.addAlert('error', '上传失败，请确认上传文件是否移除报告');
+            }
+        });
+    };
     $scope.sendStorageFile = function(){
         var url = serviceFactory.settlementDetail(settlementId) + 'storage_upload/',
             file = $scope.storageFile;
@@ -363,24 +470,5 @@ app.controller('settlementOrdersCtrl', function ($scope, $rootScope, $http, $sta
     $scope.$on("subscribeFeeChange", function (event, msg) {
         $scope.settlement.subscribe_fee = msg;
     });
-    $timeout(function () {
-
-        angular.element("#removalFile").on('change', function(){
-            $scope.fileToUpload = this.files[0];
-        });
-    }, 1000);
-    $scope.sendFile = function(){
-        var url = serviceFactory.uploadRemovals(settlementId),
-            file = $scope.fileToUpload;
-        if ( !file ) return;
-        fileUpload.uploadFileToUrl(file, url, function (data) {
-            if (!data.errno){
-                $rootScope.addAlert('success', '上传成功，一共找到' + data.data.length + '条记录');
-                $scope.removals = data.data;
-            }else {
-                $rootScope.addAlert('error', '上传失败，请确认上传文件是否移除报告');
-            }
-        });
-    };
     // $("#removalFile").filestyle({buttonName: "btn-default", placeholder: "选择亚马逊下载的移除报告", buttonText: "浏览"});
 })

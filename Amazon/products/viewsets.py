@@ -30,6 +30,23 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
     filter_backends = (DjangoFilterBackend,)
     filter_fields = ('MarketplaceId',)
 
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+            # If 'prefetch_related' has been applied to a queryset, we need to
+            # forcibly invalidate the prefetch cache on the instance.
+            instance._prefetched_objects_cache = {}
+
+        return Response(serializer.data)
+
+    def perform_update(self, serializer):
+        serializer.save()
+
     @detail_route(methods=['get'])
     def check(self, request, pk):
         """
@@ -38,7 +55,8 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
         instance = self.get_object()
         invalid_products = ValidationChecker(instance).check()
         sku_list = [p.SellerSKU for p in invalid_products]
-        return Response({'products': ',  '.join(sku_list)})
+        return Response({'products': ',  '.join(sku_list), 'storage_imported': instance.storage_imported,
+                         'removal_imported': instance.removal_imported})
 
     @detail_route(methods=['get'])
     def calc(self, request, pk):

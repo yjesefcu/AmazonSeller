@@ -16,7 +16,24 @@
                 <!-- /.box-header -->
                 <div class="box-body" style="overflow-x: auto;">
                     <div ng-if="errorInfo" class="text-red">{{ errorInfo }}</div>
-                    <table id="overseaTable" class="table table-bordered table-hover">
+
+                    <div class="row" style="margin-bottom: 16px;" ng-show="storageInvalid || removalInvalid">
+
+                        <div class="col-md-12 text-red"><div class="col-md-12"><h4>月度仓储费报告或移除报告未上传过，请先上传：</h4></div></div>
+                        <div class="col-md-12 form-group" ng-show="storageInvalid">
+                            <label class="control-label" >上传月度仓储费报告</label>
+                            <input id='glbalStorageFile' type="file" data-buttonName="btn-primary" ng-model="glbalStorageFile" accept="text/plain" style="display: inline-block;">
+                            <button class="btn btn-primary" ng-click="sendStorageFile()">上传</button>
+                            &nbsp;&nbsp;&nbsp;或：<button class="btn btn-warning" ng-click="skipStorageReport()">没有报告，直接跳过</button>
+                        </div>
+                        <div class="col-md-12 form-group" ng-show="removalInvalid">
+                            <label class="control-label" style="width: 126px;text-align: right">上传移除报告</label>
+                            <input id='globalRemovalFile' type="file" data-buttonName="btn-primary" ng-model="globalRemovalFile" accept="text/plain" style="display: inline-block;">
+                            <button class="btn btn-primary" ng-click="sendRemovalFile()">上传</button>
+                            &nbsp;&nbsp;&nbsp;或：<button class="btn btn-warning" ng-click="skipRemovalReport()">没有报告，直接跳过</button>
+                        </div>
+                    </div>
+                    <table id="overseaTable" class="table table-bordered table-hover" style="border-top:#eee 1px solid;">
                         <thead>
                         <tr>
                             <th>日期</th>
@@ -42,12 +59,12 @@
                             <td class="td-cost">{{s.total_cost}}</td>
                             <td class="td-cost"> {{ s.advertising_fee }}</td>
                             <td class="td-cost">{{ s.storage_fee }}</td>
-                            <td class="td-cost">{{s.subscription_fee}}</td>
+                            <td class="td-cost">{{s.subscribe_fee}}</td>
                             <td>{{ s.profit }}</td>
                             <td>{{ s.profit_rate }}</td>
                             <td>
                                 <button ng-click="startCalculate($index, s.id)" class="btn btn-danger" ng-if="s.calc_status==1 && !isDownloading">计算失败</button>
-                                <button ng-click="startCalculate($index, s.id)" class="btn btn-primary" ng-if="s.calc_status==0 && !isDownloading">重新计算</button>
+                                <button ng-click="startCalculate($index, s.id)" class="btn btn-primary" ng-if="s.calc_status==0 && !isDownloading">开始计算</button>
                                 <i class="fa fa-refresh fa-spin" ng-if="s.calc_status==10 && !isDownloading"></i>
                                 <button class="btn btn-default" ng-if="!isDownloading" ng-click="download(s.id)">下载</button>
                                 <button class="btn btn-default" ng-if="isDownloading"><i class="fa fa-refresh fa-spin"></i>正在生成</button>
