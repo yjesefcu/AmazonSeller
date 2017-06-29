@@ -1,3 +1,4 @@
+#-*- coding:utf-8 -*-
 __author__ = 'liucaiyun'
 import datetime
 from rest_framework import serializers
@@ -18,6 +19,17 @@ class FloatRoundField(serializers.FloatField):
         if not value:
             return value
         return round(float(value), 2)
+
+
+class TransactionTypeField(serializers.CharField):
+    def to_representation(self, value):
+        if value == 'REVERSAL_REIMBURSEMENT':
+            return u'卖家退货'
+        if value == 'INCORRECT_FEES_ITEMS':
+            return u'费用更正'
+        if value == 'MISSING_FROM_INBOUND':
+            return u'丢失：仓库'
+        return value
 
 
 class DateTimeFormat(serializers.DateTimeField):
@@ -165,6 +177,25 @@ class SimpleProductRemovalItemSerializer(serializers.ModelSerializer):
         exclude = ['product']
 
 
+class OrderTypeField(serializers.CharField):
+
+    def to_representation(self, value):
+        if value == 'Return':
+            return u'买家退货'
+        if value == 'Disposal':
+            return u'弃置'
+        return value
+
+
+class DispositionField(serializers.CharField):
+
+    def to_representation(self, value):
+        if value == 'Sellable':
+            return u'可销售'
+        if value == 'Unsellable':
+            return u'不可销售'
+
+
 class ProductRemovalItemSerializer(SimpleProductRemovalItemSerializer):
     product = ProductSerializer(read_only=True)
 
@@ -188,6 +219,7 @@ class SimpleProductLostSerializer(serializers.ModelSerializer):
 
 class ProductLostSerializer(SimpleProductLostSerializer):
     product = ProductSerializer(read_only=True)
+    TransactionType = TransactionTypeField(read_only=True)
 
     class Meta:
         model = OtherTransactionItem
