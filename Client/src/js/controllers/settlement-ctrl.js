@@ -11,6 +11,8 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
     $scope.errorInfo = '';  //  错误信息
     $scope.storageInvalid = false;      // 仓储报告没有上传
     $scope.removalInvalid = false;      // 移除报告没有上传
+    $scope.advertisingInvalid = false;      // 广告费没有设置
+    $scope.advertising_fee = '';
 
     var settlementId = $stateParams.id;
     $scope.selected = '';
@@ -118,19 +120,29 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
         $http.get(serviceFactory.settlementDetail(id) + 'check/').then(function (result) {
             var products = result.data.products;
             var isInvalid = false;
-            if (products.length)
-            {
+            if (!result.data.data_sync_valid){
                 isInvalid = true;
                 $scope.settlements[index]['calc_status'] = 1;
-                $scope.errorInfo = '以下商品所配置的库存与订单中的不符，请添加商品的入库或移库信息后重新计算：' + products;
-            }
-            if (!result.data.storage_imported){
-                isInvalid = true;
-                $scope.storageInvalid = true;
-            }
-            if (!result.data.removal_imported){
-                isInvalid = true;
-                $scope.removalInvalid = true;
+                $scope.errorInfo = '数据同步时发生错误，请重新执行上面的“同步数据”';
+            }else{
+                if (products.length)
+                {
+                    isInvalid = true;
+                    $scope.settlements[index]['calc_status'] = 1;
+                    $scope.errorInfo = '以下商品所配置的库存与订单中的不符，请添加商品的入库或移库信息后重新计算：' + products;
+                }
+                if (!result.data.storage_imported){
+                    isInvalid = true;
+                    $scope.storageInvalid = true;
+                }
+                if (!result.data.removal_imported){
+                    isInvalid = true;
+                    $scope.removalInvalid = true;
+                }
+                if (!result.advertising_valid){
+                    isInvalid = true;
+                    $scope.advertisingInvalid = true;
+                }
             }
             if (!isInvalid){
                 cb && cb();
@@ -229,6 +241,20 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
         });
 
     };
+
+    $scope.setAdvertising = function () {
+        if ($scope.advertising_fee == ''){
+            return;
+        }
+        $http.patch(serviceFactory.settlementDetail(calcSettlementId) + 'advertising/', {
+            advertising_fee_adjust: $scope.advertising_fee
+        }).then(function (result) {
+            $rootScope.addAlert('info', '设置成功');
+            $scope.advertisingInvalid = false;
+        }).catch(function (result) {
+            $rootScope.addAlert('error', '发生异常');
+        });
+    }
 });
 
 app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $stateParams, $uibModal, $timeout, serviceFactory, fileUpload) {

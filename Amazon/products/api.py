@@ -616,6 +616,7 @@ class ProductProfitCalc(object):
                                                                    MarketplaceId=settlement.MarketplaceId)
         tmp = quantity - (item.QuantityShipped if item.QuantityShipped else 0)
         product.amazon_inventory += tmp
+        item.SellerSKU = product.SellerSKU
         item.ShipmentId = shipment.ShipmentId
         item.ship_date = shipment.ship_date
         item.QuantityShipped = tmp + (item.QuantityShipped if item.QuantityShipped else 0)
@@ -988,10 +989,9 @@ class SettlementCalc(object):
         settlement.amount = product_total.amount
         settlement.quantity = product_total.quantity
 
-
         if settlement.advertising_fee is None:
             settlement.advertising_fee = product_total.advertising_fee
-        settlement.advertising_fee_adjust = product_total.advertising_fee
+        # settlement.advertising_fee_adjust = product_total.advertising_fee
         settlement.profit = settlement.amount + settlement.total_cost
         settlement.profit_rate = settlement.profit / settlement.income if settlement.income else 0
         settlement.save()

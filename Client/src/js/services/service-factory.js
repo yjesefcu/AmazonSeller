@@ -47,6 +47,9 @@ app.factory('serviceFactory', function ($rootScope) {
     services.shipmentDetail = function (id) {
         return host + '/api/shipments/' + id + '/';
     };
+    services.shipmentItemDetail = function (id) {
+        return host + '/api/shipmentItems/' + id + '/';
+    };
     services.settlements = function () {
         return host + '/api/settlements/';
     };

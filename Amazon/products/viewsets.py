@@ -53,10 +53,14 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
         计算前检查数据的有效性
         """
         instance = self.get_object()
+        # 数据是否有效，主要是广告数据
+        if not instance.advertising_report_valid:
+            return Response({'data_sync_valid': False})
         invalid_products = ValidationChecker(instance).check()
         sku_list = [p.SellerSKU for p in invalid_products]
+        advertising_valid = True if instance.advertising_fee_adjust else False
         return Response({'products': ',  '.join(sku_list), 'storage_imported': instance.storage_imported,
-                         'removal_imported': instance.removal_imported})
+                         'removal_imported': instance.removal_imported, 'advertising_valid': advertising_valid})
 
     @detail_route(methods=['get'])
     def calc(self, request, pk):
@@ -109,6 +113,11 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
         instance.storage_imported = True
         instance.save()
         return Response({'error': 0, 'data': ProductRemovalItemSerializer(items, many=True).data})
+
+    @detail_route(methods=['patch'])
+    def advertising(self, request, pk):
+        instance = self.get_object()
+        fee = request.query_params.get('advertising_fee_adjust')
 
     @detail_route(methods=['get'])
     def download(self, request, pk):
@@ -184,6 +193,12 @@ class OrderViewSet(NestedViewSetMixin, ModelViewSet):
     serializer_class = OrderItemSerializer
     filter_backends = (DjangoFilterBackend, ProfitProductFilter,)
     filter_fields = ('settlement', 'product', 'is_total')
+
+
+class OutboundShipmentItemViewSet(NestedViewSetMixin, ModelViewSet):
+    queryset = OutboundShipmentItem.objects.all()
+    serializer_class = OutboundShipmentItemSerializer
+    authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
 
 
 class OutboundShipmentViewSet(NestedViewSetMixin, ModelViewSet):

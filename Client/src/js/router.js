@@ -48,7 +48,7 @@ app.config(['$stateProvider', '$urlRouterProvider', function($stateProvider, $ur
         })
         .state('index.shipmentDetail', {
             url: 'shipment/:id',
-            templateUrl: 'templates/shipment/outbound_create.html'
+            templateUrl: 'templates/shipment/shipment_detail.html'
         })
         .state('index.settlement', {
             url: 'settlement',

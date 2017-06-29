@@ -126,6 +126,7 @@ def update_advertising_report(market, settlement):
     end = settlement.EndDate.replace(hour=0, minute=0, second=0)
     SUNDAY = 6
     tmp_start = start
+    data_valid = True   # 表示广告费读取时是否出错
     while tmp_start < end:
         if tmp_start.weekday() != SUNDAY or (end-tmp_start).days < 7:
             # 增加一个日请求
@@ -139,7 +140,10 @@ def update_advertising_report(market, settlement):
                     update_product_advertising_to_db(settlement, items)
                     SettlementDataRecord.objects.create(settlement=settlement, start_time=tmp_start,
                                                      end_time=tmp_start+datetime.timedelta(days=1), data_type=SettlementDataRecord.ADVERTISE)
-            logger.info('settlement: %s, get advertising dally at : %s', settlement.StartDate, tmp_start)
+                    logger.info('get dally advertising success, start date:', tmp_start)
+                else:
+                    logger.info('get dally advertising fail, start date:', tmp_start)
+                    data_valid = False
             tmp_start = tmp_start + datetime.timedelta(days=1)
         else:
             # 增加一个周请求
@@ -153,8 +157,17 @@ def update_advertising_report(market, settlement):
                     update_product_advertising_to_db(settlement, items)
                     SettlementDataRecord.objects.create(settlement=settlement, start_time=tmp_start,
                                                      end_time=tmp_start+datetime.timedelta(days=7), data_type=SettlementDataRecord.ADVERTISE)
-            logger.info('settlement: %s, get advertising weekly at : %s', settlement.StartDate, tmp_start)
+                    logger.info('get weekly advertising success, start date:', tmp_start)
+                else:
+                    logger.info('get weekly advertising fail, start date:', tmp_start)
+                    data_valid = False
             tmp_start = tmp_start + datetime.timedelta(days=7)
+    if data_valid:
+        settlement.advertising_report_valid = True
+        advertising_fee = sum_queryset(ProductSettlement.objects.filter(settlement=settlement, is_total=False,
+                                                                        product__isnull=False), 'advertising_fee')
+        settlement.advertising_fee = advertising_fee
+        settlement.save()
 
 
 def update_all(market):
@@ -166,10 +179,9 @@ def update_all(market):
     try:
         update_settlement(market)
 
-        settlements = Settlement.objects.filter(returns__isnull=True)
-        if settlements.exists():
-            for settlement in settlements:
-                update_advertising_report(market, settlement)
+        settlements = Settlement.objects.filter(advertising_report_valid=False)
+        for settlement in settlements:
+            update_advertising_report(market, settlement)
                 # update_removal_report(market, settlement)
         update_product(market)
     except BaseException, ex:

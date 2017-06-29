@@ -15,10 +15,14 @@ def image_upload(request):
         if not my_file:
             return HttpResponse("no files for upload!")
         file_path = create_image_path()
-        destination = open(os.path.join(settings.MEDIA_ROOT, file_path), 'wb+')    # 打开特定的文件进行二进制的写操作
+        absolute_path = os.path.join(settings.MEDIA_ROOT, file_path)
+        destination = open(absolute_path, 'wb+')    # 打开特定的文件进行二进制的写操作
         for chunk in my_file.chunks():      # 分块写入文件
             destination.write(chunk)
         destination.close()
+        io = Image.open(absolute_path)
+        io.convert('RGB')
+        io.save(absolute_path)
         return HttpResponse(settings.MEDIA_URL + file_path)
 
 

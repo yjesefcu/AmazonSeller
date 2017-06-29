@@ -53,4 +53,15 @@ app.controller('OutboundEditCtrl', function ($scope, $http, $rootScope, $statePa
             }
         });
     };
+
+    $scope.saveItem = function (index, id) {    // 保存修改
+        $http.patch(serviceFactory.shipmentItemDetail(id), {unit_cost:$scope.products[index].unit_cost})
+            .then(function (result) {
+                $rootScope.addAlert('info', '修改成功');
+                $scope.products[index] = result.data;
+                $scope.products[index].isEdit = false;
+            }).catch(function (result) {
+                $rootScope.addAlert('error', '修改失败');
+            });
+    }
 });

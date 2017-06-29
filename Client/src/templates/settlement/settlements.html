@@ -15,11 +15,11 @@
                 </div>
                 <!-- /.box-header -->
                 <div class="box-body" style="overflow-x: auto;">
-                    <div ng-if="errorInfo" class="text-red">{{ errorInfo }}</div>
+                    <div ng-if="errorInfo" class="text-red" style="margin-bottom: 16px;">{{ errorInfo }}</div>
 
-                    <div class="row" style="margin-bottom: 16px;" ng-show="storageInvalid || removalInvalid">
+                    <div class="row" style="margin-bottom: 16px;" ng-show="storageInvalid || removalInvalid || advertisingInvalid">
 
-                        <div class="col-md-12 text-red"><div class="col-md-12"><h4>月度仓储费报告或移除报告未上传过，请先上传：</h4></div></div>
+                        <div class="col-md-12 text-red"><div class="col-md-12"><h4>以下报告或数据未初始化：</h4></div></div>
                         <div class="col-md-12 form-group" ng-show="storageInvalid">
                             <label class="control-label" >上传月度仓储费报告</label>
                             <input id='glbalStorageFile' type="file" data-buttonName="btn-primary" ng-model="glbalStorageFile" accept="text/plain" style="display: inline-block;">
@@ -31,6 +31,11 @@
                             <input id='globalRemovalFile' type="file" data-buttonName="btn-primary" ng-model="globalRemovalFile" accept="text/plain" style="display: inline-block;">
                             <button class="btn btn-primary" ng-click="sendRemovalFile()">上传</button>
                             &nbsp;&nbsp;&nbsp;或：<button class="btn btn-warning" ng-click="skipRemovalReport()">没有报告，直接跳过</button>
+                        </div>
+                        <div class="col-md-12" ng-show="advertisingInvalid">
+                            <label class="control-label">请设置实际广告费用</label>
+                            <input placeholder="请输入结算周期内的广告费用" style="width: 200px;" ng-model="advertising_fee">&nbsp;&nbsp;&nbsp;
+                            <button class="btn btn-primary" ng-click="setAdvertising()">确定</button>
                         </div>
                     </div>
                     <table id="overseaTable" class="table table-bordered table-hover" style="border-top:#eee 1px solid;">

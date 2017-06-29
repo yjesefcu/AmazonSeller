@@ -129,7 +129,7 @@
                     <tr ng-repeat="p in shipments" table-repeat-directive>
                         <td>{{ $index + 1 }}</td>
                         <td>{{ p.ship_date }}</td>
-                        <td><a ui-sref="index.shipmentDetail({id: p.shipment.id})">{{ p.ShipmentId }}</a></td>
+                        <td><a ui-sref="index.shipmentDetail({id: p.shipment_id})">{{ p.ShipmentId }}</a></td>
                         <td>{{ p.QuantityShipped }}</td>
                         <td>{{ p.inventory }}</td>
                         <td>{{ p.unit_freight}}</td>

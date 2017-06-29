@@ -228,6 +228,7 @@ class Settlement(models.Model):
     is_downloading = models.BooleanField(default=False)
     storage_imported = models.BooleanField(default=False)       # 月度仓储费是否已导入
     removal_imported = models.BooleanField(default=False)       # 移除报告是否已导入
+    advertising_report_valid = models.BooleanField(default=False)   # 读取广告费时是否成功
 
     class Meta:
         ordering = ['-EndDate']
