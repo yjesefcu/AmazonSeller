@@ -23,6 +23,9 @@ app.factory('serviceFactory', function ($rootScope) {
     services.getProductSupply = function (productId) {
         return host + '/api/products/' + productId + '/supply/';
     };
+    services.supplyDetail = function (supplyId) {
+        return host + '/api/supply/' + supplyId + '/';
+    };
     services.getProductShipments = function (productId) {
         return host + '/api/products/' + productId + '/shipments/';
     };

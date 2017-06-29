@@ -145,8 +145,8 @@ class SupplyViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = InboundShipment.objects.select_related('product').all()
     serializer_class = InboundShipmentSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
-    filter_backends = (DjangoFilterBackend,)
-    filter_fields = ('product',)
+    # filter_backends = (DjangoFilterBackend,)
+    # filter_fields = ('product',)
 
     def perform_create(self, serializer):
         serializer.save()

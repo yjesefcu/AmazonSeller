@@ -112,9 +112,9 @@
                             <td><input ng-if="p.isEdit" ng-model="p.unit_cost" class="md">
                                 <span ng-if="!p.isEdit">{{p.unit_cost}}</span></td>
                             <td>
-                                <a class="fa fa-pencil" ng-click="p.isEdit=true" ng-if="!p.isEdit"></a>
-                                <a class="fa fa-check text-green" ng-click="saveItem($index, p.id)" ng-if="p.isEdit"></a>
-                                <a class="fa fa-close text-red" ng-click="p.isEdit=false" ng-if="p.isEdit"></a>
+                                <a class="fa fa-pencil" ng-click="p.isEdit=true" ng-if="!p.isEdit" title="修改单位成本"></a>
+                                <a class="fa fa-check text-green" ng-click="saveItem($index, p.id)" ng-if="p.isEdit" title="保存"></a>
+                                <a class="fa fa-close text-red" ng-click="p.isEdit=false" ng-if="p.isEdit" title="取消"></a>
                             </td>
                         </tr>
                         </tbody>

@@ -20,7 +20,9 @@ app.controller('ProductCtrl', function($scope, $http, $rootScope, $uibModal, $lo
             controller : 'supplyModalCtrl',//modal对应的Controller
             resolve : {
                 data : function() {//data作为modal的controller传入的参数
-                    return id;//用于传递数据
+                    return {
+                        id: id
+                    };//用于传递数据
                 }
             }
         });
@@ -29,8 +31,9 @@ app.controller('ProductCtrl', function($scope, $http, $rootScope, $uibModal, $lo
 
 //模态框对应的Controller
 app.controller('supplyModalCtrl', function($scope, $rootScope, $http, serviceFactory, $uibModalInstance, data) {
-    $scope.productId = data;
-    $scope.supply = {product: data, MarketplaceId: $rootScope.MarketplaceId};
+    $scope.productId = data.id;
+    var callback = data.cb;
+    $scope.supply = {product: data.id, MarketplaceId: $rootScope.MarketplaceId};
     //在这里处理要进行的操作
     $scope.save = function() {
         $scope.supply['inventory'] = $scope.supply['count'];       // 设置剩余数量与总数量一致
@@ -38,6 +41,7 @@ app.controller('supplyModalCtrl', function($scope, $rootScope, $http, serviceFac
         $http.post(serviceFactory.supplyList($scope.productId), $scope.supply)
             .then(function (result) {
                 $rootScope.addAlert('success', '添加入库信息成功');
+                callback && callback(result.data);
                 $uibModalInstance.close();
             }).catch(function (result) {
                 if (result.status == 400){
@@ -77,7 +81,7 @@ app.directive('tableRepeatDirective', function($timeout) {
     };
 });
 
-app.controller("ProductEditCtrl", function ($scope, $http, $rootScope, $location, $state, $timeout, $stateParams, serviceFactory, atomicNotifyService) {
+app.controller("ProductEditCtrl", function ($scope, $http, $rootScope, $location, $state, $timeout, $uibModal, $stateParams, serviceFactory, atomicNotifyService) {
     $scope.formData = {'MarketplaceId': $rootScope.MarketplaceId};
     $scope.productIcon = '';
     $scope.thumb = {};
@@ -183,6 +187,33 @@ app.controller("ProductEditCtrl", function ($scope, $http, $rootScope, $location
             $scope.shipments = result.data;
         });
     }
+    $scope.openSupplyModal = function (id) {
+        var modalInstance = $uibModal.open({
+            templateUrl : 'templates/product/add_supply.html',//script标签中定义的id
+            controller : 'supplyModalCtrl',//modal对应的Controller
+            resolve : {
+                data : function() {//data作为modal的controller传入的参数
+                    return {
+                        id: id,
+                        cb: function (data) {
+                            $scope.shipments.push(data);
+                        }
+                    };//用于传递数据
+                }
+            }
+        });
+    };
+
+    $scope.saveSupplyCost = function (index, id) {
+        $http.patch(serviceFactory.supplyDetail(id), {
+            unit_cost: $scope.supplies[index].unit_cost
+        }).then(function (result) {
+            $rootScope.addAlert('info', '保存成功');
+            $scope.supplies[index] = result.data;
+        }).catch(function (result) {
+            $rootScope.addAlert('error', '保存失败');
+        });
+    };
 });
 
 app.controller('ProductOrdersCtrl', function ($scope, $rootScope, $http, $location, $state, $stateParams, $timeout, serviceFactory) {
