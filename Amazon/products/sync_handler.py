@@ -13,23 +13,6 @@ logger = logging.getLogger('product')
 DT_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 
 
-def update_orders(market, last_update_time):
-    """
-    从亚马逊获取数据并更新订单信息
-    :param market:
-    :param last_update_time: datetime格式
-    :return:
-    """
-    time_str = last_update_time.strftime(DT_FORMAT)
-    orders = OrderService(market).get_orders(time_str)
-    order_item_service = OrderItemService(market)
-    for order in orders:
-        # 读取OrderItem信息
-        items = order_item_service.list_items(order['AmazonOrderId'])
-        # 更新到数据库
-        update_order_to_db(order, items)
-
-
 def update_product(market=None):
     """
     完善商品信息

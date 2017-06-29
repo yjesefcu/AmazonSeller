@@ -4,17 +4,6 @@ from django.db import models
 # Create your models here.
 
 
-class Commission(models.Model):
-    """
-    佣金对照表
-    """
-    ProductGroup = models.CharField(max_length=50, verbose_name=u'商品类型', db_index=True)
-    percentage = models.FloatField()    # 比例
-    min_charge = models.FloatField(default=1.0)
-    price = models.FloatField(null=True, blank=True)    # 有的商品以价格区分，<=price取percentage，>price取percentage_greater
-    percentage_greater = models.FloatField(null=True, blank=True)
-
-
 class Product(models.Model):
     MarketplaceId = models.CharField(max_length=30, db_index=True)     # 市场Id
     SellerSKU = models.CharField(max_length=50, verbose_name='SKU', db_index=True)
@@ -139,66 +128,6 @@ class OutboundShipmentItem(models.Model):
         ordering = ['SellerSKU', '-shipment__ship_date']
 
 
-class Orders(models.Model):
-    """
-    销售记录
-    """
-    MarketplaceId = models.CharField(max_length=30, db_index=True)
-    OrderType = models.CharField(max_length=50, null=True, blank=True)
-    PurchaseDate = models.DateTimeField(null=True, blank=True, verbose_name=u'购买时间')
-    AmazonOrderId = models.CharField(max_length=50, verbose_name=u'订单编号')
-    SellerOrderId = models.CharField(null=True, blank=True, max_length=50, verbose_name=u'卖家订单号')
-    Amount = models.FloatField(null=True, blank=True, verbose_name=u'售价')   # USD
-    CurrencyCode = models.CharField(null=True, blank=True, max_length=10, verbose_name=u'货币单位')      # 货币代码：USD-美元
-    LastUpdateDate = models.DateTimeField(null=True, blank=True)                # 上一次更新时间
-    LatestShipDate = models.DateTimeField(null=True, blank=True)                # 预计配送日期
-    IsReplacementOrder = models.BooleanField(default=False)                     #
-    ShipServiceLevel = models.CharField(max_length=50, null=True, blank=True)   # 配送服务级别
-    OrderStatus = models.CharField(max_length=50, null=True, blank=True)        # 订单状态
-    SalesChannel = models.CharField(max_length=100, null=True, blank=True)      # 商城地址
-    NumberOfItemsUnshipped = models.IntegerField(default=0)         # 未发货数量
-    PaymentMethod = models.CharField(max_length=50, null=True, blank=True)
-    PaymentMethodDetail = models.CharField(max_length=50, null=True, blank=True, verbose_name=u'付款方式')
-    IsPremiumOrder = models.BooleanField(default=False)
-    FulfillmentChannel = models.CharField(max_length=30, null=True, blank=True)
-    IsPrime = models.BooleanField(default=True)     # 是否会员
-
-    class Meta:
-        ordering = ['-LastUpdateDate']
-
-
-class OrderItem(models.Model):
-    MarketplaceId = models.CharField(max_length=30, db_index=True, null=True, blank=True)
-    # 从Order同步的信息
-    order = models.ForeignKey(Orders, related_name='items')
-    AmazonOrderId = models.CharField(max_length=50, db_index=True, null=True, blank=True)
-    PurchaseDate = models.DateTimeField(null=True, blank=True, verbose_name=u'购买时间')
-    LastUpdateDate = models.DateTimeField(null=True, blank=True)                # 上一次更新时间
-    OrderStatus = models.CharField(max_length=50, null=True, blank=True, verbose_name=u'订单状态')  # =order.OrderStatus
-    # 商品信息
-    product = models.ForeignKey(Product, related_name='items', null=True, blank=True)
-    Binding = models.CharField(max_length=50, null=True, blank=True, verbose_name=u'类型')
-    ProductGroup = models.CharField(max_length=50, null=True, blank=True)
-    ProductTypeName = models.CharField(max_length=50, null=True, blank=True)
-    SellerSKU = models.CharField(null=True, blank=True, max_length=50, db_index=True)
-    ASIN = models.CharField(max_length=20, null=True, blank=True)
-    # 订单子项信息
-    OrderItemId = models.CharField(max_length=20)
-    QuantityOrdered = models.IntegerField(null=True, blank=True, verbose_name=u'销售数量')
-    QuantityShipped = models.IntegerField(null=True, blank=True, verbose_name=u'已发货数量')
-    ItemPrice = models.FloatField(null=True, blank=True, verbose_name=u'总价')
-    ShippingPrice = models.FloatField(null=True, blank=True, verbose_name=u'运费')
-    ShippingDiscount = models.FloatField(null=True, blank=True, verbose_name=u'运费折扣')
-    ItemTax = models.FloatField(null=True, blank=True, verbose_name=u'订单税')
-    ShippingTax = models.FloatField(null=True, blank=True, verbose_name=u'运费税')
-    PromotionDiscount = models.FloatField(null=True, blank=True, verbose_name=u'促销折扣')
-    # 其他收费信息
-    commission_per = models.FloatField(null=True, blank=True, verbose_name=u'佣金比例')     # 根据Product.ProductGroup
-    commission = models.FloatField(null=True, blank=True, verbose_name=u'佣金')   # ItemPrice * commission_per
-    subscription_fee = models.FloatField(null=True, blank=True, verbose_name=u'订阅费')    # 单位：USD
-    cost = models.FloatField(null=True, blank=True, default=0)      # 成本，USD
-
-
 class Settlement(models.Model):
     """
     一次结算记录
@@ -233,6 +162,13 @@ class Settlement(models.Model):
     class Meta:
         ordering = ['-EndDate']
 
+    def update_cost(self, cost_diff):
+        # 更新利润， cost指增加或减少的部分
+        self.total_cost += cost_diff
+        self.profit -= cost_diff
+        self.profit_rate = self.profit/self.income if self.income else 0
+        self.save()
+
 
 class ProductSettlement(models.Model):
     MarketplaceId = models.CharField(max_length=30, db_index=True)     # 市场Id
@@ -253,6 +189,20 @@ class ProductSettlement(models.Model):
 
     is_total = models.BooleanField(default=False)
     is_calculated = models.BooleanField(default=False)       # 是否计算过
+
+    def update_cost(self, cost_diff):
+        # 更新利润， cost指增加或减少的部分
+        self.total_cost += cost_diff
+        self.profit -= cost_diff
+        self.profit_rate = self.profit/self.income if self.income else 0
+        self.save()
+        # 更新is_total的记录
+        if not self.is_total:
+            ProductSettlement.objects.get(settlement=self.settlement, is_total=True).update_cost(cost_diff)
+        # 更新settlement的记录
+        if self.is_total:
+            self.settlement.update_cost(cost_diff)
+
 
 
 class Refund(models.Model):
@@ -304,11 +254,31 @@ class RefundItem(models.Model):
     promotion = models.FloatField(null=True, blank=True, verbose_name=u'促销返点')
     amount = models.FloatField(null=True, blank=True, verbose_name=u'实收') #　=Principal
     profit = models.FloatField(null=True, blank=True, default=0)    # 利润
+    profit_rate = models.FloatField(null=True, blank=True)          # 利润率
 
     is_total = models.BooleanField(default=False)      # 是否是汇总项
 
     class Meta:
         ordering = ['-PostedDate']
+
+    def update_unit_cost(self, cost):
+        # 更新单位成本，cost指修改后单位成本
+        diff = (float(cost) - self.cost) * self.quantity
+        self.cost = cost
+        self.update_cost(diff)
+        # 更新total记录的成本
+        RefundItem.objects.get(settlement=self.settlement, is_total=True, product=self.product).update_cost(diff)
+
+    def update_cost(self, cost_diff):
+        # 更新成本的差值
+        self.total_cost += cost_diff
+        self.profit -= cost_diff
+        self.profit_rate = self.profit / self.income if self.income else 0
+        self.save()
+        if self.is_total:
+            # 更新商品总记录
+            ProductSettlement.objects.get(settlement=self.settlement, product=self.product).update_cost(cost_diff)
+
 
 
 class OtherTransaction(models.Model):
@@ -371,6 +341,24 @@ class ProductRemovalItem(models.Model):
 
     is_total = models.BooleanField(default=False)      # 是否是汇总项
 
+    def update_unit_cost(self, cost):
+        # 更新单位成本，cost指修改后单位成本
+        diff = (float(cost) - self.cost) * self.Quantity
+        self.cost = cost
+        self.update_cost(diff)
+        # 更新total记录的成本
+        ProductRemovalItem.objects.get(settlement=self.settlement, is_total=True, product=self.product).update_cost(diff)
+
+    def update_cost(self, cost_diff):
+        # 更新成本的差值
+        self.total_cost += cost_diff
+        self.profit -= cost_diff
+        # self.profit_rate = self.profit / self.income if self.income else 0
+        self.save()
+        if self.is_total:
+            # 更新商品总记录
+            ProductSettlement.objects.get(settlement=self.settlement, product=self.product).update_cost(cost_diff)
+
 
 class OtherTransactionItem(models.Model):
     # 赔偿
@@ -396,8 +384,27 @@ class OtherTransactionItem(models.Model):
     income = models.FloatField(null=True, blank=True)       # = Amount
     total_cost = models.FloatField(null=True, blank=True, verbose_name=u'总成本')
     profit = models.FloatField(null=True, blank=True)   # 利润
+    profit_rate = models.FloatField(null=True, blank=True)
 
     is_total = models.BooleanField(default=False)      # 是否是汇总项
+
+    def update_unit_cost(self, cost):
+        # 更新单位成本，cost指修改后单位成本
+        diff = (float(cost) - self.cost) * self.Quantity
+        self.cost = cost
+        self.update_cost(diff)
+        # 更新total记录的成本
+        OtherTransactionItem.objects.get(settlement=self.settlement, is_total=True, product=self.product).update_cost(diff)
+
+    def update_cost(self, cost_diff):
+        # 更新成本的差值
+        self.total_cost += cost_diff
+        self.profit -= cost_diff
+        self.profit_rate = self.profit / self.Amount if self.Amount else 0
+        self.save()
+        if self.is_total:
+            # 更新商品总记录
+            ProductSettlement.objects.get(settlement=self.settlement, product=self.product).update_cost(cost_diff)
 
 
 class SellerDealPayment(models.Model):
@@ -505,11 +512,30 @@ class SettleOrderItem(models.Model):
     promotion = models.FloatField(null=True, blank=True, verbose_name=u'促销返点')
     amount = models.FloatField(null=True, blank=True, verbose_name=u'实收') #　=Principal
     profit = models.FloatField(null=True, blank=True, default=0)    # 利润
+    profit_rate = models.FloatField(null=True, blank=True)
 
     is_total = models.BooleanField(default=False)      # 是否是汇总项
 
     class Meta:
         ordering = ['-PostedDate']
+
+    def update_unit_cost(self, cost):
+        # 更新单位成本，cost指修改后单位成本
+        diff = (float(cost) - self.cost) * self.Quantity
+        self.cost = cost
+        self.update_cost(diff)
+        # 更新total记录的成本
+        SettleOrderItem.objects.get(settlement=self.settlement, is_total=True, product=self.product).update_cost(diff)
+
+    def update_cost(self, cost_diff):
+        # 更新成本的差值
+        self.total_cost += cost_diff
+        self.profit -= cost_diff
+        self.profit_rate = self.profit / self.income if self.income else 0
+        self.save()
+        if self.is_total:
+            # 更新商品总记录
+            ProductSettlement.objects.get(settlement=self.settlement, product=self.product).update_cost(cost_diff)
 
 
 class ProductReturn(models.Model):

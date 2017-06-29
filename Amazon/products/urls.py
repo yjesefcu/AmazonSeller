@@ -18,6 +18,10 @@ product.register(r'losts', ProductLostViewSet, base_name="api_product_losts", pa
 router.register(r'shipments', OutboundShipmentViewSet, base_name="api_ships_oversea")
 router.register(r'shipmentItems', OutboundShipmentItemViewSet, base_name="api_ships_oversea_items")
 router.register(r'supply', SupplyViewSet, base_name="api_supplies")
+router.register(r'orders', OrderViewSet, base_name="api_product_orders")
+router.register(r'removals', RemovalViewSet, base_name="api_product_removals")
+router.register(r'refunds', RefundViewSet, base_name="api_product_refunds")
+router.register(r'losts', ProductLostViewSet, base_name="api_product_losts")
 
 settlement = router.register(r'settlements', SettlementViewSet, base_name="api_settlements")
 settlement.register(r'products', SettlementProductViewSet, base_name="api_settlement_products", parents_query_lookups=['settlement'])

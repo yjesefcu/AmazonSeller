@@ -497,4 +497,45 @@ app.controller('settlementOrdersCtrl', function ($scope, $rootScope, $http, $sta
         $scope.settlement.subscribe_fee = msg;
     });
     // $("#removalFile").filestyle({buttonName: "btn-default", placeholder: "选择亚马逊下载的移除报告", buttonText: "浏览"});
-})
+
+    $scope.saveOrderCost = function (index, id){        // 修改某个订单的单位成本
+        $http.patch(serviceFactory.orderDetail(id) + 'cost/', {
+            cost: $scope.orders[index].cost
+        }).then(function (result) {
+            $rootScope.addAlert('info', '修改成功');
+            $scope.orders[index] = result.data;
+        }).catch(function (result) {
+            $rootScope.addAlert('error', '修改失败');
+        })
+    };
+    $scope.saveRefundCost = function (index, id){        // 修改refund的单位成本
+        $http.patch(serviceFactory.refundDetail(id) + 'cost/', {
+            cost: $scope.refunds[index].cost
+        }).then(function (result) {
+            $rootScope.addAlert('info', '修改成功');
+            $scope.refunds[index] = result.data;
+        }).catch(function (result) {
+            $rootScope.addAlert('error', '修改失败');
+        })
+    };
+    $scope.saveRemovalCost = function (index, id){        // 修改某个订单的单位成本
+        $http.patch(serviceFactory.removalDetail(id) + 'cost/', {
+            cost: $scope.removals[index].cost
+        }).then(function (result) {
+            $rootScope.addAlert('info', '修改成功');
+            $scope.removals[index] = result.data;
+        }).catch(function (result) {
+            $rootScope.addAlert('error', '修改失败');
+        })
+    };
+    $scope.saveLostCost = function (index, id){        // 修改某个订单的单位成本
+        $http.patch(serviceFactory.lostDetail(id) + 'cost/', {
+            cost: $scope.losts[index].cost
+        }).then(function (result) {
+            $rootScope.addAlert('info', '修改成功');
+            $scope.losts[index] = result.data;
+        }).catch(function (result) {
+            $rootScope.addAlert('error', '修改失败');
+        })
+    };
+});

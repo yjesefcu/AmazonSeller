@@ -178,6 +178,7 @@ class ProfitProductFilter(object):
                 queryset = queryset.filter(product__isnull=True)
             else:
                 queryset = queryset.filter(product__pk=product)
+        queryset = queryset.filter(is_total=data.get('is_total', False))
         return queryset
 
 
@@ -192,7 +193,14 @@ class OrderViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = SettleOrderItem.objects.select_related('product').all()
     serializer_class = OrderItemSerializer
     filter_backends = (DjangoFilterBackend, ProfitProductFilter,)
-    filter_fields = ('settlement', 'product', 'is_total')
+    # filter_fields = ('settlement', 'product', 'is_total')
+
+    @detail_route(methods=['patch'])
+    def cost(self, request, pk):
+        # 更新成本
+        instance = self.get_object()
+        instance.update_unit_cost(request.data.get('cost'))
+        return Response(self.get_serializer_class()(instance).data)
 
 
 class OutboundShipmentItemViewSet(NestedViewSetMixin, ModelViewSet):
@@ -357,7 +365,14 @@ class RefundViewSet(NestedViewSetMixin, ModelViewSet):
     serializer_class = RefundItemSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
     filter_backends = (DjangoFilterBackend, ProfitProductFilter,)
-    filter_fields = ('settlement', 'product', 'is_total')
+    # filter_fields = ('settlement', 'product', 'is_total')
+
+    @detail_route(methods=['patch'])
+    def cost(self, request, pk):
+        # 更新成本
+        instance = self.get_object()
+        instance.update_unit_cost(request.data.get('cost'))
+        return Response(self.get_serializer_class()(instance).data)
 
 
 class RemovalViewSet(NestedViewSetMixin, ModelViewSet):
@@ -366,7 +381,14 @@ class RemovalViewSet(NestedViewSetMixin, ModelViewSet):
     serializer_class = ProductRemovalItemSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
     filter_backends = (DjangoFilterBackend, ProfitProductFilter,)
-    filter_fields = ('settlement', 'product', 'is_total')
+    # filter_fields = ('settlement', 'product', 'is_total')
+
+    @detail_route(methods=['patch'])
+    def cost(self, request, pk):
+        # 更新成本
+        instance = self.get_object()
+        instance.update_unit_cost(request.data.get('cost'))
+        return Response(self.get_serializer_class()(instance).data)
 
     @list_route(methods=['post'])
     def upload(self, request, *args, **kwargs):
@@ -393,7 +415,14 @@ class ProductLostViewSet(NestedViewSetMixin, ModelViewSet):
     serializer_class = ProductLostSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
     filter_backends = (DjangoFilterBackend, ProfitProductFilter,)
-    filter_fields = ('settlement', 'product', 'is_total')
+    # filter_fields = ('settlement', 'product', 'is_total')
+
+    @detail_route(methods=['patch'])
+    def cost(self, request, pk):
+        # 更新成本
+        instance = self.get_object()
+        instance.update_unit_cost(request.data.get('cost'))
+        return Response(self.get_serializer_class()(instance).data)
 
 
 class AdvertisingViewSet(NestedViewSetMixin, ModelViewSet):

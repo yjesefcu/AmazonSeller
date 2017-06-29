@@ -9,7 +9,7 @@ class ProfitRateField(serializers.CharField):
     def to_representation(self, value):
         if not value:
             return '0%'
-        return '%d%%' % (round(value, 3) * 100)
+        return '%d%%' % (round(float(value), 3) * 100)
 
 
 class FloatRoundField(serializers.FloatField):
@@ -17,7 +17,7 @@ class FloatRoundField(serializers.FloatField):
     def to_representation(self, value):
         if not value:
             return value
-        return round(value, 2)
+        return round(float(value), 2)
 
 
 class DateTimeFormat(serializers.DateTimeField):
@@ -95,6 +95,7 @@ class SimpleOrderItemSerializer(serializers.ModelSerializer):
     amazon_cost = FloatRoundField()
     amount = FloatRoundField()
     profit = FloatRoundField()
+    profit_rate = ProfitRateField(read_only=True)
     total_cost = FloatRoundField()
     subscription_fee = FloatRoundField()
     cost = FloatRoundField()
@@ -175,6 +176,7 @@ class ProductRemovalItemSerializer(SimpleProductRemovalItemSerializer):
 class SimpleProductLostSerializer(serializers.ModelSerializer):
     PostedDate = DateTimeFormat(read_only=True)
     profit = FloatRoundField()
+    profit_rate = ProfitRateField(read_only=True)
     Amount = FloatRoundField()
     total_cost = FloatRoundField()
     cost = FloatRoundField()
@@ -195,6 +197,7 @@ class ProductLostSerializer(SimpleProductLostSerializer):
 class SimpleRefundItemSerializer(serializers.ModelSerializer):
     PostedDate = DateTimeFormat(read_only=True)
     profit = FloatRoundField()
+    profit_rate = ProfitRateField(read_only=True)
     cost = FloatRoundField()
     total_cost = FloatRoundField()
 

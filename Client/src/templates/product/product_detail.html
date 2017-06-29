@@ -97,7 +97,8 @@
                         <td>{{ p.charges_comment }}</td>
                         <td>
                             <input ng-if="p.isEdit" class="md" ng-model="p.unit_cost">
-                            <span ng-if="!p.isEdit">{{p.unit_cost}}</span> </td>
+                            <span ng-if="!p.isEdit">{{p.unit_cost}}</span>
+                        </td>
                         <td>{{p.ShipmentName}}</td>
                         <td>
                             <a class="fa fa-pencil" ng-click="p.isEdit=true" ng-if="!p.isEdit" title="修改单位成本"></a>

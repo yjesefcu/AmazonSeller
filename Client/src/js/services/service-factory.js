@@ -89,5 +89,18 @@ app.factory('serviceFactory', function ($rootScope) {
     services.downloadPath = function (path) {
         return host + path;
     };
+
+    services.orderDetail = function (id) {
+        return host + '/api/orders/' + id + '/';
+    };
+    services.refundDetail = function (id) {
+        return host + '/api/refunds/' + id + '/';
+    };
+    services.removalDetail = function (id) {
+        return host + '/api/removals/' + id+'/';
+    };
+    services.lostDetail = function (id) {
+        return hos + '/api/losts/' + id + '/';
+    };
     return services;
 });

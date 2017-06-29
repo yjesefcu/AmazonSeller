@@ -37,74 +37,6 @@ def get_float(data, key):
     return float(value)
 
 
-class OrderStatus(enumerate):
-    Pending = 'Pending'     # 等待付款
-    Canceled = 'Canceled'   # 订单取消
-    PartiallyShipped = 'PartiallyShipped'   #
-    Unshipped = 'Unshipped' # 已付款未发货
-    Shipped = 'Shipped'     # 已发货
-    Unfulfillable = 'Unfulfillable'
-    PendingAvailability = 'PendingAvailability'
-
-
-def update_order_to_db(order_data, items):
-    order, created = Orders.objects.get_or_create(MarketplaceId=order_data['MarketplaceId'],
-                                                  AmazonOrderId=order_data['AmazonOrderId'])
-    if not created and order.OrderStatus and order.OrderStatus == order_data['OrderStatus']:  # 订单状态没有变化
-        return
-    for field, value in order_data.items():
-        setattr(order, field, value)
-    order.save()
-    # 更新items
-    for item in items:
-        _update_item_to_db(order, item)
-    return order
-
-
-def _update_item_to_db(order, item_data):
-    """
-    将OrderItem数据更新至数据库
-    """
-    item, created = OrderItem.objects.get_or_create(order=order, OrderItemId=item_data['OrderItemId'])
-    if created:
-        product, created = Product.objects.get_or_create(SellerSKU=item_data['SellerSKU'],
-                                                         MarketplaceId=order.MarketplaceId)
-        item.product = product
-        item.AmazonOrderId = order.AmazonOrderId
-        item.PurchaseDate = order.PurchaseDate
-        item.MarketplaceId = order.MarketplaceId
-        if product.Binding:
-            item.Binding = product.Binding
-            item.ProductGroup = product.ProductGroup
-            item.ProductTypeName = product.ProductTypeName
-            item.AmazonOrderId = order.AmazonOrderId
-            item.MarketplaceId = order.MarketplaceId
-    item.OrderStatus = order.OrderStatus
-    item.LastUpdateDate = order.LastUpdateDate
-    if 'ItemPrice' in item_data and item_data['ItemPrice'] and not item.ItemPrice:
-        # 计算佣金
-        item.commission = _calc_commission(item.Binding, item_data['ItemPrice'])
-    # 更新其他信息
-    for field, value in item_data.items():
-        setattr(item, field, value)
-    item.save()
-
-
-def _calc_commission(binding, price):
-    if not binding or not price:
-        return None
-    try:
-        commission = Commission.objects.get(ProductGroup=binding)
-    except Commission.DoesNotExist, ex:
-        return None
-    if not commission.price:
-        return max(price * commission.percentage, commission.min_charge)
-    # 如果佣金按价格区分
-    if price <= commission.price:
-        return max(price * commission.percentage, commission.min_charge)
-    return commission.percentage_greater
-
-
 def update_product_to_db(product_data):
     """
     """
@@ -121,20 +53,6 @@ def update_product_to_db(product_data):
     product.volume_weight = float(product.package_width) * float(product.package_height) \
                             * float(product.package_length) / 5000
     product.save()
-    _update_order_item_after_product_created(product)       # 更新商品相关的订单的佣金
-
-
-def _update_order_item_after_product_created(product):
-    """
-    获取商品信息后，更新订单中的佣金
-    """
-    for item in OrderItem.objects.filter(ProductGroup__isnull=True, product=product):
-        item.Binding = product.Binding
-        item.ProductGroup = product.ProductGroup
-        item.ProductTypeName = product.ProductTypeName
-        commission = _calc_commission(product.Binding if product.Binding else product.ProductGroup, item.ItemPrice)
-        item.commission = commission
-        item.save()
 
 
 def create_image_path():
@@ -696,6 +614,7 @@ class ProductProfitCalc(object):
         total_item.amount = sum_queryset(query_set, 'amount')
         total_item.total_cost = sum_queryset(query_set, 'total_cost')
         total_item.profit = sum_queryset(query_set, 'profit')
+        total_item.profit_rate = total_item.profit/total_item.income if total_item.income else 0
         total_item.save()
 
     def _calc_order_cost(self, product, order):
@@ -714,6 +633,7 @@ class ProductProfitCalc(object):
         order.amount = to_float(order.income) + to_float(order.amazon_cost) + to_float(order.promotion)
         order.total_cost = (order.supply_cost + order.shipment_cost) * order.Quantity + subscribe_fee
         order.profit = order.amount + order.total_cost
+        order.profit_rate = order.profit / order.income if order.income else 0
         order.save()
         self.sale_quantity += order.Quantity
         return order.cost
@@ -738,6 +658,7 @@ class ProductProfitCalc(object):
             refund.amazon_cost = to_float(refund.Commission) + to_float(refund.RefundCommission)
             refund.amount = refund.income + refund.promotion + refund.amazon_cost
             refund.profit = refund.total_cost + refund.amount
+            refund.profit_rate = refund.profit / refund.income if refund.income else 0
             refund.save()
 
         # 计算汇总信息并记录
@@ -751,6 +672,7 @@ class ProductProfitCalc(object):
         total_item.amount = sum_queryset(query_set, 'amount')
         total_item.total_cost = sum_queryset(query_set, 'total_cost')
         total_item.profit = sum_queryset(query_set, 'profit')
+        total_item.profit_rate = total_item.profit/total_item.income if total_item.income else 0
         total_item.save()
 
     def _calc_removals(self, product):
@@ -797,6 +719,7 @@ class ProductProfitCalc(object):
                 self.sale_quantity += item.Quantity
             item.total_cost = item.Quantity * item.cost
             item.profit = item.total_cost + item.Amount
+            item.profit_rate = item.profit/item.Amount if item.Amount else 0
             item.save()
 
         # 计算汇总信息并记录
@@ -807,6 +730,7 @@ class ProductProfitCalc(object):
         total_item.total_cost = sum_queryset(query_set, 'total_cost')
         total_item.Amount = sum_queryset(query_set, 'Amount')
         total_item.profit = sum_queryset(query_set, 'profit')
+        total_item.profit_rate = total_item.profit/total_item.Amount if total_item.Amount else 0
         total_item.save()
 
     def _update_inventory(self, product, count):

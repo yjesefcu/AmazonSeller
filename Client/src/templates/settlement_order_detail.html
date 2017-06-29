@@ -97,6 +97,8 @@
                         <td class="td-cost">单位成本({{currency}})</td>
                         <th class="td-cost">总成本({{currency}})</th>
                         <th>利润({{currency}})</th>
+                        <th>利润率</th>
+                        <th>操作</th>
                     </tr>
                     <tr>
                         <th>{{ orderSummary.PostedDate }}</th>
@@ -114,6 +116,8 @@
                         <th class="td-cost">{{orderSummary.cost}}</th>
                         <th class="td-cost">{{orderSummary.total_cost}}</th>
                         <th> {{ orderSummary.profit }}</th>
+                        <th>{{orderSummary.profit_rate}}</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -130,9 +134,18 @@
                     <td class="td-sale"> {{ o.amazon_cost }}</td>
                     <td class="td-sale">{{o.amount}}</td>
                     <td class="td-cost">{{o.subscription_fee}}</td>
-                    <td class="td-cost">{{o.cost}}</td>
+                    <td>
+                        <input ng-if="o.isEdit" class="md" ng-model="o.cost">
+                        <span ng-if="!o.isEdit">{{o.cost}}</span>
+                    </td>
                     <td class="td-cost">{{o.total_cost}}</td>
                     <td> {{ o.profit }}</td>
+                    <td>{{o.profit_rate}}</td>
+                    <td>
+                        <a class="fa fa-pencil" ng-click="o.isEdit=true" ng-if="!o.isEdit" title="修改单位成本"></a>
+                        <a class="fa fa-check text-green" ng-click="saveOrderCost($index, o.id )" ng-if="o.isEdit" title="保存"></a>
+                        <a class="fa fa-close text-red" ng-click="o.isEdit=false" ng-if="o.isEdit" title="取消"></a>
+                    </td>
                 </tr>
                 </tbody>
             </table>
@@ -167,6 +180,8 @@
                     <td class="td-cost">单位成本({{currency}})</td>
                     <th class="td-cost">总成本({{currency}})</th>
                     <th>利润({{currency}})</th>
+                    <th>利润率</th>
+                    <th>操作</th>
                 </tr>
                 <tr >
                     <th>{{ refundSummary.PostedDate }}</th>
@@ -183,6 +198,8 @@
                     <th class="td-cost">{{refundSummary.cost}}</th>
                     <th class="td-cost">{{refundSummary.total_cost}}</th>
                     <th> {{ refundSummary.profit }}</th>
+                    <th> {{ refundSummary.profit_rate }}</th>
+                    <th></th>
                 </tr>
                 </thead>
                 <tbody>
@@ -198,9 +215,18 @@
                     <td class="td-sale">{{ o.promotion }}</td>
                     <td class="td-sale"> {{ o.amazon_cost }}</td>
                     <td class="td-sale">{{o.amount}}</td>
-                    <td class="td-cost">{{o.cost}}</td>
+                    <td>
+                        <input ng-if="o.isEdit" class="md" ng-model="o.cost">
+                        <span ng-if="!o.isEdit">{{o.cost}}</span>
+                    </td>
                     <td class="td-cost">{{o.total_cost}}</td>
                     <td> {{ o.profit }}</td>
+                    <td>{{o.profit_rate}}</td>
+                    <td>
+                        <a class="fa fa-pencil" ng-click="o.isEdit=true" ng-if="!o.isEdit" title="修改单位成本"></a>
+                        <a class="fa fa-check text-green" ng-click="saveRefundCost($index, o.id )" ng-if="o.isEdit" title="保存"></a>
+                        <a class="fa fa-close text-red" ng-click="o.isEdit=false" ng-if="o.isEdit" title="取消"></a>
+                    </td>
                 </tr>
                 </tbody>
             </table>
@@ -232,7 +258,8 @@
                     <th class="td-sale">弃置费({{ currency }})</th>
                     <th class="td-cost">单位成本({{ currency }})</th>
                     <th class="td-cost">总成本({{ currency }})</th>
-                    <th class="td-cost">利润({{ currency }})</th>
+                    <th>利润({{ currency }})</th>
+                    <th>操作</th>
                 </tr>
                 <tr>
                     <th>{{ removalSummary.UpdateDate }}</th>
@@ -245,7 +272,8 @@
                     <th class="td-sale"> {{ removalSummary.amazon_cost }}</th>
                     <th class="td-cost"> {{ removalSummary.cost }}</th>
                     <th class="td-cost"> {{ removalSummary.total_cost }}</th>
-                    <th class="td-cost">{{ removalSummary.profit }}</th>
+                    <th>{{ removalSummary.profit }}</th>
+                    <th></th>
                 </tr>
                 </thead>
                 <tbody>
@@ -258,9 +286,17 @@
                     <td>{{ o.OrderType }}-{{o.Disposition}}</td>
                     <td class="td-sale">{{ o.Quantity }}</td>
                     <td class="td-sale"> {{ o.Fee }}</td>
-                    <td class="td-cost"> {{ o.cost }}</td>
+                    <td>
+                        <input ng-if="o.isEdit" class="md" ng-model="o.cost">
+                        <span ng-if="!o.isEdit">{{o.cost}}</span>
+                    </td>
                     <td class="td-cost"> {{ o.total_cost }}</td>
                     <td class="td-cost">{{ o.profit }}</td>
+                    <td>
+                        <a class="fa fa-pencil" ng-click="o.isEdit=true" ng-if="!o.isEdit" title="修改单位成本"></a>
+                        <a class="fa fa-check text-green" ng-click="saveRemovalCost($index, o.id )" ng-if="o.isEdit" title="保存"></a>
+                        <a class="fa fa-close text-red" ng-click="o.isEdit=false" ng-if="o.isEdit" title="取消"></a>
+                    </td>
                 </tr>
                 </tbody>
             </table>
@@ -293,7 +329,9 @@
                     <th class="td-sale">赔偿费用({{ currency }})</th>
                     <th class="td-cost">单位成本({{ currency }})</th>
                     <th class="td-cost">总成本({{currency}})</th>
-                    <th class="td-cost">利润({{ currency }})</th>
+                    <th>利润({{ currency }})</th>
+                    <th>利润率</th>
+                    <th>操作</th>
                 </tr>
                 <tr>
                     <th></th>
@@ -308,7 +346,9 @@
                     <th class="td-sale"> {{ lostSummary.Amount }}</th>
                     <th class="td-cost"> {{ lostSummary.cost }}</th>
                     <th class="td-cost"> {{ lostSummary.total_cost }}</th>
-                    <th class="td-cost">{{ lostSummary.profit }}</th>
+                    <th>{{ lostSummary.profit }}</th>
+                    <th>{{ lostSummary.profit_rate }}</th>
+                    <th></th>
                 </tr>
                 </thead>
                 <tbody>
@@ -323,9 +363,18 @@
                     <td class="td-sale">{{ o.Quantity }}</td>
                     <td class="td-sale">{{ o.UnitPrice }}</td>
                     <td class="td-sale"> {{ o.Amount }}</td>
-                    <td class="td-cost"> {{ o.cost }}</td>
+                    <td>
+                        <input ng-if="o.isEdit" class="md" ng-model="o.cost">
+                        <span ng-if="!o.isEdit">{{o.cost}}</span>
+                    </td>
                     <td class="td-cost"> {{ o.total_cost }}</td>
-                    <td class="td-cost">{{ o.profit }}</td>
+                    <td>{{ o.profit }}</td>
+                    <td class="td-cost">{{ o.profit_rate }}</td>
+                    <td>
+                        <a class="fa fa-pencil" ng-click="o.isEdit=true" ng-if="!o.isEdit" title="修改单位成本"></a>
+                        <a class="fa fa-check text-green" ng-click="saveLostCost($index, o.id )" ng-if="o.isEdit" title="保存"></a>
+                        <a class="fa fa-close text-red" ng-click="o.isEdit=false" ng-if="o.isEdit" title="取消"></a>
+                    </td>
                 </tr>
                 </tbody>
             </table>
