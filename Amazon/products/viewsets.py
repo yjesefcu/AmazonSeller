@@ -9,6 +9,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import detail_route, list_route
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import F
 from amazon_services.exception import TextParseException
 from amazon_services.models import MarketAccount
 from models import *
@@ -60,7 +61,8 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
         sku_list = [p.SellerSKU for p in invalid_products]
         advertising_valid = True if instance.advertising_fee_adjust else False
         return Response({'products': ',  '.join(sku_list), 'storage_imported': instance.storage_imported,
-                         'removal_imported': instance.removal_imported, 'advertising_valid': advertising_valid})
+                         'removal_imported': instance.removal_imported, 'advertising_valid': advertising_valid,
+                         'data_sync_valid': True})
 
     @detail_route(methods=['get'])
     def calc(self, request, pk):
@@ -117,7 +119,22 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
     @detail_route(methods=['patch'])
     def advertising(self, request, pk):
         instance = self.get_object()
-        fee = request.query_params.get('advertising_fee_adjust')
+        serializer_class = self.get_serializer_class()
+        fee = to_float(request.data.get('advertising_fee_adjust'))
+
+        if abs(fee - to_float(instance.advertising_fee_adjust)) > 0.1:
+            products = ProductSettlement.objects.filter(settlement=instance, advertising_fee__isnull=False, is_total=False)
+            count = products.count()
+            diff = fee - instance.advertising_fee
+            if count > 0:
+                avg = diff / count
+                # 将每个商品的广告费加上avg
+                products.update(advertising_fee=F('advertising_fee') + avg)
+            # 平均到有广告费的商品上
+            instance.advertising_fee = fee
+            instance.advertising_fee_adjust = fee
+            instance.save()
+        return Response(serializer_class(instance).data)
 
     @detail_route(methods=['get'])
     def download(self, request, pk):

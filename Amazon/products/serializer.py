@@ -86,6 +86,7 @@ class SimpleProductSettlementSerializer(serializers.ModelSerializer):
     profit_rate = ProfitRateField()
     total_cost = FloatRoundField()
     subscription_fee = FloatRoundField()
+    advertising_fee = FloatRoundField()
 
     class Meta:
         model = ProductSettlement

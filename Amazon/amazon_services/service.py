@@ -354,14 +354,9 @@ class BaseReportService(AmazonService):
                 logger.warning('ReportRequestRecord with request report id: %s does not exist')
         return report_id
 
-    def _get_report_id(self, report_type, request_report_id):
-        """
-        获取报告id，如果报告未生成，则返回Node
-        :param request_report_id:
-        :return:
-        """
+    def list_report(self, report_type):
         r = self.post('/', 'GetReportList', {
-            'ReportTypeList.Type.1': report_type
+            'ReportTypeList.Type.1': report_type, 'MaxCount': '20'
         }, api_version='2009-01-01')
         try:
             parser = ReportListParser(r.text)
@@ -371,6 +366,15 @@ class BaseReportService(AmazonService):
             return None
         # 不获取NextToken的值
         items = parser.get_items()
+        return items
+
+    def _get_report_id(self, report_type, request_report_id):
+        """
+        获取报告id，如果报告未生成，则返回Node
+        :param request_report_id:
+        :return:
+        """
+        items = self.list_report(report_type)
         # 如果report_id在reportList中存在，说明报告已经准备好了
         for report in items:
             if report['ReportRequestId'] == request_report_id:
@@ -411,30 +415,42 @@ class AdvertiseReportService(BaseReportService):
     广告账单报告
     """
 
-    def get_by_day(self, day):
+    def request_by_day(self, day):
+        # 只发起请求
+        return self.request_report('_GET_PADS_PRODUCT_PERFORMANCE_OVER_TIME_DAILY_DATA_TSV_', day)
+
+    def request_by_week(self, day):
+        # 只发起请求
+        return self.request_report('_GET_PADS_PRODUCT_PERFORMANCE_OVER_TIME_WEEKLY_DATA_TSV_', day)
+
+    def get_items_by_report_id(self, report_id):
+        r = self.get_by_report_id(report_id)
+        parser = AdvertisingParser(r.text)
+        return parser.get_items()
+
+    def get_by_day(self, day, request_report_id=None):
         """
         请求广告日报告
         """
-        return self._get_advertising_report('_GET_PADS_PRODUCT_PERFORMANCE_OVER_TIME_DAILY_DATA_TSV_', day)
+        return self._get_advertising_report('_GET_PADS_PRODUCT_PERFORMANCE_OVER_TIME_DAILY_DATA_TSV_', day, request_report_id)
 
-    def get_by_week(self, start_day):
+    def get_by_week(self, start_day, request_report_id=None):
         """
         请求广告周报告，起始时间必须是周日
         day：起始时间，必须是周日
         """
-        return self._get_advertising_report('_GET_PADS_PRODUCT_PERFORMANCE_OVER_TIME_WEEKLY_DATA_TSV_', start_day)
+        return self._get_advertising_report('_GET_PADS_PRODUCT_PERFORMANCE_OVER_TIME_WEEKLY_DATA_TSV_', start_day, request_report_id)
 
-    def _get_advertising_report(self, report_type, start_day):
+    def _get_advertising_report(self, report_type, start_day, request_report_id=None):
         """
         :param type: 类型
         :param start_day: 时间
         """
-        request_report_id = self.request_report(report_type, start_day)
+        if not request_report_id:
+            request_report_id = self.request_report(report_type, start_day)
         report_id = self._check_report_done(report_type, request_report_id)
         if report_id:
-            r = self.get_by_report_id(report_id)
-            parser = AdvertisingParser(r.text)
-            return parser.get_items()
+            return self.get_items_by_report_id(report_id)
         return None
 
 

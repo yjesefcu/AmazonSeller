@@ -53,7 +53,7 @@ def update_settlement(market=None):
         start_date = dateutil.parser.parse(settlement_data['SettlementData']['StartDate']).replace(tzinfo=None)
         end_date = dateutil.parser.parse(settlement_data['SettlementData']['EndDate']).replace(tzinfo=None)
         # 如果EndDate与StartDate不是相差14天，则不计算
-        if (end_date - start_date).days != 14:
+        if (end_date - start_date).days != 14 or start_date < market.period_start:
             continue
         try:
             SettlementDataRecord.objects.get(data_type=SettlementDataRecord.SETTLEMENT, start_time=settlement_data['SettlementData']['StartDate'])
@@ -110,6 +110,9 @@ def update_advertising_report(market, settlement):
     SUNDAY = 6
     tmp_start = start
     data_valid = True   # 表示广告费读取时是否出错
+    all_request_id = dict()     # 所有请求id
+    dally_report_type = '_GET_PADS_PRODUCT_PERFORMANCE_OVER_TIME_DAILY_DATA_TSV_'
+    weekly_report_type = '_GET_PADS_PRODUCT_PERFORMANCE_OVER_TIME_WEEKLY_DATA_TSV_'
     while tmp_start < end:
         if tmp_start.weekday() != SUNDAY or (end-tmp_start).days < 7:
             # 增加一个日请求
@@ -118,15 +121,15 @@ def update_advertising_report(market, settlement):
                 SettlementDataRecord.objects.get(settlement=settlement, start_time=tmp_start,
                                                  end_time=tmp_start+datetime.timedelta(days=1), data_type=SettlementDataRecord.ADVERTISE)
             except SettlementDataRecord.DoesNotExist, ex:
-                items = service.get_by_day(tmp_start)
-                if items:
-                    update_product_advertising_to_db(settlement, items)
-                    SettlementDataRecord.objects.create(settlement=settlement, start_time=tmp_start,
-                                                     end_time=tmp_start+datetime.timedelta(days=1), data_type=SettlementDataRecord.ADVERTISE)
-                    logger.info('get dally advertising success, start date:', tmp_start)
-                else:
-                    logger.info('get dally advertising fail, start date:', tmp_start)
-                    data_valid = False
+                # 判断是否请求过
+                try:
+                    record = ReportRequestRecord.objects.get(report_type=dally_report_type, start_time=tmp_start)
+                    all_request_id[record.request_report_id] = record.start_time
+                except ReportRequestRecord.DoesNotExist, ex:
+                    request_id = service.request_by_day(tmp_start)
+                    all_request_id[request_id] = tmp_start
+                    ReportRequestRecord.objects.get_or_create(report_type=dally_report_type, start_time=tmp_start,
+                                                              request_report_id=request_id)
             tmp_start = tmp_start + datetime.timedelta(days=1)
         else:
             # 增加一个周请求
@@ -135,8 +138,13 @@ def update_advertising_report(market, settlement):
                 SettlementDataRecord.objects.get(settlement=settlement, start_time=tmp_start,
                                                  end_time=tmp_start+datetime.timedelta(days=7), data_type=SettlementDataRecord.ADVERTISE)
             except SettlementDataRecord.DoesNotExist, ex:
-                items = service.get_by_week(tmp_start)
-                if items:
+                # 判断是否请求过
+                try:
+                    record = ReportRequestRecord.objects.get(report_type=weekly_report_type, start_time=tmp_start)
+                    items = service.get_by_week(tmp_start, record.request_report_id)
+                except ReportRequestRecord.DoesNotExist, ex:
+                    items = service.get_by_week(tmp_start)
+                if items is not None:
                     update_product_advertising_to_db(settlement, items)
                     SettlementDataRecord.objects.create(settlement=settlement, start_time=tmp_start,
                                                      end_time=tmp_start+datetime.timedelta(days=7), data_type=SettlementDataRecord.ADVERTISE)
@@ -145,7 +153,39 @@ def update_advertising_report(market, settlement):
                     logger.info('get weekly advertising fail, start date:', tmp_start)
                     data_valid = False
             tmp_start = tmp_start + datetime.timedelta(days=7)
-    if data_valid:
+    if not len(all_request_id.keys()):
+        return
+    # 获取report_id
+    max_try = 3
+    try_time = 0
+    while try_time < max_try and len(all_request_id.keys()):
+        reports = service.list_report(dally_report_type)        # 获取所有报告
+        request_id_list = all_request_id.keys()
+        for report in reports:
+            request_id = report['ReportRequestId']
+            if request_id in request_id_list:
+                report_id = report['ReportId']
+                record = ReportRequestRecord.objects.get(request_report_id=request_id)
+                record.report_id = report_id
+                record.save()
+                items = service.get_items_by_report_id(report_id)
+                if items is not None:
+                    update_product_advertising_to_db(settlement, items)
+                    SettlementDataRecord.objects.get_or_create(settlement=settlement, start_time=all_request_id[request_id],
+                                                             end_time=all_request_id[request_id]+datetime.timedelta(days=1),
+                                                             data_type=SettlementDataRecord.ADVERTISE)
+                    logger.info('get dally advertising success, start date:', tmp_start)
+                    del all_request_id[request_id]
+                else:
+                    logger.info('get dally advertising fail, start date:', tmp_start)
+                    data_valid = False
+            if not len(all_request_id.keys()):
+                break
+        time.sleep(180)     # 等待3分钟
+        try_time += 1
+    if try_time >= max_try:
+        logger.warning('try %d times, sync advertising report fail', max_try)
+    if data_valid or try_time < max_try:
         settlement.advertising_report_valid = True
         advertising_fee = sum_queryset(ProductSettlement.objects.filter(settlement=settlement, is_total=False,
                                                                         product__isnull=False), 'advertising_fee')
