@@ -5,7 +5,7 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
     $scope.calcIndex = 0;
     var calcSettlementId;
     var calcStatusInterval = null;
-    $scope.readingReport = false;
+    $scope.readingReport = 0;       // 0：未同步，1：同步失败，10：正在同步
     var readingReportInterval = null;
     $scope.isDownloading = false;
     $scope.errorInfo = '';  //  错误信息
@@ -70,23 +70,30 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
                          params: {
                              MarketplaceId: $rootScope.MarketplaceId
                          }}).then(function (result) {
-                         if (!result.data.errno){
-                             $scope.readingReport = false;
-                             $rootScope.addAlert('info', '同步完成');
-                             $interval.cancel(readingReportInterval);
-                             readingReportInterval = null;
-                             getSettlements();
-                         }
-                         console.log('getting report: ' + result.data.errno);
+                             var errno = result.data.errno;
+                             $scope.readingReport = errno;
+                             if (errno == 0){
+                                 $rootScope.addAlert('info', '同步完成');
+                                 getSettlements();
+                             }else if (errno == 1){
+                                 $rootScope.addAlert('error', '同步失败');
+                             }
+                             if (errno == 0 || errno == 1){
+                                 $interval.cancel(readingReportInterval);
+                                 readingReportInterval = null;
+                             }
+                             console.log('getting report: ' + result.data.errno);
                      }).catch(function (result) {
+                         $scope.readingReport = 1;
                          console.log('query getting report error');
                      });
 
                  }, 10000);
              }
-             $scope.readingReport = true;
+             $scope.readingReport = 10;
              $rootScope.addAlert('info', '正在同步...请勿关闭系统');
          }).catch(function () {
+             $scope.readingReport = 1;
              $rootScope.addAlert('error', '启动失败！')
          })
     };

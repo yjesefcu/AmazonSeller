@@ -85,19 +85,17 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
         from sync_handler import update_all
         market_place_id = request.query_params.get('MarketplaceId')
         market = MarketAccount.objects.get(MarketplaceId=market_place_id)
-        if market.is_getting_report:
+        if market.sync_report_status == 10:
             return Response({'errno': Error.RUNNING})
         threading.Thread(target=update_all, args=[market, ]).start()
-        return Response({'errno', Error.SUCCESS})
+        return Response({'errno', Error.RUNNING})
 
     @list_route(methods=['get'])
     def syncStatus(self, request):
         # 查询同步数据的状态
         market_place_id = request.query_params.get('MarketplaceId')
         market = MarketAccount.objects.get(MarketplaceId=market_place_id)
-        if market.is_getting_report:
-            return Response({'errno': Error.RUNNING})
-        return Response({'errno', Error.SUCCESS})
+        return Response({'errno': market.sync_report_status})
 
     @detail_route(methods=['post'])
     def storage_upload(self, request, pk):

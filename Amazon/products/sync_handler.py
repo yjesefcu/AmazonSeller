@@ -35,25 +35,49 @@ def update_settlement(market=None):
     :param market:
     """
     service = SettlementReportService(market)
-    reports = service.get_list()
-    if not reports:
-        print 'Settlement Report is None'
-        return
     if not market:
         market = MarketAccount()
         market.MarketplaceId = Marketplace_EN
-    last_settle_end_date = None
-    if Settlement.objects.filter(MarketplaceId=market.MarketplaceId).exists():
-        latest = Settlement.objects.filter(MarketplaceId=market.MarketplaceId).order_by('-EndDate').last()
-        last_settle_end_date = latest.EndDate.strftime('%Y-%m-%d %H:%M:%S')
-    # 如果settlement为空，取最近一次结算周期的数据。如果不为空，则取上一次到现在的所有settlements
-
+    # 检查当前settlement是否已经都同步了
+    period_start = market.period_start
+    end_date_list = list(Settlement.objects.all().values_list('EndDate', flat=True))
+    count = len(end_date_list)
+    for i in range(0, count):
+        end_date_list[i] = end_date_list[i].date()
+    all_synced = True
+    if count:
+        if (datetime.date.today() - end_date_list[0]).days >= 14:
+            all_synced = False
+        else:
+            for i in range(1, count):
+                if (end_date_list[i-1] - end_date_list[i]).days != 14:
+                    all_synced = False
+                    break
+                if len(end_date_list) == count - 1:
+                    if (end_date_list[i] - period_start).days >= 28:
+                        all_synced = False
+    else:
+        all_synced = False
+    if all_synced:
+        logger.info('Settlement all synced, return')
+        return
+    reports = service.get_list()
+    report_id_list = list(Settlement.objects.all().values_list('report_id', flat=True))
+    if not reports:
+        print 'Settlement Report is None'
+        return
     for report in reports:
-        settlement_data = service.get_one(report['ReportId'])
+        available_date = dateutil.parser.parse(report['AvailableDate']).replace(tzinfo=None).date()
+        if available_date < period_start:
+            break
+        report_id = report['ReportId']
+        if report_id in report_id_list:
+            continue
+        settlement_data = service.get_one(report_id)
         start_date = dateutil.parser.parse(settlement_data['SettlementData']['StartDate']).replace(tzinfo=None)
         end_date = dateutil.parser.parse(settlement_data['SettlementData']['EndDate']).replace(tzinfo=None)
         # 如果EndDate与StartDate不是相差14天，则不计算
-        if (end_date - start_date).days != 14 or start_date < market.period_start:
+        if (end_date.date() - start_date.date()).days != 14 or start_date.date() < market.period_start:
             continue
         try:
             SettlementDataRecord.objects.get(data_type=SettlementDataRecord.SETTLEMENT, start_time=settlement_data['SettlementData']['StartDate'])
@@ -62,10 +86,10 @@ def update_settlement(market=None):
             pass
         handler = SettlementDbHandler(market)
         settlement = handler.update_settlement_to_db(settlement_data)
+        settlement.report_id = report_id
+        settlement.save()
         SettlementDataRecord.objects.create(data_type=SettlementDataRecord.SETTLEMENT, start_time=settlement.StartDate,
                                          end_time=settlement.EndDate, settlement=settlement)
-        if not last_settle_end_date or settlement_data['SettlementData']['StartDate'] == last_settle_end_date:
-            break
 
 
 # def update_inventories(market, settlement):
@@ -148,9 +172,9 @@ def update_advertising_report(market, settlement):
                     update_product_advertising_to_db(settlement, items)
                     SettlementDataRecord.objects.create(settlement=settlement, start_time=tmp_start,
                                                      end_time=tmp_start+datetime.timedelta(days=7), data_type=SettlementDataRecord.ADVERTISE)
-                    logger.info('get weekly advertising success, start date:', tmp_start)
+                    logger.info('get weekly advertising success, start date: %s', tmp_start)
                 else:
-                    logger.info('get weekly advertising fail, start date:', tmp_start)
+                    logger.info('get weekly advertising fail, start date: %s', tmp_start)
                     data_valid = False
             tmp_start = tmp_start + datetime.timedelta(days=7)
     if not len(all_request_id.keys()):
@@ -174,10 +198,10 @@ def update_advertising_report(market, settlement):
                     SettlementDataRecord.objects.get_or_create(settlement=settlement, start_time=all_request_id[request_id],
                                                              end_time=all_request_id[request_id]+datetime.timedelta(days=1),
                                                              data_type=SettlementDataRecord.ADVERTISE)
-                    logger.info('get dally advertising success, start date:', tmp_start)
+                    logger.info('get dally advertising success, start date: %s', tmp_start)
                     del all_request_id[request_id]
                 else:
-                    logger.info('get dally advertising fail, start date:', tmp_start)
+                    logger.info('get dally advertising fail, start date: %s', tmp_start)
                     data_valid = False
             if not len(all_request_id.keys()):
                 break
@@ -195,9 +219,9 @@ def update_advertising_report(market, settlement):
 
 def update_all(market):
     # 总的更新入口
-    if market.is_getting_report:
+    if market.sync_report_status == 10:
         return
-    market.is_getting_report = True
+    market.sync_report_status = 10
     market.save()
     try:
         update_settlement(market)
@@ -207,7 +231,8 @@ def update_all(market):
             update_advertising_report(market, settlement)
                 # update_removal_report(market, settlement)
         update_product(market)
+        market.sync_report_status = 0
     except BaseException, ex:
         logger.error(traceback.format_exc())
-    market.is_getting_report = False
+        market.sync_report_status = 1
     market.save()

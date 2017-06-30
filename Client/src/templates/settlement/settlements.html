@@ -10,8 +10,9 @@
             <div class="box box-primary">
                 <div class="box-header with-border">
                     <h3 class="box-title">结算记录</h3>
-                    <button class="btn btn-primary" ng-if="readingReport==false" ng-click="startReadingReport()">同步数据</button>
-                    <button class="btn btn-primary" ng-if="readingReport"><i class="fa fa-refresh fa-spin"></i>正中同步数据，请勿关闭系统...</button>
+                    <button class="btn btn-primary" ng-if="readingReport==0" ng-click="startReadingReport()">同步数据</button>
+                    <button class="btn btn-primary" ng-if="readingReport==10"><i class="fa fa-refresh fa-spin"></i>正中同步数据，请勿关闭系统...</button>
+                    <button class="btn btn-danger" ng-if="readingReport==1" ng-click="startReadingReport()">同步失败</button>
                 </div>
                 <!-- /.box-header -->
                 <div class="box-body" style="overflow-x: auto;">

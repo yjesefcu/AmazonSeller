@@ -133,6 +133,7 @@ class Settlement(models.Model):
     一次结算记录
     """
     MarketplaceId = models.CharField(max_length=30, db_index=True)     # 市场Id
+    report_id = models.CharField(max_length=50, null=True, blank=True)      # 读取报告的report_id
     AmazonSettlementID = models.CharField(max_length=100)
     TotalAmount = models.FloatField(null=True, blank=True)
     StartDate = models.DateTimeField(null=True, blank=True, verbose_name=u'结算开始日期')

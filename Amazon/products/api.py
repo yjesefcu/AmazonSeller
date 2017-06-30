@@ -258,8 +258,8 @@ class SettlementDbHandler(object):
         orders = OrderItemService(market).list_items(amazon_order_id)
         for order in orders:
             if order['OrderItemId'] == order_item_id:
-                price = order.get('ItemPrice', 0)
-                quantity = order.get('QuantityShipped', 0)
+                price = get_float(order, 'ItemPrice')
+                quantity = int(order.get('QuantityShipped', 0))
                 unit_price = price/quantity if quantity else 0
                 return unit_price, quantity
         logger.error('cannot get order item from amazon: %s', amazon_order_id)
@@ -306,7 +306,8 @@ class SettlementDbHandler(object):
             for field in fields:
                 item[field] = getattr(transaction, field)
             product, created = Product.objects.get_or_create(MarketplaceId=transaction.MarketplaceId, SellerSKU=item['SellerSKU'])
-            item['UnitPrice'] = get_float(item, 'Amount') / item.get('Quantity') if item.get('Quantity', 0) else 0
+            quantity = int(item.get('Quantity', 0))
+            item['UnitPrice'] = get_float(item, 'Amount') / quantity if quantity else 0
             OtherTransactionItem.objects.create(transaction=transaction, settlement=transaction.settlement, product=product, **item)
 
     def _update_deal_payment_to_db(self, settlement, data):
@@ -346,7 +347,6 @@ class SettlementDbHandler(object):
                 fee.refund_item = refund
                 fee.save()
                 refund.FBAReturnFee = fee.Amount     # 将退货费加到refund里
-                refund.amount += to_float(fee.Amount)
                 refund.save()
             except RefundItem.DoesNotExist, ex:
                 continue

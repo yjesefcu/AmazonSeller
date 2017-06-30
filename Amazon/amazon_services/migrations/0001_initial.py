@@ -2,13 +2,11 @@
 from __future__ import unicode_literals
 
 from django.db import models, migrations
-from django.conf import settings
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
@@ -47,12 +45,29 @@ class Migration(migrations.Migration):
             name='MarketAccount',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('country', models.CharField(max_length=10)),
                 ('host', models.CharField(max_length=50)),
-                ('auth_token', models.CharField(max_length=15)),
-                ('access_key_id', models.CharField(max_length=25)),
-                ('secret_key', models.CharField(max_length=50)),
-                ('market_id', models.CharField(max_length=20)),
-                ('country', models.ForeignKey(to='amazon_services.Market')),
+                ('MWSAuthToken', models.CharField(max_length=15)),
+                ('AWSAccessKeyId', models.CharField(max_length=25)),
+                ('SellerId', models.CharField(max_length=20)),
+                ('SecretKey', models.CharField(max_length=50)),
+                ('MarketplaceId', models.CharField(max_length=20)),
+                ('currency_code', models.CharField(max_length=10)),
+                ('period_start', models.DateField(null=True, blank=True)),
+                ('period_days', models.IntegerField(default=14)),
+                ('sync_report_status', models.IntegerField(default=0)),
+            ],
+        ),
+        migrations.CreateModel(
+            name='ReportRequestRecord',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('report_type', models.CharField(max_length=100)),
+                ('start_time', models.DateTimeField(null=True, blank=True)),
+                ('end_time', models.DateTimeField(null=True, blank=True)),
+                ('request_time', models.DateTimeField()),
+                ('request_report_id', models.CharField(max_length=50)),
+                ('report_id', models.CharField(max_length=50, null=True, blank=True)),
             ],
         ),
         migrations.CreateModel(
@@ -60,14 +75,13 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('uri', models.CharField(max_length=100)),
-                ('action_name', models.CharField(max_length=50, null=True, blank=True)),
+                ('action', models.CharField(max_length=50, null=True, blank=True)),
                 ('params', models.TextField(null=True, blank=True)),
                 ('create_time', models.DateTimeField()),
                 ('sent_time', models.DateTimeField(null=True, blank=True)),
                 ('result', models.IntegerField(default=0)),
-                ('action', models.ForeignKey(related_name='records', to='amazon_services.ApiActions')),
+                ('errors', models.TextField(null=True, blank=True)),
                 ('market', models.ForeignKey(to='amazon_services.MarketAccount')),
-                ('sender', models.ForeignKey(to=settings.AUTH_USER_MODEL)),
             ],
         ),
         migrations.AddField(
