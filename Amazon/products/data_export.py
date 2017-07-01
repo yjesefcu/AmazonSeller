@@ -19,17 +19,28 @@ DEFAULT_IMAGE_HEIGHT = xlwt.easyxf('font:height 1280;')
 
 #styleBlueBkg = xlwt.easyxf('font: color-index red, bold on')
 #styleBlueBkg = xlwt.easyxf('font: background-color-index red, bold on')
-bgRed = xlwt.easyxf('pattern: pattern solid, fore_colour red;')
-bgBlue = xlwt.easyxf('pattern: pattern solid, fore_colour blue;')
-bgLightBlue = xlwt.easyxf('pattern: pattern solid, fore_colour light_blue; font: bold on;')
-bgPaleBlue = xlwt.easyxf('pattern: pattern solid, fore_colour pale_blue; font: bold on;')
-bgDarkBlue = xlwt.easyxf('pattern: pattern solid, fore_colour dark_blue; font: bold on;')
-bgDarkBlueEga = xlwt.easyxf('pattern: pattern solid, fore_colour dark_blue_ega; font: bold on;')
-bgIceBlue = xlwt.easyxf('pattern: pattern solid, fore_colour ice_blue; font: bold on;')
-bgOceanBlue = xlwt.easyxf('pattern: pattern solid, fore_colour ocean_blue; font: bold on;') # 80% like
-bgSkyBlue = xlwt.easyxf('pattern: pattern solid, fore_colour sky_blue; font: bold on;')
-bgLightYellow = xlwt.easyxf('pattern: pattern solid, fore_colour light_yellow; font: bold on;')
+# bgRed = xlwt.easyxf('pattern: pattern solid, fore_colour red;')
+# bgBlue = xlwt.easyxf('pattern: pattern solid, fore_colour blue;')
+# bgLightBlue = xlwt.easyxf('pattern: pattern solid, fore_colour light_blue; font: bold on;')
+# bgPaleBlue = xlwt.easyxf('pattern: pattern solid, fore_colour pale_blue; font: bold on;')
+# bgDarkBlue = xlwt.easyxf('pattern: pattern solid, fore_colour dark_blue; font: bold on;')
+# bgDarkBlueEga = xlwt.easyxf('pattern: pattern solid, fore_colour dark_blue_ega; font: bold on;')
+# bgOceanBlue = xlwt.easyxf('pattern: pattern solid, fore_colour ocean_blue; font: bold on;') # 80% like
+# bgSkyBlue = xlwt.easyxf('pattern: pattern solid, fore_colour sky_blue; font: bold on;')
+bgIceBlueBold = xlwt.easyxf('pattern: pattern solid, fore_colour ice_blue; font: bold on;')
+bgLightYellowBold = xlwt.easyxf('pattern: pattern solid, fore_colour light_yellow; font: bold on;')
+bgLightPinkBold = xlwt.easyxf('pattern: pattern solid, fore_colour pink; font: bold on;')
+bgLinkGreyBold = xlwt.easyxf('pattern: pattern solid, fore_colour gray25; font: bold on;')
+bgSilverEgaBold = xlwt.easyxf('pattern: pattern solid, fore_colour silver_ega; font: bold on;')
 
+bgIceBlue = xlwt.easyxf('pattern: pattern solid, fore_colour ice_blue;')
+bgLightYellow = xlwt.easyxf('pattern: pattern solid, fore_colour light_yellow;')
+bgLightPink = xlwt.easyxf('pattern: pattern solid, fore_colour pink;')
+bgLinkGrey = xlwt.easyxf('pattern: pattern solid, fore_colour gray25;')
+bgSilverEga = xlwt.easyxf('pattern: pattern solid, fore_colour silver_ega;')
+
+current_color = bgIceBlue
+current_bold_color = bgIceBlueBold
 
 #blueBkgFontStyle = xlwt.XFStyle()
 #blueBkgFontStyle.Pattern = blueBackgroundPattern;
@@ -187,6 +198,9 @@ class DataExport(object):
                   'subscription_fee', 'total_cost', 'profit', 'profit_rate']
         serializer_class = SimpleOrderItemSerializer if is_product else OrderItemSerializer
         items = serializer_class(orders, many=True).data
+        global current_color, current_bold_color
+        current_color = bgIceBlue
+        current_bold_color = bgIceBlueBold
         col_len = len(descriptions) if is_product else len(descriptions) + 3
         add_title(sheet, start_row+1, col_len, u'所有订单')
         return self._add_items_to_sheet(sheet, start_row+2, descriptions, fields, is_product, items)
@@ -201,6 +215,9 @@ class DataExport(object):
         serializer_class = SimpleRefundItemSerializer if is_product else RefundItemSerializer
         items = serializer_class(refunds, many=True).data
         col_len = len(descriptions) if is_product else len(descriptions) + 3
+        global current_color, current_bold_color
+        current_color = bgLightYellow
+        current_bold_color = bgLightYellowBold
         add_title(sheet, start_row+1, col_len, u'退货')
         return self._add_items_to_sheet(sheet, start_row+2, descriptions, fields, is_product, items)
 
@@ -214,6 +231,9 @@ class DataExport(object):
         serializer_class = SimpleProductLostSerializer if is_product else ProductLostSerializer
         items = serializer_class(losts, many=True).data
         col_len = len(descriptions) if is_product else len(descriptions) + 3
+        global current_color, current_bold_color
+        current_color = bgLightPink
+        current_bold_color = bgLightPinkBold
         add_title(sheet, start_row+1, col_len, u'赔偿')
         return self._add_items_to_sheet(sheet, start_row+2, descriptions, fields, is_product, items)
 
@@ -227,6 +247,9 @@ class DataExport(object):
         serializer_class = SimpleProductRemovalItemSerializer if is_product else ProductRemovalItemSerializer
         items = serializer_class(removals, many=True).data
         col_len = len(descriptions) if is_product else len(descriptions) + 3
+        global current_color, current_bold_color
+        current_color = bgLinkGrey
+        current_bold_color = bgLinkGreyBold
         add_title(sheet, start_row+1, col_len, u'弃置')
         return self._add_items_to_sheet(sheet, start_row+2, descriptions, fields, is_product, items)
 
@@ -238,6 +261,9 @@ class DataExport(object):
         serializer_class = SimpleProductSettlementSerializer if is_product else ProductSettlementSerializer
         items = serializer_class(settlement).data
         col_len = len(descriptions) if is_product else len(descriptions) + 3
+        global current_color, current_bold_color
+        current_color = bgSilverEga
+        current_bold_color = bgSilverEgaBold
         add_title(sheet, start_row+1, col_len, u'总计')
         return self._add_items_to_sheet(sheet, start_row+2, descriptions, fields, is_product, items)
 
@@ -249,7 +275,7 @@ class DataExport(object):
         current_row = start_row
         for col in range(0, len(descriptions)):
             set_row_height(sheet, current_row)
-            sheet.write(current_row, col, descriptions[col])
+            sheet.write(current_row, col, descriptions[col], current_color)
         if not isinstance(items, list):
             items = [items]
         for item in items:
@@ -295,9 +321,10 @@ class DataExport(object):
 
 def add_to_col(sheet, r, c, value, is_total):
     if is_total:
-        sheet.write(r, c, value, bgIceBlue)
+        sheet.write(r, c, value, current_bold_color)
     else:
-        sheet.write(r, c, value)
+        sheet.write(r, c, value, current_color)
+    # sheet.write(r, c, value, current_color)
 
 
 def set_row_height(sheet, row_index):
@@ -318,7 +345,7 @@ def set_image_height(sheet, row_index):
 
 
 def add_title(sheet, r, col_len, value):
-    bg = bgLightYellow
+    bg = current_bold_color
     sheet.write(r, 0, value, bg)
     set_row_height(sheet, r)
     for c in range(1, col_len):
@@ -327,7 +354,7 @@ def add_title(sheet, r, col_len, value):
 
 
 def add_description(sheet, r, col_len, value):
-    bg = bgLightYellow
+    bg = current_color
     sheet.write(r, 0, value, bg)
     set_row_height(sheet, r)
     for c in range(1, col_len):
