@@ -7,7 +7,6 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
     var calcStatusInterval = null;
     $scope.readingReport = 0;       // 0：未同步，1：同步失败，10：正在同步
     var readingReportInterval = null;
-    $scope.isDownloading = false;
     $scope.errorInfo = '';  //  错误信息
     $scope.storageInvalid = false;      // 仓储报告没有上传
     $scope.removalInvalid = false;      // 移除报告没有上传
@@ -104,15 +103,15 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
         readingReportInterval = null;
     }) ; //在控制器里，添加$on函数
 
-    $scope.download = function (id) {
-        $scope.isDownloading = true;
+    $scope.download = function (index, id) {
+        $scope.settlements[index].isDownloading = true;
         $http.get(serviceFactory.settlementDetail(id) + 'download/')
             .then(function (result) {
                 $rootScope.addAlert('info', '报告已生成');
-                $scope.isDownloading = false;
+                $scope.settlements[index].isDownloading = false;
                 window.location.href = serviceFactory.downloadPath(result.data.path);
             }).catch(function (result) {
-                $scope.isDownloading = false;
+                $scope.settlements[index].isDownloading = false;
                 $rootScope.addAlert('error', '报告生成失败');
             });
     };

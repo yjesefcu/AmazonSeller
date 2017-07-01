@@ -71,6 +71,7 @@
                                 <th colspan="5" class="dark-border">外包装</th>
                                 <th colspan="2" class="dark-border" ng-show="isDetail">总计</th>
                                 <th colspan="2" class="dark-border">物流公司信息</th>
+                                <th class="dark-border">操作</th>
                             </tr>
                             <tr>
                                 <th>SKU</th>
@@ -85,6 +86,7 @@
                                 <th>体积重<br>KGS</th>
                                 <th>名称</th>
                                 <th>运单号</th>
+                                <th>操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -101,7 +103,7 @@
                                 <td><input class="xs" value="{{ p.package_length*p.package_width*p.package_height/5000}}" readonly></td>
                                 <td><textarea ng-model="p.logistics_company" class="md"></textarea></td>
                                 <td><input class="lg" ng-model="p.logistics_id"></td>
-
+                                <td><a class="fa fa-trash-o text-red" ng-click="remove($index);"></a></td>
                             </tr>
                         </tbody>
                     </table>

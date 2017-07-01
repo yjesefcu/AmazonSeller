@@ -11,7 +11,7 @@ app.controller('ShipmentCtrl', function ($scope, $http, $rootScope, serviceFacto
     });
 });
 
-app.controller('OutboundEditCtrl', function ($scope, $http, $rootScope, $stateParams, serviceFactory) {
+app.controller('OutboundEditCtrl', function ($scope, $http, $rootScope, $stateParams, $state, serviceFactory) {
     var id = $stateParams.id;
     $scope.formData = {MarketplaceId: $rootScope.MarketplaceId};
     $scope.products = [];
@@ -45,6 +45,7 @@ app.controller('OutboundEditCtrl', function ($scope, $http, $rootScope, $statePa
             data: $scope.formData
         }).then(function (result) {
             console.log('create outbound shipment success');
+            $state.go('index.shipmentDetail', {id: result.data.id});
         }).catch(function (result) {
             console.log('create outbound shipment failed');
             $rootScope.addAlert('danger', '保存失败');
@@ -52,6 +53,10 @@ app.controller('OutboundEditCtrl', function ($scope, $http, $rootScope, $statePa
                 $scope.error_msg = result.data.msg;
             }
         });
+    };
+
+    $scope.remove = function (index) {
+        $scope.products.splice(index, 1);
     };
 
     $scope.saveItem = function (index, id) {    // 保存修改
