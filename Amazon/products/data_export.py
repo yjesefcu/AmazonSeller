@@ -96,9 +96,9 @@ class DataExport(object):
             product = item['product']
             if item['is_total']:
                 product = {'SellerSKU': u'商品统计'}
-                set_row_height(sheet, current_row)
-            else:
-                set_image_height(sheet, current_row)
+            set_row_height(sheet, current_row)
+            # else:
+            #     set_image_height(sheet, current_row)
             col = 0
             for field in fields:
                 col += 1
@@ -123,6 +123,8 @@ class DataExport(object):
         :param product:
         :return:
         """
+        pass
+
     def _save_settlement_orders(self):
         sheet_name = u'订单详细'
         ws = self.wb.add_sheet(sheet_name)
@@ -264,12 +266,20 @@ class DataExport(object):
                 if field == 'product':
                     if not is_product:
                         add_to_col(sheet, current_row, col, product.get('SellerSKU', ''), is_total)
-                        add_to_col(sheet, current_row, col+1, product.get('Image', ''), is_total)
+                        image = product.get('Image', '')
+                        set_col_width(sheet, col+1, 256*14)
+                        if image:
+                            image_path = os.path.join(os.path.dirname(settings.MEDIA_ROOT), image[1:])
+                            sheet.insert_bitmap(image_path, current_row, col+1, x=0, y=0)
+                        else:
+                            add_to_col(sheet, current_row, col+1, '', item.get('is_total'))
                         add_to_col(sheet, current_row, col+2, product.get('TitleCn', ''), is_total)
                         col += 3
                 else:
                     add_to_col(sheet, current_row, col, item.get(field, ''), is_total)
                     col += 1
+            # if not is_product:
+            #     set_image_height(sheet, current_row)
         return current_row
 
     def add_sheet(self, sheet_name, data):
