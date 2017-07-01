@@ -343,7 +343,7 @@
                     <th></th>
                     <th class="td-sale">{{ lostSummary.Quantity }}</th>
                     <th class="td-sale"></th>
-                    <th class="td-sale"> {{ lostSummary.Amount }}</th>
+                    <th class="td-sale"> {{ lostSummary.income }}</th>
                     <th class="td-cost"> {{ lostSummary.cost }}</th>
                     <th class="td-cost"> {{ lostSummary.total_cost }}</th>
                     <th>{{ lostSummary.profit }}</th>
@@ -362,7 +362,7 @@
                     <td>{{ o.TransactionType }}</td>
                     <td class="td-sale">{{ o.Quantity }}</td>
                     <td class="td-sale">{{ o.UnitPrice }}</td>
-                    <td class="td-sale"> {{ o.Amount }}</td>
+                    <td class="td-sale"> {{ o.income }}</td>
                     <td>
                         <input ng-if="o.isEdit" class="md" ng-model="o.cost">
                         <span ng-if="!o.isEdit">{{o.cost}}</span>

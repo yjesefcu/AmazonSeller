@@ -92,41 +92,6 @@ def update_settlement(market=None):
                                          end_time=settlement.EndDate, settlement=settlement)
 
 
-# def update_inventories(market, settlement):
-#     """
-#     同步退货信息
-#     :param market:
-#     """
-#     if settlement.returns.exists():
-#         logger.info('product returns of settlement exists: %s-%s', settlement.StartDate, settlement.EndDate)
-#         return
-#     logger.info('start update product returns of settlement: %s-%s', settlement.StartDate, settlement.EndDate)
-#     service = InventorySummaryService(market)
-#     request_report_id = service.request_report(settlement.StartDate, settlement.EndDate)
-#     logger.info('update_inventories: request report id: %s', request_report_id)
-#     time.sleep(60)
-#     inventories = service.get_by_request_id(request_report_id)
-#     # inventories = service.get_by_report_id('5396817722017327')
-#     if inventories:
-#         for one in inventories:
-#             if one['type'] in ['CustomerReturns', 'Adjustments']:
-#                 update_returns_to_db(settlement, one)
-
-
-def update_removal_report(market, settlement):
-    # 更新移除报告
-    service = ProductRemovalReportService(market)
-    try:
-        SettlementDataRecord.objects.get(settlement=settlement, start_time=settlement.StartDate,
-                                            end_time=settlement.EndDate, data_type=SettlementDataRecord.REMOVAL)
-    except SettlementDataRecord.DoesNotExist, ex:
-        items = service.get_list(settlement.StartDate, settlement.EndDate)
-        if items:
-            RemovalDbHandler().update_to_db(settlement, items)
-            SettlementDataRecord.objects.create(settlement=settlement, start_time=settlement.StartDate,
-                                                end_time=settlement.EndDate, data_type=SettlementDataRecord.REMOVAL)
-
-
 def update_advertising_report(market, settlement):
     service = AdvertiseReportService(market)
     start = settlement.StartDate.replace(hour=0, minute=0, second=0)
@@ -203,8 +168,8 @@ def update_advertising_report(market, settlement):
                 else:
                     logger.info('get dally advertising fail, start date: %s', tmp_start)
                     data_valid = False
-            if not len(all_request_id.keys()):
-                break
+        if not len(all_request_id.keys()):
+            break
         time.sleep(180)     # 等待3分钟
         try_time += 1
     if try_time >= max_try:

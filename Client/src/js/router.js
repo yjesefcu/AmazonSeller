@@ -1,6 +1,6 @@
 
 app.config(['$stateProvider', '$urlRouterProvider', function($stateProvider, $urlRouterProvider) {
-    $urlRouterProvider.otherwise('/products');
+    $urlRouterProvider.otherwise('/settlement');
 
     $stateProvider
         .state('index', {

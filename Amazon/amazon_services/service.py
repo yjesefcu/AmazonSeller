@@ -3,9 +3,11 @@ __author__ = 'liucaiyun'
 import requests, urllib, base64, hmac, hashlib, traceback, time, logging, threading, Queue, json
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import datetime
+from Queue import Queue
 from xml_parser import *
 from text_parser import *
 from models import RequestRecords, ReportRequestRecord
+from exception import *
 logger = logging.getLogger('amazon')
 # 禁用安全请求警告
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -43,6 +45,39 @@ class OrderQueueHandle(threading.Thread):
 
 
 class AmazonService(object):
+    queue_size = 0
+    interval = 0
+
+    @property
+    def _queue(self):
+        if not self.msg_queue:
+            self.msg_queue = Queue(maxsize=self.queue_size)
+            for i in range(0, self.queue_size):
+                self.msg_queue.put(1)
+        return self.msg_queue
+
+    def _request_exceed(self):      # 请求数超出时清空队列
+
+        def _recover_func():
+            while True:
+                while self.msg_queue.qsize() == self.queue_size:
+                    time.sleep(10)
+                time.sleep(self.interval)
+                self._queue.put(1)
+                logger.info('queue recover one: %s', self.__class__.__name__)
+                if self._queue.qsize() == self.queue_size:
+                    logger.info('request recover')
+                    self.recover_thread = None
+                    break
+        logger.info('request exceed')
+        # 清空队列
+        for i in range(0, self._queue.qsize()):
+            self._queue.get()
+        # 开始计数线程
+        if self.recover_thread is None:
+            logger.info('start recover thread: %s', self.__class__.__name__)
+            self.recover_thread = threading.Thread(target=_recover_func)
+            self.recover_thread.start()
 
     def __init__(self, market_account=None):
         self.market = market_account
@@ -60,6 +95,25 @@ class AmazonService(object):
         self.last_post_time = None
 
     def post(self, uri, action, param=None, api_version='2013-09-01'):
+        try:
+            logger.info('start post: %s, action=%s', self.__class__.__name__, action)
+            if self._queue.qsize() > 0:
+                self._queue.get(block=True)
+                logger.info('you can post: %s', self.__class__.__name__)
+                r = self._post(uri, action, param, api_version)
+                return r
+            else:
+                logger.info('request cannot post: %s, action=%s', self.__class__.__name__, action)
+                self._request_exceed()
+                self._queue.get(block=True)
+                return self._post(uri, action, param, api_version)
+        except RequestExceedException, ex:
+            logger.info('request exceed: %s, action=%s', self.__class__.__name__, action)
+            self._request_exceed()
+            self._queue.get(block=True)
+            return self._post(uri, action, param, api_version)
+
+    def _post(self, uri, action, param=None, api_version='2013-09-01'):
         if not param:
             param = dict()
         parameters = {
@@ -73,15 +127,16 @@ class AmazonService(object):
         form_data = '&'.join([key+'='+self._url_encode(value) for (key, value) in parameters.items()])
         url = 'https://%s%s?%s' % (self.host, uri, form_data)
         try:
-            if not self._can_post():    # 如果当期已经超过限制，则等待相应的时间
-                time.sleep(self._get_api_interval_time())
             r = requests.post(url, verify=False, headers={'Connection': 'close'})
-            self.last_post_time = datetime.datetime.now()
-            # self._add_record(uri, action, form_data, r.text)
+            if RequestExceed(r.text).is_exceed:
+                    raise RequestExceedException()
+            logger.info('post return success: %s, action=%s', self.__class__.__name__, action)
             return r
         except Exception, ex:
             traceback.format_exc()
-            logger.warning('post exception: %s', traceback.format_exc())
+            logger.warning('post exception: %s, action=%s, exception=%s', self.__class__.__name__, action,
+                           traceback.format_exc())
+
         return None
 
     def _add_record(self, uri, action, param, response_text):
@@ -183,6 +238,11 @@ class OrderService(AmazonService):
 
 class OrderItemService(AmazonService):
 
+    msg_queue = None
+    recover_thread = None
+    interval = 2.1
+    queue_size = 30
+
     def list_items(self, amazon_order_id):
         return self._get_next_token(amazon_order_id=amazon_order_id)
 
@@ -212,7 +272,79 @@ class OrderItemService(AmazonService):
         return 1
 
 
+class RequestReportService(AmazonService):
+
+    msg_queue = None
+    recover_thread = None
+    interval = 61
+    queue_size = 15
+
+    def request(self, report_type, start_time=None, end_time=None):
+        try:
+            exist_request = ReportRequestRecord.objects.get(report_type=report_type, start_time=start_time, end_time=end_time)
+            return exist_request.request_report_id
+        except ReportRequestRecord.DoesNotExist, ex:
+            pass
+        param = {
+            'ReportType': report_type
+        }
+        if start_time:
+            param['StartDate'] = start_time.strftime(DT_FORMAT)
+        if end_time:
+            param['EndDate'] = end_time.strftime(DT_FORMAT)
+        logger.info('Start request report, type=%s, StartDate:%s, EndDate:%s', report_type, start_time, end_time)
+        r = self.post('/', 'RequestReport', param, api_version='2009-01-01')
+        request_report_id = RequestReportParser(r.text).get_report_id()
+        ReportRequestRecord.objects.create(report_type=report_type, start_time=start_time, end_time=end_time,
+                                           request_time=datetime.datetime.now(), request_report_id=request_report_id)
+        logger.info('end request report, type=%s, StartDate:%s, EndDate:%s, RequestReportId:%s',
+                    report_type, start_time, end_time, request_report_id)
+        return request_report_id
+
+
+class ListReportService(AmazonService):
+
+    msg_queue = None
+    recover_thread = None
+    interval = 61
+    queue_size = 10
+
+    def list_report(self, request_type):
+        r = self.post('/', 'GetReportList', {
+            'ReportTypeList.Type.1': request_type
+        }, api_version='2009-01-01')
+        if r:
+            return ReportListParser(r.text).get_items()
+        return None
+
+
+class GetReportService(AmazonService):
+
+    msg_queue = None
+    recover_thread = None
+    interval = 61
+    queue_size = 15
+
+    def get_report(self, report_id):
+        """
+        获取报告内容
+        :param report_id:
+        :return: 返回response对象
+        """
+        logger.info('Start get report by ReportId:　%s', report_id)
+        r = self.post('/', 'GetReport', {
+            'ReportId': report_id
+        }, api_version='2009-01-01')
+        logger.info('End get report by ReportId:　%s', report_id)
+        return r
+
+
 class ProductService(AmazonService):
+
+    msg_queue = None
+    recover_thread = None
+    interval = 2
+    queue_size = 20
 
     def get_products(self, sku_list):
         """
@@ -244,53 +376,13 @@ class ProductService(AmazonService):
         return 1
 
 
-class SettlementReportService(AmazonService):
-    """
-    结算报告
-    """
-
-    def get_list(self):
-        """
-        获取结算报告列表
-        """
-        r = self.post('/', 'GetReportList', {
-            'ReportTypeList.Type.1': '_GET_V2_SETTLEMENT_REPORT_DATA_XML_'
-        }, api_version='2009-01-01')
-
-        try:
-            parser = ReportListParser(r.text)
-        except Exception, ex:
-            traceback.format_exc()
-            logger.warning('SettlementReport parse failed: %s', r.text)
-            return None
-        # 不获取NextToken的值
-        items = parser.get_items()
-        return items
-
-    def get_one(self, report_id):
-        """
-        根据ReportId获取单个报告的xml信息
-        :param report_id:
-        """
-        r = self.post('/', 'GetReport', {
-            'ReportId': report_id
-        }, api_version='2009-01-01')
-
-        try:
-            parser = SettlementReportParser(r.text)
-        except Exception, ex:
-            traceback.format_exc()
-            logger.warning('SettlementReport parse failed: %s', r.text)
-            return None
-        # 不获取NextToken的值
-        items = parser.get_items()
-        return items
-
-    def _get_api_interval_time(self):
-        return 30
-
-
 class BaseReportService(AmazonService):
+
+    def __init__(self, market):
+        super(BaseReportService, self).__init__(market)
+        self._request_service = RequestReportService(market)
+        self._list_service = ListReportService(market)
+        self._get_service = GetReportService(market)
 
     def request_report(self, report_type, start_time=None, end_time=None):
         """
@@ -301,26 +393,7 @@ class BaseReportService(AmazonService):
         :return: RequestReportId
         """
         # 如果数据库中已有记录，则不重复请求
-        try:
-            exist_request = ReportRequestRecord.objects.get(report_type=report_type, start_time=start_time, end_time=end_time)
-            return exist_request.request_report_id
-        except ReportRequestRecord.DoesNotExist, ex:
-            pass
-        param = {
-            'ReportType': report_type
-        }
-        if start_time:
-            param['StartDate'] = start_time.strftime(DT_FORMAT)
-        if end_time:
-            param['EndDate'] = end_time.strftime(DT_FORMAT)
-        logger.info('Start request report, type=%s, StartDate:%s, EndDate:%s', report_type, start_time, end_time)
-        r = self.post('/', 'RequestReport', param, api_version='2009-01-01')
-        request_report_id = RequestReportParser(r.text).get_report_id()
-        ReportRequestRecord.objects.create(report_type=report_type, start_time=start_time, end_time=end_time,
-                                           request_time=datetime.datetime.now(), request_report_id=request_report_id)
-        logger.info('end request report, type=%s, StartDate:%s, EndDate:%s, RequestReportId:%s',
-                    report_type, start_time, end_time, request_report_id)
-        return request_report_id
+        return self._request_service.request(report_type, start_time, end_time)
 
     def _check_report_done(self, report_type, request_report_id, max_try=3, interval=60):
         """
@@ -355,18 +428,7 @@ class BaseReportService(AmazonService):
         return report_id
 
     def list_report(self, report_type):
-        r = self.post('/', 'GetReportList', {
-            'ReportTypeList.Type.1': report_type, 'MaxCount': '20'
-        }, api_version='2009-01-01')
-        try:
-            parser = ReportListParser(r.text)
-        except Exception, ex:
-            traceback.format_exc()
-            logger.warning('SettlementReport parse failed: %s', r.text)
-            return None
-        # 不获取NextToken的值
-        items = parser.get_items()
-        return items
+        return self._list_service.list_report(report_type)
 
     def _get_report_id(self, report_type, request_report_id):
         """
@@ -374,7 +436,7 @@ class BaseReportService(AmazonService):
         :param request_report_id:
         :return:
         """
-        items = self.list_report(report_type)
+        items = self._list_service.list_report(report_type)
         # 如果report_id在reportList中存在，说明报告已经准备好了
         for report in items:
             if report['ReportRequestId'] == request_report_id:
@@ -387,27 +449,38 @@ class BaseReportService(AmazonService):
         :param report_id:
         :return: 返回response对象
         """
-        logger.info('Start get report by ReportId:　%s', report_id)
-        r = self.post('/', 'GetReport', {
-            'ReportId': report_id
-        }, api_version='2009-01-01')
-        logger.info('End get report by ReportId:　%s', report_id)
-        return r
+        return self._get_service.get_report(report_id)
 
     def _get_api_interval_time(self):
         return 60
 
 
-class InventorySummaryService(BaseReportService):
+class SettlementReportService(BaseReportService):
+    """
+    结算报告
+    """
 
-    def get_inventory(self, start_time, end_time):
-        request_report_id = self.request_report('_GET_FBA_FULFILLMENT_INVENTORY_SUMMARY_DATA_', start_time, end_time)
-        report_id = self._check_report_done('_GET_FBA_FULFILLMENT_INVENTORY_SUMMARY_DATA_', request_report_id)
-        if report_id:
-            r = self.get_by_report_id(report_id)
-            parser = InventorySummaryParser(r.text)
-            return parser.get_items()
-        return None
+    def get_list(self):
+        """
+        获取结算报告列表
+        """
+        return self._list_service.list_report('_GET_V2_SETTLEMENT_REPORT_DATA_XML_')
+
+    def get_one(self, report_id):
+        """
+        根据ReportId获取单个报告的xml信息
+        :param report_id:
+        """
+        r = self._get_service.get_report(report_id)
+        try:
+            parser = SettlementReportParser(r.text)
+        except Exception, ex:
+            traceback.format_exc()
+            logger.warning('SettlementReport parse failed: %s', r.text)
+            return None
+        # 不获取NextToken的值
+        items = parser.get_items()
+        return items
 
 
 class AdvertiseReportService(BaseReportService):
@@ -417,11 +490,11 @@ class AdvertiseReportService(BaseReportService):
 
     def request_by_day(self, day):
         # 只发起请求
-        return self.request_report('_GET_PADS_PRODUCT_PERFORMANCE_OVER_TIME_DAILY_DATA_TSV_', day)
+        return self._request_service.request('_GET_PADS_PRODUCT_PERFORMANCE_OVER_TIME_DAILY_DATA_TSV_', day)
 
     def request_by_week(self, day):
         # 只发起请求
-        return self.request_report('_GET_PADS_PRODUCT_PERFORMANCE_OVER_TIME_WEEKLY_DATA_TSV_', day)
+        return self._request_service.request('_GET_PADS_PRODUCT_PERFORMANCE_OVER_TIME_WEEKLY_DATA_TSV_', day)
 
     def get_items_by_report_id(self, report_id):
         r = self.get_by_report_id(report_id)
@@ -447,25 +520,10 @@ class AdvertiseReportService(BaseReportService):
         :param start_day: 时间
         """
         if not request_report_id:
-            request_report_id = self.request_report(report_type, start_day)
+            request_report_id = self._request_service.request(report_type, start_day)
         report_id = self._check_report_done(report_type, request_report_id)
         if report_id:
             return self.get_items_by_report_id(report_id)
-        return None
-
-
-class ProductRemovalReportService(BaseReportService):
-
-    def get_list(self, start_time, end_time):
-        # 获取移除列表
-        # request_type = '_GET_FBA_FULFILLMENT_REMOVAL_ORDER_DETAIL_DATA_'
-        # request_report_id = self.request_report(request_type, start_time, end_time)
-        # report_id = self._check_report_done(request_type, request_report_id)
-        report_id = '5470984137017335'
-        if report_id:
-            r = self.get_by_report_id(report_id)
-            parser = ProductRemovalParser(r.text)
-            return parser.get_items()
         return None
 
 
@@ -485,8 +543,6 @@ if __name__ == '__main__':
     # print SettlementReportService().get_items()
     start = datetime.datetime(year=2017, month=5, day=20)
     end = datetime.datetime(year=2017, month=6, day=10)
-    report_id = InventorySummaryService().request_report(start, end)
-    inventories = InventorySummaryService().get_inventory_list(report_id)
 
     # file_object = open('orders.txt')
     # try:

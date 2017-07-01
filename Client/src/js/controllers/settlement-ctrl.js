@@ -146,7 +146,7 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
                     isInvalid = true;
                     $scope.removalInvalid = true;
                 }
-                if (!result.advertising_valid){
+                if (!result.data.advertising_valid){
                     isInvalid = true;
                     $scope.advertisingInvalid = true;
                 }

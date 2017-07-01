@@ -143,6 +143,7 @@ class Settlement(models.Model):
     balanced_adjust = models.FloatField(null=True, blank=True, verbose_name=u'余额调整')
     advertising_fee = models.FloatField(null=True, blank=True, verbose_name=u'从商品中统计的广告费')
     advertising_fee_adjust = models.FloatField(null=True, blank=True, verbose_name=u'实际支付的总广告费')   # 如果advertising_fee<advertising_fee_adjust，那么需要将多余的平均到商品中
+    custom_return_fee = models.FloatField(null=True, blank=True)    # 退货服务费，如果退货服务费的OtherTransaction没找到对应的RefundItem记录，则会记录在这里
 
     income = models.FloatField(null=True, blank=True, verbose_name=u'总收入')   # 计算
     amazon_cost = models.FloatField(null=True, blank=True, verbose_name=u'亚马逊所收费用')
@@ -177,6 +178,7 @@ class ProductSettlement(models.Model):
     product = models.ForeignKey(Product, null=True, blank=True)
     advertising_fee = models.FloatField(null=True, blank=True)       # 广告费，需以负数保存
     storage_fee = models.FloatField(null=True, blank=True)           # 仓储费，需以负数保存
+    custom_return_fee = models.FloatField(null=True, blank=True)    # 退货服务费，如果退货服务费的OtherTransaction没找到对应的RefundItem记录，则会记录在这里
 
     quantity = models.IntegerField(null=True, blank=True)           # 销售数量
     subscription_fee = models.FloatField(null=True, blank=True, verbose_name=u'订阅费')
@@ -294,6 +296,7 @@ class OtherTransaction(models.Model):
     PostedDate = models.DateTimeField(null=True, blank=True, verbose_name=u'提交时间')
     Amount = models.FloatField(null=True, blank=True, verbose_name=u'总计')
     refund_item = models.ForeignKey('RefundItem', null=True, blank=True)        # AmazonOrderId对应的SettleOrderItem，为空说明没找到对应的订单
+    SellerSKU = models.CharField(max_length=50, null=True, blank=True)
 
     class Meta:
         ordering = ['-PostedDate']

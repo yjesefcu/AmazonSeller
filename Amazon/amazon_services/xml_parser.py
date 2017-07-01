@@ -109,6 +109,22 @@ class BaseParser(object):
         pass
 
 
+class RequestExceed(BaseParser):
+
+    def __init__(self, s):
+        if s.endswith('.xml'):
+            s = self._read_from_file(s)
+        try:
+            encoded = self._encode(s)
+            root = ET.fromstring(encoded.encode('utf-8'))   # 从字符串传递xml
+            if re.match('\{.*\}ErrorResponse', root.tag) is None:
+                self.is_exceed = False
+            else:
+                self.is_exceed = True
+        except BaseException, ex:       # 如果返回的是text文本，则说明没有错误
+            self.is_exceed = False
+
+
 class OrderParse(BaseParser):
 
     def _parse(self):
@@ -417,8 +433,8 @@ class SettlementReportParser(BaseParser):
 
 
 if __name__ == '__main__':
-    parser = SettlementReportParser('country.xml')
-    print parser.get_items()
-    print parser.is_error_response()
+    parser = RequestExceed('country.xml')
+    print parser.is_exceed
+    # print parser.is_error_response()
     # print parser.get_orders()
     # print parser.get_next_token()

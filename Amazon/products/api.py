@@ -2,6 +2,7 @@
 __author__ = 'liucaiyun'
 import os, datetime, urllib, json, logging, traceback, time
 from PIL import Image
+from random import Random
 import dateutil.parser
 from django.conf import settings
 from django.db.models import Q, F, Sum
@@ -56,11 +57,21 @@ def update_product_to_db(product_data):
 
 
 def create_image_path():
-    timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')
+    def _random_str(randomlength=8):
+        str = ''
+        chars = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz0123456789'
+        length = len(chars) - 1
+        random = Random()
+        for i in range(randomlength):
+            str+=chars[random.randint(0, length)]
+        return str
+    timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
     p = os.path.join(settings.MEDIA_ROOT, 'icon')
     if not os.path.exists(p):
+        if not os.path.exists(settings.MEDIA_ROOT):
+            os.mkdir(settings.MEDIA_ROOT)
         os.mkdir(p)
-    return 'icon/' + timestamp + '.bmp'
+    return 'icon/%s%s.bmp' % (timestamp, _random_str())
 
 
 def download_image(img_url):
@@ -344,14 +355,21 @@ class SettlementDbHandler(object):
         for fee in return_fees:
             try:
                 refund = RefundItem.objects.get(AmazonOrderId=fee.AmazonOrderId)
-                fee.refund_item = refund
-                fee.save()
-                refund.FBAReturnFee = fee.Amount     # 将退货费加到refund里
-                refund.save()
             except RefundItem.DoesNotExist, ex:
+                # 找不到的话，查找订单信息，找到对应的商品SellerSKU
+                logger.warning('FBACustomReturn: cannot find refund item:%s', fee.AmazonOrderId)
+                items = OrderItemService(self.market).list_items(fee.AmazonOrderId)
+                fee.SellerSKU = items[0]['SellerSKU']
+                fee.save()
                 continue
             except RefundItem.MultipleObjectsReturned, ex:
-                logger.error('FBACustomReturn: multi object return when find AmazonOrderId in RefundItem:%s', fee.AmazonOrderId)
+                logger.warning('FBACustomReturn: multi object return when find AmazonOrderId in RefundItem:%s', fee.AmazonOrderId)
+                refund = RefundItem.objects.filter(AmazonOrderId=fee.AmazonOrderId).first()
+            fee.refund_item = refund
+            fee.SellerSKU = refund.SellerSKU
+            fee.save()
+            refund.FBAReturnFee = fee.Amount     # 将退货费加到refund里
+            refund.save()
 
 
 class RemovalDbHandler(object):
@@ -563,7 +581,10 @@ class ProductProfitCalc(object):
             # 秒杀费，广告费
             deal_payment = sum_queryset(SellerDealPayment.objects.filter(settlement=self.settlement), 'DealFeeAmount')
             ps.advertising_fee = -advertising_cost
-
+            # 退货服务费
+            ps.custom_return_fee = sum_queryset(OtherTransaction.objects.filter(TransactionType='FBACustomerReturn',
+                                                settlement=self.settlement, SellerSKU=product.SellerSKU,
+                                                refund_item__isnull=True), 'Amount')
             # 统计
             order_total = SettleOrderItem.objects.get(settlement=self.settlement, product=product, is_total=True)
             refund_total = RefundItem.objects.get(settlement=self.settlement, product=product, is_total=True)
@@ -573,12 +594,14 @@ class ProductProfitCalc(object):
             ps.subscription_fee = get_float_from_model(order_total, 'subscription_fee')
             ps.quantity = get_float_from_model(order_total, 'Quantity') + get_float_from_model(refund_total, 'quantity')\
                           + get_float_from_model(removal_total, 'Quantity') + get_float_from_model(lost_total, 'Quantity')
-            ps.income = get_float_from_model(order_total, 'income') + get_float_from_model(refund_total, 'income')
+            ps.income = get_float_from_model(order_total, 'income') + get_float_from_model(refund_total, 'income') + \
+                        get_float_from_model(lost_total, 'income')
             ps.amazon_cost = get_float_from_model(order_total, 'amazon_cost') + get_float_from_model(refund_total, 'amazon_cost') + \
-                             get_float_from_model(removal_total, 'amazon_cost') - advertising_cost
+                             get_float_from_model(removal_total, 'amazon_cost') - advertising_cost + ps.custom_return_fee
             ps.promotion = get_float_from_model(order_total, 'promotion') + get_float_from_model(refund_total, 'promotion')
-            ps.amount = get_float_from_model(order_total, 'amount') + get_float_from_model(refund_total, 'amount') + \
-                        get_float_from_model(removal_total, 'amount') + get_float_from_model(lost_total, 'Amount')
+            # ps.amount = get_float_from_model(order_total, 'amount') + get_float_from_model(refund_total, 'amount') + \
+            #             get_float_from_model(removal_total, 'amount') + get_float_from_model(lost_total, 'Amount')
+            ps.amount = ps.income + ps.amazon_cost + ps.promotion
 
             ps.total_cost = get_float_from_model(order_total, 'total_cost') + get_float_from_model(refund_total, 'total_cost') + \
                             get_float_from_model(removal_total, 'total_cost') + get_float_from_model(lost_total, 'total_cost')
@@ -717,9 +740,10 @@ class ProductProfitCalc(object):
             else:
                 item.cost = -product.cost
                 self.sale_quantity += item.Quantity
+            item.income = item.Amount if item.Amount else 0
             item.total_cost = item.Quantity * item.cost
-            item.profit = item.total_cost + item.Amount
-            item.profit_rate = item.profit/item.Amount if item.Amount else 0
+            item.profit = item.total_cost + item.income
+            item.profit_rate = item.profit/item.income if item.income else 0
             item.save()
 
         # 计算汇总信息并记录
@@ -727,10 +751,11 @@ class ProductProfitCalc(object):
                                                                          is_total=True, AmazonOrderId='Total')
         query_set = OtherTransactionItem.objects.filter(settlement=self.settlement, product=product, is_total=False)
         total_item.Quantity = sum_queryset(query_set, 'Quantity')
+        total_item.income = sum_queryset(query_set, 'income')
         total_item.total_cost = sum_queryset(query_set, 'total_cost')
         total_item.Amount = sum_queryset(query_set, 'Amount')
         total_item.profit = sum_queryset(query_set, 'profit')
-        total_item.profit_rate = total_item.profit/total_item.Amount if total_item.Amount else 0
+        total_item.profit_rate = total_item.profit/total_item.income if total_item.income else 0
         total_item.save()
 
     def _update_inventory(self, product, count):
@@ -831,7 +856,7 @@ class SettlementCalc(object):
         query_set = OtherTransactionItem.objects.filter(settlement=self.settlement, product__isnull=False, is_total=False)
         total_item.Quantity = sum_queryset(query_set, 'Quantity')
         total_item.total_cost = sum_queryset(query_set, 'total_cost')
-        total_item.Amount = sum_queryset(query_set, 'Amount')
+        total_item.income = sum_queryset(query_set, 'income')
         total_item.profit = sum_queryset(query_set, 'profit')
         total_item.save()
 
