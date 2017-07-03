@@ -1,0 +1,49 @@
+<style>
+    dt{
+        width: 110px !important;
+    }
+    dd{
+        margin-left: 130px !important;
+    }
+    dt,dd{
+        line-height: 2;
+        font-size: 16px;
+    }
+</style>
+
+<div class="row" ng-controller="settlementDetailCtrl">
+    <div class="col-md-12">
+        <div class="box box-primary">
+            <div class="box-header with-border">
+                <h3 class="box-title">结算周期：{{ settlement.StartDate }} - {{ settlement.EndDate }}</h3>
+            </div>
+            <!-- /.box-header -->
+                <div class="box-body">
+                    <div class="row" style="margin-bottom: 16px;" ng-if="isSettlement">
+                        <div class="form-group">
+                            <label class="col-sm-2 control-label" >上传月度仓储费报告</label>
+                            <div class="col-sm-6 col-xs-8">
+                                <input id='storageFile' type="file" data-buttonName="btn-primary" ng-model="storageFile" accept="text/plain" style="display: inline-block;">
+                            </div>
+                            <div class="col-sm-1">
+                                <button class="btn btn-primary" ng-click="sendStorageFile()">上传</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row" style="margin-bottom: 16px;">
+                        <div class="form-group">
+                            <label class="col-sm-2 control-label" >上传移除报告</label>
+                            <div class="col-sm-6 col-xs-8">
+                                <input id='removalFile' type="file" data-buttonName="btn-primary" ng-model="fileToUpload" accept="text/plain" style="display: inline-block;">
+
+                            </div>
+                            <div class="col-sm-1">
+                                <button class="btn btn-primary" ng-click="sendRemovalFile()">上传</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+        </div>
+    </div>
+    <div ng-include="'/static/templates/settlement_order_detail.html'" ng-controller="settlementOrdersCtrl"></div>
+</div>

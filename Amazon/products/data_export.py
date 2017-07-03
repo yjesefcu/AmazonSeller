@@ -232,8 +232,8 @@ class DataExport(object):
         items = serializer_class(losts, many=True).data
         col_len = len(descriptions) if is_product else len(descriptions) + 3
         global current_color, current_bold_color
-        current_color = bgLightPink
-        current_bold_color = bgLightPinkBold
+        current_color = bgSilverEga
+        current_bold_color = bgSilverEgaBold
         add_title(sheet, start_row+1, col_len, u'赔偿')
         return self._add_items_to_sheet(sheet, start_row+2, descriptions, fields, is_product, items)
 
@@ -262,8 +262,8 @@ class DataExport(object):
         items = serializer_class(settlement).data
         col_len = len(descriptions) if is_product else len(descriptions) + 3
         global current_color, current_bold_color
-        current_color = bgSilverEga
-        current_bold_color = bgSilverEgaBold
+        current_color = bgLightPink
+        current_bold_color = bgLightPinkBold
         add_title(sheet, start_row+1, col_len, u'总计')
         return self._add_items_to_sheet(sheet, start_row+2, descriptions, fields, is_product, items)
 

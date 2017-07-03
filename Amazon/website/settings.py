@@ -47,6 +47,12 @@ INSTALLED_APPS = (
     'dcors',
     'PIL',
     'products',
+    'client',
+)
+
+
+TEMPLATE_DIRS = (
+    os.path.join(BASE_DIR, 'client/templates'),
 )
 
 MIDDLEWARE_CLASSES = (

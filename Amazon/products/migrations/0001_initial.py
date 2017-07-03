@@ -65,6 +65,7 @@ class Migration(migrations.Migration):
                 ('TransactionType', models.CharField(max_length=50, null=True, verbose_name='\u670d\u52a1\u8d39\u7c7b\u578b', blank=True)),
                 ('PostedDate', models.DateTimeField(null=True, verbose_name='\u63d0\u4ea4\u65f6\u95f4', blank=True)),
                 ('Amount', models.FloatField(null=True, verbose_name='\u603b\u8ba1', blank=True)),
+                ('SellerSKU', models.CharField(max_length=50, null=True, blank=True)),
             ],
             options={
                 'ordering': ['-PostedDate'],
@@ -237,6 +238,7 @@ class Migration(migrations.Migration):
                 ('MarketplaceId', models.CharField(max_length=30, db_index=True)),
                 ('advertising_fee', models.FloatField(null=True, blank=True)),
                 ('storage_fee', models.FloatField(null=True, blank=True)),
+                ('custom_return_fee', models.FloatField(null=True, blank=True)),
                 ('quantity', models.IntegerField(null=True, blank=True)),
                 ('subscription_fee', models.FloatField(null=True, verbose_name='\u8ba2\u9605\u8d39', blank=True)),
                 ('income', models.FloatField(null=True, blank=True)),
@@ -322,6 +324,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('MarketplaceId', models.CharField(max_length=30, db_index=True)),
+                ('report_id', models.CharField(max_length=50, null=True, blank=True)),
                 ('AmazonSettlementID', models.CharField(max_length=100)),
                 ('TotalAmount', models.FloatField(null=True, blank=True)),
                 ('StartDate', models.DateTimeField(null=True, verbose_name='\u7ed3\u7b97\u5f00\u59cb\u65e5\u671f', blank=True)),
@@ -331,6 +334,7 @@ class Migration(migrations.Migration):
                 ('balanced_adjust', models.FloatField(null=True, verbose_name='\u4f59\u989d\u8c03\u6574', blank=True)),
                 ('advertising_fee', models.FloatField(null=True, verbose_name='\u4ece\u5546\u54c1\u4e2d\u7edf\u8ba1\u7684\u5e7f\u544a\u8d39', blank=True)),
                 ('advertising_fee_adjust', models.FloatField(null=True, verbose_name='\u5b9e\u9645\u652f\u4ed8\u7684\u603b\u5e7f\u544a\u8d39', blank=True)),
+                ('custom_return_fee', models.FloatField(null=True, blank=True)),
                 ('income', models.FloatField(null=True, verbose_name='\u603b\u6536\u5165', blank=True)),
                 ('amazon_cost', models.FloatField(null=True, verbose_name='\u4e9a\u9a6c\u900a\u6240\u6536\u8d39\u7528', blank=True)),
                 ('promotion', models.FloatField(null=True, verbose_name='\u4fc3\u9500\u8fd4\u70b9', blank=True)),
