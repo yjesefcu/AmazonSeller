@@ -2,6 +2,7 @@
 __author__ = 'liucaiyun'
 import datetime, logging, json
 import dateutil.parser
+from django.utils.timezone import utc
 from amazon_services.service import *
 from amazon_services.models import MarketAccount
 from api import *
@@ -82,14 +83,12 @@ def update_settlement(market=None):
         if (end_date.date() - start_date.date()).days != 14 or start_date.date() < market.period_start:
             continue
         try:
-            SettlementDataRecord.objects.get(data_type=SettlementDataRecord.SETTLEMENT, start_time=settlement_data['SettlementData']['StartDate'])
-            logger.info('Settlement already updated: %s ~ %s', settlement_data['SettlementData']['StartDate'],
-                        settlement_data['SettlementData']['EndDate'])
+            SettlementDataRecord.objects.get(data_type=SettlementDataRecord.SETTLEMENT, start_time=start_date)
+            logger.info('Settlement already updated: %s ~ %s', start_date, end_date)
             continue
         except SettlementDataRecord.DoesNotExist, ex:
             pass
-        logger.info('start update Settlement : %s ~ %s', settlement_data['SettlementData']['StartDate'],
-                    settlement_data['SettlementData']['EndDate'])
+        logger.info('start update Settlement : %s ~ %s', start_date, end_date)
         handler = SettlementDbHandler(market)
         settlement = handler.update_settlement_to_db(settlement_data)
         settlement.report_id = report_id
@@ -111,14 +110,14 @@ def update_advertising_report(market, settlement):
             else:
                 advertising_list = update_product_advertising_to_db(settlement, ads)
                 if len(ads) == len(advertising_list):
-                    logger.info('get dally advertising success, start date: %s', ads[0]['StartDate'])
+                    logger.info('get daily advertising success, start date: %s', ads[0]['StartDate'])
                     return True
                 else:
                     logger.info('update advertising to database fail, report_id: %s, items: %s',
                                 request_id, str(ads))
                     return False
         else:
-            logger.info('get dally advertising fail, report_id: %s', request_id)
+            logger.info('get daily advertising fail, report_id: %s', request_id)
             return False
         # end _update_to_db
 
@@ -133,6 +132,10 @@ def update_advertising_report(market, settlement):
     dally_report_type = '_GET_PADS_PRODUCT_PERFORMANCE_OVER_TIME_DAILY_DATA_TSV_'
     weekly_report_type = '_GET_PADS_PRODUCT_PERFORMANCE_OVER_TIME_WEEKLY_DATA_TSV_'
     while tmp_start < end:
+        # if (datetime.datetime.now() - tmp_start).days >= 60:
+        #     logger.error('cannot read advertising 60 days before')
+        #     data_valid = False
+        #     break
         if tmp_start.weekday() != SUNDAY or (end-tmp_start).days < 7:
             # 增加一个日请求
             # 数据库中是否已更新了相关数据
@@ -154,7 +157,7 @@ def update_advertising_report(market, settlement):
                         tmp_start = tmp_start + datetime.timedelta(days=1)
                         continue
                     else:
-                        if (datetime.datetime.now() - record.request_time).total_seconds() > 30*60: # 半个小时仍未生成报告，重新请求
+                        if (datetime.datetime.utcnow().replace(tzinfo=utc) - record.request_time).total_seconds() > 30*60: # 半个小时仍未生成报告，重新请求
                             record.delete()
                         else:
                             all_request_id[record.request_report_id] = record.start_time
@@ -162,10 +165,10 @@ def update_advertising_report(market, settlement):
                             continue
                 except ReportRequestRecord.DoesNotExist, ex:
                     pass
-            request_id = service.request_by_day(tmp_start)
-            all_request_id[request_id] = tmp_start
-            ReportRequestRecord.objects.get_or_create(report_type=dally_report_type, start_time=tmp_start,
-                                                      request_report_id=request_id)
+                request_id = service.request_by_day(tmp_start)
+                all_request_id[request_id] = tmp_start
+                ReportRequestRecord.objects.get_or_create(report_type=dally_report_type, start_time=tmp_start,
+                                                          request_report_id=request_id)
             tmp_start = tmp_start + datetime.timedelta(days=1)
         else:
             # 增加一个周请求
@@ -180,7 +183,7 @@ def update_advertising_report(market, settlement):
                     if record.report_id:
                         items = service.get_items_by_report_id(record.report_id)
                     else:
-                        if (datetime.datetime.now() - record.request_time).total_seconds() > 30*60: # 如果半个小时仍未生成报告，则重新生成
+                        if (datetime.datetime.utcnow().replace(tzinfo=utc) - record.request_time).total_seconds() > 30*60: # 如果半个小时仍未生成报告，则重新生成
                             record.delete()
                             items = service.get_by_week(tmp_start)
                         else:
@@ -244,16 +247,23 @@ def update_all(market):
         return
     market.sync_report_status = 10
     market.save()
+    exception = False
     try:
-        # update_settlement(market)
+        update_settlement(market)
 
         settlements = Settlement.objects.filter(advertising_report_valid=False)
         for settlement in settlements:
-            update_advertising_report(market, settlement)
-                # update_removal_report(market, settlement)
+            try:
+                update_advertising_report(market, settlement)
+            except BaseException, ex:
+                exception = True
+                logger.error('update_advertising eception, settlement: %s ~ %s, exception:%s',
+                             settlement.StartDate, settlement.EndDate, traceback.format_exc())
         update_product(market)
         market.sync_report_status = 0
     except BaseException, ex:
+        exception = True
         logger.error(traceback.format_exc())
+    if exception:
         market.sync_report_status = 1
     market.save()

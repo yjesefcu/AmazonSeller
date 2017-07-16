@@ -140,28 +140,6 @@ class AmazonService(object):
 
         return None
 
-    def _add_record(self, uri, action, param, response_text):
-        if not self.market:     #  如果market为空，说明是调试信息，则不保存
-            return
-        errors = None
-        try:
-            parser = BaseParser(response_text)
-            if parser.is_error_response():
-                errors = ', '.join([i for i in parser.errors()])
-                result = RequestRecords.FAIL
-            else:
-                result = RequestRecords.SUCCESS
-        except Exception, ex:
-            traceback.format_exc()
-            logger.warning('xml parser fail: %s', response_text)
-            result = RequestRecords.PARSER_FAIL
-        try:
-            RequestRecords.objects.create(market=self.market, uri=uri, action=action, params=json.dumps(param),
-                                          create_time=datetime.datetime.now(), sent_time=datetime.datetime.now(),
-                                          result=result, errors=errors)
-        except BaseException, ex:
-            logger.warning('create RequestRecord failed: %s', traceback.format_exc())
-
     def create_signature(self, uri, params):
         """
         签名生成器
@@ -178,16 +156,6 @@ class AmazonService(object):
         secret = bytes(self.SecretKey).encode('utf-8')
         signature = base64.b64encode(hmac.new(secret, message, digestmod=hashlib.sha256).digest())
         return signature
-
-    def _can_post(self):
-        """
-        根据api限制，判断是否能够发起请求，不能的话等待相应的时间
-        """
-        if not self.last_post_time:
-            return True
-        if (datetime.datetime.now() - self.last_post_time).seconds > self._get_api_interval_time():
-            return True
-        return False
 
     def _get_api_interval_time(self):
         """
