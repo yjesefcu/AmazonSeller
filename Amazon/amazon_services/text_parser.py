@@ -27,7 +27,7 @@ class BaseTextParser(object):
             self.items = list()
             self._parse()
         except Exception, ex:
-            raise TextParseException('text parser exception')
+            raise TextParseException('text parser exception:%s', s)
 
     def _parse(self):
         pass

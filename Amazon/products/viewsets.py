@@ -123,7 +123,7 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
         if abs(fee - to_float(instance.advertising_fee_adjust)) > 0.1:
             products = ProductSettlement.objects.filter(settlement=instance, advertising_fee__isnull=False, is_total=False)
             count = products.count()
-            diff = fee - instance.advertising_fee
+            diff = fee - to_float(instance.advertising_fee)
             if count > 0:
                 avg = diff / count
                 # 将每个商品的广告费加上avg

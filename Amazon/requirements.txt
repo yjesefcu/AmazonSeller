@@ -7,3 +7,8 @@ py-dateutil
 chardet
 xlrd
 xlwt
+requests
+Pillow
+lxml
+MySQL-python
+pytz

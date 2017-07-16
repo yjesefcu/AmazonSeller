@@ -252,13 +252,29 @@ class SettlementDbHandler(object):
         data['product'] = product
         data['SellerSKU'] = product.SellerSKU
         # 获取该订单的商品数量、以及退款的总额
-        try:
-            soi = SettleOrderItem.objects.get(OrderItemId=data['OrderItemId'])
-            data['order_item'] = soi
-            data['quantity'] = soi.Quantity
-            data['UnitPrice'] = soi.UnitPrice
-        except SettleOrderItem.DoesNotExist, ex:
+        order_list = SettleOrderItem.objects.filter(OrderItemId=data['OrderItemId'])
+        exist = False
+        order = None
+        count = order_list.count()
+        if not count:
+            logger.error('SettleOrderItem not exist:%s', data['OrderItemId'])
             data['UnitPrice'], data['quantity'] = self._get_order_item_quantity_from_amazon(data['OrderItemId'], data['AmazonOrderId'])
+        else:
+            if count > 1:
+                logger.info('SettleOrderItem return more than one: %s', data['OrderItemId'])
+                for o in order_list:
+                    if (-o.Principal) == to_float(data['PriceAdjustmentAmount']):
+                        exist = True
+                        order = o
+                        break
+                if not exist:
+                    logger.error('return more than one but cannot found OrderItem for RefundItem: %s', data['OrderItemId'])
+            if not order:
+                order = order_list.first()
+            data['order_item'] = order
+            data['quantity'] = order.Quantity
+            data['UnitPrice'] = order.UnitPrice
+
         # 找到对应的订单信息
         return RefundItem.objects.create(**data)
 
@@ -359,6 +375,9 @@ class SettlementDbHandler(object):
                 # 找不到的话，查找订单信息，找到对应的商品SellerSKU
                 logger.warning('FBACustomReturn: cannot find refund item:%s', fee.AmazonOrderId)
                 items = OrderItemService(self.market).list_items(fee.AmazonOrderId)
+                if not items:
+                    logger.error('exception occurred when get OrderItem related to FBACustomerReturn: %s', fee.AmazonOrderId)
+                    continue
                 fee.SellerSKU = items[0]['SellerSKU']
                 fee.save()
                 continue
@@ -431,7 +450,7 @@ def update_product_advertising_to_db(settlement, data):
         if d.endswith('PDT'):
             return d[0: len(d)-4]
         return d
-
+    items = list()
     for item in data:
         item['MarketplaceId'] = settlement.MarketplaceId
         item['settlement'] = settlement
@@ -440,7 +459,8 @@ def update_product_advertising_to_db(settlement, data):
         product, created = Product.objects.get_or_create(MarketplaceId=settlement.MarketplaceId, SellerSKU=item['SellerSKU'])
         item['product'] = product
         item['cost'] = -float(item['TotalSpend'])
-        AdvertisingProductItems.objects.create(**item)
+        items.append(AdvertisingProductItems.objects.create(**item))
+    return items
 
 
 #################  成本计算 ####################

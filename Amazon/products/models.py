@@ -283,7 +283,6 @@ class RefundItem(models.Model):
             ProductSettlement.objects.get(settlement=self.settlement, product=self.product).update_cost(cost_diff)
 
 
-
 class OtherTransaction(models.Model):
     """
     其他服务费

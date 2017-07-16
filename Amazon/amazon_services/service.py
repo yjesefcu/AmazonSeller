@@ -1,7 +1,7 @@
 #-*- coding:utf-8 -*-
 __author__ = 'liucaiyun'
 import requests, urllib, base64, hmac, hashlib, traceback, time, logging, threading, Queue, json
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
+# from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import datetime
 from Queue import Queue
 from xml_parser import *
@@ -10,7 +10,7 @@ from models import RequestRecords, ReportRequestRecord
 from exception import *
 logger = logging.getLogger('amazon')
 # 禁用安全请求警告
-requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+# requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 
 HOST = 'mws.amazonservices.com'
@@ -130,7 +130,8 @@ class AmazonService(object):
             r = requests.post(url, verify=False, headers={'Connection': 'close'})
             if RequestExceed(r.text).is_exceed:
                     raise RequestExceedException()
-            logger.info('post return success: %s, action=%s', self.__class__.__name__, action)
+            logger.info('post return success: %s, action=%s, status=%d',
+                        self.__class__.__name__, action, r.status_code)
             return r
         except Exception, ex:
             traceback.format_exc()
@@ -311,7 +312,8 @@ class ListReportService(AmazonService):
 
     def list_report(self, request_type):
         r = self.post('/', 'GetReportList', {
-            'ReportTypeList.Type.1': request_type
+            'ReportTypeList.Type.1': request_type,
+            'MaxCount': '15'
         }, api_version='2009-01-01')
         if r:
             return ReportListParser(r.text).get_items()

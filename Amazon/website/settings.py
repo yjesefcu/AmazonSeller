@@ -91,7 +91,7 @@ DATABASES = {
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Shanghai'
 
 USE_I18N = True
 
@@ -146,7 +146,7 @@ LOGGING = {
         'default': {
             'level': 'DEBUG',
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR,'logs/', 'all.log'),
+            'filename': os.path.join(BASE_DIR, 'logs/', 'all.log'),
             'maxBytes': 1024 * 1024 * 20,  # 20 MB
             'backupCount': 10,
             'formatter': 'verbose',

@@ -66,6 +66,7 @@ def update_settlement(market=None):
     if not reports:
         print 'Settlement Report is None'
         return
+    reports.reverse()
     for report in reports:
         available_date = dateutil.parser.parse(report['AvailableDate']).replace(tzinfo=None).date()
         if available_date < period_start:
@@ -73,6 +74,7 @@ def update_settlement(market=None):
         report_id = report['ReportId']
         if report_id in report_id_list:
             continue
+        logger.info('get settlement data of report: %s', report_id)
         settlement_data = service.get_one(report_id)
         start_date = dateutil.parser.parse(settlement_data['SettlementData']['StartDate']).replace(tzinfo=None)
         end_date = dateutil.parser.parse(settlement_data['SettlementData']['EndDate']).replace(tzinfo=None)
@@ -81,9 +83,13 @@ def update_settlement(market=None):
             continue
         try:
             SettlementDataRecord.objects.get(data_type=SettlementDataRecord.SETTLEMENT, start_time=settlement_data['SettlementData']['StartDate'])
+            logger.info('Settlement already updated: %s ~ %s', settlement_data['SettlementData']['StartDate'],
+                        settlement_data['SettlementData']['EndDate'])
             continue
         except SettlementDataRecord.DoesNotExist, ex:
             pass
+        logger.info('start update Settlement : %s ~ %s', settlement_data['SettlementData']['StartDate'],
+                    settlement_data['SettlementData']['EndDate'])
         handler = SettlementDbHandler(market)
         settlement = handler.update_settlement_to_db(settlement_data)
         settlement.report_id = report_id
@@ -93,6 +99,30 @@ def update_settlement(market=None):
 
 
 def update_advertising_report(market, settlement):
+
+    def _update_to_db(ads, request_id):
+
+        if ads is not None:
+            if request_id in all_request_id:
+                del all_request_id[request_id]
+            if len(ads) == 0:
+                logger.warning('advertising items is empty, report_id: %s, items: %s', request_id, str(ads))
+                return True
+            else:
+                advertising_list = update_product_advertising_to_db(settlement, ads)
+                if len(ads) == len(advertising_list):
+                    logger.info('get dally advertising success, start date: %s', ads[0]['StartDate'])
+                    return True
+                else:
+                    logger.info('update advertising to database fail, report_id: %s, items: %s',
+                                request_id, str(ads))
+                    return False
+        else:
+            logger.info('get dally advertising fail, report_id: %s', request_id)
+            return False
+        # end _update_to_db
+
+    logger.info('start update advertising of settlement: %s ~ %s', settlement.StartDate, settlement.EndDate)
     service = AdvertiseReportService(market)
     start = settlement.StartDate.replace(hour=0, minute=0, second=0)
     end = settlement.EndDate.replace(hour=0, minute=0, second=0)
@@ -113,12 +143,29 @@ def update_advertising_report(market, settlement):
                 # 判断是否请求过
                 try:
                     record = ReportRequestRecord.objects.get(report_type=dally_report_type, start_time=tmp_start)
-                    all_request_id[record.request_report_id] = record.start_time
+                    if record.report_id:
+                        items = service.get_items_by_report_id(record.report_id)
+                        if not _update_to_db(items, record.request_report_id):
+                            data_valid = False
+                        else:
+                            SettlementDataRecord.objects.get_or_create(settlement=settlement, start_time=tmp_start,
+                                                                     end_time=tmp_start+datetime.timedelta(days=1),
+                                                                     data_type=SettlementDataRecord.ADVERTISE)
+                        tmp_start = tmp_start + datetime.timedelta(days=1)
+                        continue
+                    else:
+                        if (datetime.datetime.now() - record.request_time).total_seconds() > 30*60: # 半个小时仍未生成报告，重新请求
+                            record.delete()
+                        else:
+                            all_request_id[record.request_report_id] = record.start_time
+                            tmp_start = tmp_start + datetime.timedelta(days=1)
+                            continue
                 except ReportRequestRecord.DoesNotExist, ex:
-                    request_id = service.request_by_day(tmp_start)
-                    all_request_id[request_id] = tmp_start
-                    ReportRequestRecord.objects.get_or_create(report_type=dally_report_type, start_time=tmp_start,
-                                                              request_report_id=request_id)
+                    pass
+            request_id = service.request_by_day(tmp_start)
+            all_request_id[request_id] = tmp_start
+            ReportRequestRecord.objects.get_or_create(report_type=dally_report_type, start_time=tmp_start,
+                                                      request_report_id=request_id)
             tmp_start = tmp_start + datetime.timedelta(days=1)
         else:
             # 增加一个周请求
@@ -130,22 +177,31 @@ def update_advertising_report(market, settlement):
                 # 判断是否请求过
                 try:
                     record = ReportRequestRecord.objects.get(report_type=weekly_report_type, start_time=tmp_start)
-                    items = service.get_by_week(tmp_start, record.request_report_id)
+                    if record.report_id:
+                        items = service.get_items_by_report_id(record.report_id)
+                    else:
+                        if (datetime.datetime.now() - record.request_time).total_seconds() > 30*60: # 如果半个小时仍未生成报告，则重新生成
+                            record.delete()
+                            items = service.get_by_week(tmp_start)
+                        else:
+                            items = service.get_by_week(tmp_start, record.request_report_id)
+                    update_success = _update_to_db(items, record.request_report_id)
                 except ReportRequestRecord.DoesNotExist, ex:
                     items = service.get_by_week(tmp_start)
-                if items is not None:
-                    update_product_advertising_to_db(settlement, items)
-                    SettlementDataRecord.objects.create(settlement=settlement, start_time=tmp_start,
-                                                     end_time=tmp_start+datetime.timedelta(days=7), data_type=SettlementDataRecord.ADVERTISE)
-                    logger.info('get weekly advertising success, start date: %s', tmp_start)
-                else:
-                    logger.info('get weekly advertising fail, start date: %s', tmp_start)
+                    update_success = _update_to_db(items, tmp_start)
+                if not update_success:
                     data_valid = False
+                else:
+                    SettlementDataRecord.objects.get_or_create(settlement=settlement, start_time=tmp_start,
+                                                             end_time=tmp_start+datetime.timedelta(days=7),
+                                                             data_type=SettlementDataRecord.ADVERTISE)
             tmp_start = tmp_start + datetime.timedelta(days=7)
     if not len(all_request_id.keys()):
+        settlement.advertising_report_valid = True
+        settlement.save()
         return
     # 获取report_id
-    max_try = 3
+    max_try = 4
     try_time = 0
     while try_time < max_try and len(all_request_id.keys()):
         reports = service.list_report(dally_report_type)        # 获取所有报告
@@ -158,28 +214,28 @@ def update_advertising_report(market, settlement):
                 record.report_id = report_id
                 record.save()
                 items = service.get_items_by_report_id(report_id)
-                if items is not None:
-                    update_product_advertising_to_db(settlement, items)
+                if not _update_to_db(items, request_id):
+                    data_valid = False
+                else:
                     SettlementDataRecord.objects.get_or_create(settlement=settlement, start_time=all_request_id[request_id],
                                                              end_time=all_request_id[request_id]+datetime.timedelta(days=1),
                                                              data_type=SettlementDataRecord.ADVERTISE)
-                    logger.info('get dally advertising success, start date: %s', tmp_start)
-                    del all_request_id[request_id]
-                else:
-                    logger.info('get dally advertising fail, start date: %s', tmp_start)
-                    data_valid = False
         if not len(all_request_id.keys()):
             break
-        time.sleep(180)     # 等待3分钟
+        time.sleep(300)     # 等待3分钟
         try_time += 1
     if try_time >= max_try:
         logger.warning('try %d times, sync advertising report fail', max_try)
     if data_valid or try_time < max_try:
+        logger.info('success update advertising of settlement: %s ~ %s', settlement.StartDate, settlement.EndDate)
         settlement.advertising_report_valid = True
         advertising_fee = sum_queryset(ProductSettlement.objects.filter(settlement=settlement, is_total=False,
                                                                         product__isnull=False), 'advertising_fee')
         settlement.advertising_fee = advertising_fee
-        settlement.save()
+    else:
+        logger.info('failed update advertising of settlement: %s ~ %s', settlement.StartDate, settlement.EndDate)
+        settlement.advertising_report_valid = False
+    settlement.save()
 
 
 def update_all(market):
@@ -189,7 +245,7 @@ def update_all(market):
     market.sync_report_status = 10
     market.save()
     try:
-        update_settlement(market)
+        # update_settlement(market)
 
         settlements = Settlement.objects.filter(advertising_report_valid=False)
         for settlement in settlements:
