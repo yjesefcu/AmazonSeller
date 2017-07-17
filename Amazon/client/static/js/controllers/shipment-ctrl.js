@@ -9,9 +9,23 @@ app.controller('ShipmentCtrl', function ($scope, $http, $rootScope, serviceFacto
     }).catch(function (result) {
 
     });
+
+    $scope.deleteShipment = function(index, id){
+        $http.delete(serviceFactory.shipmentDetail(id))
+            .then(function (result) {
+                $rootScope.addAlert('info', '删除成功');
+                $scope.shipments.splice(index, 1);
+            }).catch(function (result) {
+                if (result.status == 400){
+                    $rootScope.addAlert('error', '需删除所有商品记录后才能删除');
+                    return;
+                }
+                $rootScope.addAlert('error', '修改失败');
+            });
+    }
 });
 
-app.controller('OutboundEditCtrl', function ($scope, $http, $rootScope, $stateParams, $state, serviceFactory) {
+app.controller('OutboundEditCtrl', function ($scope, $http, $rootScope, $stateParams, $state, $timeout, serviceFactory) {
     var id = $stateParams.id;
     $scope.formData = {MarketplaceId: $rootScope.MarketplaceId};
     $scope.products = [];
@@ -66,6 +80,36 @@ app.controller('OutboundEditCtrl', function ($scope, $http, $rootScope, $statePa
                 $scope.products[index] = result.data;
                 $scope.products[index].isEdit = false;
             }).catch(function (result) {
+                $rootScope.addAlert('error', '修改失败');
+            });
+    };
+
+    $scope.deleteItem = function(index, id){    //删除子项
+        $http.delete(serviceFactory.shipmentItemDetail(id))
+            .then(function (result) {
+                $rootScope.addAlert('info', '删除成功');
+                $scope.products.splice(index, 1);
+            }).catch(function (result) {
+                if (result.status == 400){
+                    $rootScope.addAlert('error', '库存 < 原始数量，无法删除');
+                    return;
+                }
+                $rootScope.addAlert('error', '修改失败');
+            });
+    };
+
+    $scope.deleteShipment = function(){
+        $http.delete(serviceFactory.shipmentDetail(id))
+            .then(function (result) {
+                $rootScope.addAlert('info', '删除成功');
+                $timeout(function(){
+                    window.history.back();
+                }, 1000);
+            }).catch(function (result) {
+                if (result.status == 400){
+                    $rootScope.addAlert('error', '需删除所有商品记录后才能删除');
+                    return;
+                }
                 $rootScope.addAlert('error', '修改失败');
             });
     }

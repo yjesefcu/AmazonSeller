@@ -104,6 +104,7 @@
                             <a class="fa fa-pencil" ng-click="p.unit_cost_new=p.unit_cost;p.isEdit=true" ng-if="!p.isEdit" title="修改单位成本"></a>
                             <a class="fa fa-check text-green" ng-click="saveSupplyCost($index, p.id )" ng-if="p.isEdit" title="保存"></a>
                             <a class="fa fa-close text-red" ng-click="p.isEdit=false" ng-if="p.isEdit" title="取消"></a>
+                            <a class="fa fa-trash-o text-red" title="删除该记录" ng-click="deleteSupply($index,p.id)"></a>
                         </td>
                     </tr>
                     </tbody>

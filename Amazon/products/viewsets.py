@@ -177,6 +177,16 @@ class SupplyViewSet(NestedViewSetMixin, ModelViewSet):
         product.domestic_inventory += instance.inventory
         product.save()
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.real_inventory < instance.count:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        # 更新商品库存信息
+        instance.product.domestic_inventory -= instance.count
+        instance.product.save()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class ProductShipmentItemViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = OutboundShipmentItem.objects.all()
@@ -222,6 +232,30 @@ class OutboundShipmentItemViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = OutboundShipmentItem.objects.all()
     serializer_class = OutboundShipmentItemSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.inventory < instance.QuantityShipped:   # 如果库存<原始数量，说明已经计算过成本，则无法删除
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        # 补充到Supply中
+        supplies = InboundShipment.objects.filter(product=instance.product, real_inventory__lt=F('count'))
+        diff = instance.QuantityShipped
+        for supply in supplies:
+            tmp = supply.count - supply.real_inventory
+            if tmp >= diff:
+                supply.real_inventory += diff
+                supply.save()
+                break
+            supply.real_inventory = supply.count
+            supply.save()
+            diff -= tmp
+        # 补充supply end
+        # 更新商品库存
+        instance.product.amazon_inventory -= instance.QuantityShipped
+        instance.product.domestic_inventory += instance.QuantityShipped
+        instance.product.save()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class OutboundShipmentViewSet(NestedViewSetMixin, ModelViewSet):
@@ -373,6 +407,14 @@ class OutboundShipmentViewSet(NestedViewSetMixin, ModelViewSet):
             tmp_count -= inbound.real_inventory
             inbound.real_inventory = 0
             inbound.save()
+
+    def destroy(self, request, *args, **kwargs):        # 删除
+        instance = self.get_object()
+        # 需要将子项全部删除后才可删除这条记录
+        if instance.products.exists():
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class RefundViewSet(NestedViewSetMixin, ModelViewSet):

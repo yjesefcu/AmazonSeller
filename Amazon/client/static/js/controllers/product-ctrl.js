@@ -214,6 +214,19 @@ app.controller("ProductEditCtrl", function ($scope, $http, $rootScope, $location
             $rootScope.addAlert('error', '保存失败');
         });
     };
+
+    $scope.deleteSupply = function(index, id){
+        $http.delete(serviceFactory.supplyDetail(id)).then(function (result) {
+            $rootScope.addAlert('info', '删除成功');
+            $scope.supplies.splice(index, 1);
+        }).catch(function (result) {
+            if (result.status == 400){
+                $rootScope.addAlert('error', '库存 < 原始数量，无法删除');
+                return;
+            }
+            $rootScope.addAlert('error', '保存失败');
+        });
+    }
 });
 
 app.controller('ProductOrdersCtrl', function ($scope, $rootScope, $http, $location, $state, $stateParams, $timeout, serviceFactory) {

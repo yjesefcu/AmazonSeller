@@ -25,6 +25,7 @@
                             <th>货件号</th>
                             <th>运送时间</th>
                             <th>发货城市</th>
+                            <th>操作</th>
                             <!--<th>操作</th>-->
                         </tr>
                         </thead>
@@ -34,10 +35,9 @@
                             <td><a ui-sref="index.shipmentDetail({id: os.id})">{{ os.ShipmentId }}</a></td>
                             <td>{{ os.ship_date }}</td>
                             <td>{{ os.ShipFromCity }}</td>
-                            <!--<td>-->
-                                <!--<a><i class="fa fa-edit" data-toggle="tooltip" title="编辑"></i></a>-->
-                                <!--<a><i class="fa fa-file-text-o" data-toggle="tooltip" title="查看详细信息"></i></a>-->
-                            <!--</td>-->
+                            <td>
+                                <a class="fa fa-trash-o text-red" title="删除该记录" ng-click="deleteShipment($index,os.id)"></a>
+                            </td>
                         </tr>
                         </tbody>
                     </table>
