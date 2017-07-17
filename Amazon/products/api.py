@@ -510,6 +510,86 @@ class CostCalculate(object):
 
 
 #################  Settlement ####################
+class ProductIncomeCalc(object):
+    # 计算商品的销售部分数据
+
+    def calc_income(self, settlement):
+        self.income = 0
+        self.amount = 0
+        self._calc_order(settlement)
+        self._calc_removals(settlement)
+        self._calc_with_refunds(settlement)
+        self._calc_lost(settlement)
+        settlement.income = self.income
+        settlement.amount = self.amount
+        settlement.save()
+
+    def calc_removal_income(self, settlement):
+        self.amount = 0
+        self._calc_removals(settlement)
+        return self.amount
+
+    def _calc_order(self, settlement):
+        """
+        计算每个订单的成本
+        :return:
+        """
+        orders = SettleOrderItem.objects.filter(settlement=settlement)
+        # if not orders.exists():
+        #     return
+        for order in orders:
+            order.income = order.Principal
+            order.amazon_cost = to_float(order.FBAPerUnitFulfillmentFee) + to_float(order.FBAPerOrderFulfillmentFee) \
+                                  + to_float(order.Commission)
+            order.promotion = to_float(order.PromotionShipping) + to_float(order.PromotionPrincipal)
+            order.amount = to_float(order.income) + to_float(order.amazon_cost) + to_float(order.promotion)
+            order.save()
+            self.income += order.income
+            self.amount += order.amount
+
+    def _calc_with_refunds(self, settlement):
+        """
+        计算退货的收入支出
+        :param product:
+        """
+        refunds = RefundItem.objects.filter(settlement=settlement)
+        for refund in refunds:
+            refund.income = to_float(refund.PriceAdjustmentAmount)
+            refund.promotion = to_float(refund.PromotionPrincipal) + to_float(refund.PromotionShipping)
+            refund.amazon_cost = to_float(refund.Commission) + to_float(refund.RefundCommission)
+            refund.amount = refund.income + refund.promotion + refund.amazon_cost
+            refund.save()
+            self.income += refund.income
+            self.amount += refund.amount
+
+    def _calc_removals(self, settlement):
+        """
+        计算弃置/移除的商品，相当于销售出去
+        """
+        items = ProductRemovalItem.objects.filter(settlement=settlement)
+
+        for item in items:
+            item.amazon_cost = to_float(item.Fee)
+            item.amount = item.amazon_cost
+            item.save()
+            self.amount += item.amount
+
+
+    def _calc_lost(self, settlement):
+        """
+        计算丢失赔偿的订单，相当于销售出去
+        :param product:
+        :return: 总成本
+        """
+        items = OtherTransactionItem.objects.filter(settlement=settlement)
+        # if not items.exists():
+        #     return
+        for item in items:
+            item.income = item.Amount if item.Amount else 0
+            item.save()
+            self.income += item.income
+
+
 class ProductProfitCalc(object):
 
     def __init__(self, settlement):
@@ -669,11 +749,6 @@ class ProductProfitCalc(object):
         order.supply_cost = -product.supply_cost
         order.shipment_cost = -product.shipment_cost
         order.cost = -product.cost
-        order.income = order.Principal
-        order.amazon_cost = to_float(order.FBAPerUnitFulfillmentFee) + to_float(order.FBAPerOrderFulfillmentFee) \
-                              + to_float(order.Commission)
-        order.promotion = to_float(order.PromotionShipping) + to_float(order.PromotionPrincipal)
-        order.amount = to_float(order.income) + to_float(order.amazon_cost) + to_float(order.promotion)
         order.total_cost = (order.supply_cost + order.shipment_cost) * order.Quantity + subscribe_fee
         order.profit = order.amount + order.total_cost
         order.profit_rate = order.profit / order.income if order.income else 0
@@ -696,10 +771,6 @@ class ProductProfitCalc(object):
             else:
                 refund.cost = product.cost
             refund.total_cost = refund.cost * refund.quantity
-            refund.income = to_float(refund.PriceAdjustmentAmount)
-            refund.promotion = to_float(refund.PromotionPrincipal) + to_float(refund.PromotionShipping)
-            refund.amazon_cost = to_float(refund.Commission) + to_float(refund.RefundCommission)
-            refund.amount = refund.income + refund.promotion + refund.amazon_cost
             refund.profit = refund.total_cost + refund.amount
             refund.profit_rate = refund.profit / refund.income if refund.income else 0
             refund.save()
@@ -727,8 +798,6 @@ class ProductProfitCalc(object):
         #     return
         for item in items:
             item.cost = -product.cost
-            item.amazon_cost = to_float(item.Fee)
-            item.amount = item.amazon_cost
             item.total_cost = product.cost * item.Quantity
             item.profit = item.total_cost + item.amount
             item.save()
@@ -760,7 +829,6 @@ class ProductProfitCalc(object):
             else:
                 item.cost = -product.cost
                 self.sale_quantity += item.Quantity
-            item.income = item.Amount if item.Amount else 0
             item.total_cost = item.Quantity * item.cost
             item.profit = item.total_cost + item.income
             item.profit_rate = item.profit/item.income if item.income else 0

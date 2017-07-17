@@ -118,6 +118,14 @@ def _init_shipment():
     print r.status_code
 
 
+def calc_income(request):
+    pk = request.GET.get('id')
+    settlement = Settlement.objects.get(pk=pk)
+    calc = ProductIncomeCalc()
+    calc.calc_income(settlement)
+    return HttpResponse('success')
+
+
 # def upload_file(request):
 #     if request.method == 'POST':
 #         form = UploadFileForm(request.POST, request.FILES)

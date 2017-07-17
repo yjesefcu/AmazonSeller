@@ -14,7 +14,7 @@ from amazon_services.exception import TextParseException
 from amazon_services.models import MarketAccount
 from models import *
 from serializer import *
-from api import FileImporter, to_float, get_float, ValidationChecker
+from api import FileImporter, to_float, get_float, ValidationChecker, ProductIncomeCalc
 from errors import Error
 from data_export import DataExport
 
@@ -417,7 +417,11 @@ class RemovalViewSet(NestedViewSetMixin, ModelViewSet):
         try:
             _query_dict = self.get_parents_query_dict()
             settlement = Settlement.objects.get(pk=_query_dict['settlement'])
+            before_amount = ProductIncomeCalc().calc_removal_income(settlement)
             items = FileImporter().import_removals(text, settlement)
+            after_amount = ProductIncomeCalc().calc_removal_income(settlement)
+            settlement.amount += (after_amount - before_amount)     # 更新settlement的income信息
+            settlement.save()
         except TextParseException, ex:
             return Response({'errno': 1})
         settlement.removal_imported = True

@@ -202,7 +202,7 @@ def update_advertising_report(market, settlement):
     if not len(all_request_id.keys()):
         settlement.advertising_report_valid = True
         settlement.save()
-        return
+        return True
     # 获取report_id
     max_try = 4
     try_time = 0
@@ -235,10 +235,12 @@ def update_advertising_report(market, settlement):
         advertising_fee = sum_queryset(ProductSettlement.objects.filter(settlement=settlement, is_total=False,
                                                                         product__isnull=False), 'advertising_fee')
         settlement.advertising_fee = advertising_fee
+        return True
     else:
         logger.info('failed update advertising of settlement: %s ~ %s', settlement.StartDate, settlement.EndDate)
         settlement.advertising_report_valid = False
     settlement.save()
+    return settlement.advertising_report_valid
 
 
 def update_all(market):
@@ -254,7 +256,9 @@ def update_all(market):
         settlements = Settlement.objects.filter(advertising_report_valid=False)
         for settlement in settlements:
             try:
-                update_advertising_report(market, settlement)
+                valid = update_advertising_report(market, settlement)
+                if valid:
+                    ProductIncomeCalc().calc_income(settlement)
             except BaseException, ex:
                 exception = True
                 logger.error('update_advertising eception, settlement: %s ~ %s, exception:%s',
