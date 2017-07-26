@@ -62,6 +62,9 @@ app.factory('serviceFactory', function ($rootScope) {
     services.settlementProducts = function (settlementId) {
         return host + '/api/settlements/' + settlementId + '/products/';
     };
+    services.getUrl = function(url){
+        return host + url;
+    };
     services.settlementOrders = function (settlementId) {
         return host + '/api/settlements/' + settlementId + '/orders/';
     };

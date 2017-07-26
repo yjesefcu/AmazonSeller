@@ -30,6 +30,7 @@ app.controller('OutboundEditCtrl', function ($scope, $http, $rootScope, $statePa
     $scope.formData = {MarketplaceId: $rootScope.MarketplaceId};
     $scope.products = [];
     $scope.error_msg = '';
+    $scope.volume_args = 5000;
     $scope.addProductRow = function () {
         $scope.products.push({});
     };
@@ -112,5 +113,72 @@ app.controller('OutboundEditCtrl', function ($scope, $http, $rootScope, $statePa
                 }
                 $rootScope.addAlert('error', '修改失败');
             });
+    };
+
+    $scope.getProductInfo = function(index){
+        var product=$scope.products[index];
+        if (!product['SellerSKU']){
+            return;
+        }
+        $http.get(serviceFactory.getUrl('/product/sku/?SellerSKU='+product['SellerSKU'])).then(function(result){
+            var returnData = result.data;
+            product['width'] = returnData.width;
+            product['height'] = returnData.height;
+            product['length'] = returnData.length;
+            product['volume_weight'] = $scope.volume_args ? product.width * product.height * product.length / $scope.volume_args : 0;
+            $scope.calc();
+        }).catch(function(result){
+            console.log('get product by sku fail');
+        });
+    };
+
+    $scope.sum = function (field, plusQuantity) {
+        var total = 0;
+       for (var i in $scope.products){
+           if (plusQuantity){
+               total += parseFloat($scope.products[i][field]) * $scope.products[i].QuantityShipped;
+           }else{
+               total += parseFloat($scope.products[i][field]);
+           }
+       }
+        return total;
+    };
+
+    function calcVolumeWeight(product){
+        return product.weight*product.height*product.length/$scope.volume_args;
+    }
+
+    $scope.totalWeight = 0;
+    $scope.totalTax = 0;
+    $scope.totalFreight = 0;
+
+    $scope.calc = function(){
+        var p, totalWeight=0, totalPrice= 0, totalFreight= 0,totalTax=0;
+        for (var i in $scope.products){
+            p = $scope.products[i];
+            p.volume_weight = p.weight * p.height * p.length / $scope.volume_args;
+            p.unit_weight = Math.max(parseFloat(p.volume_weight), parseFloat(p.weight)) * p.QuantityShipped;
+            totalWeight += p.unit_weight;
+            totalPrice += p.unit_price * p.QuantityShipped;
+        }
+        // 计算每个商品的运费和关税
+        for (var i in $scope.products){
+            p = $scope.products[i];
+            p.total_freight = p.unit_weight  / totalWeight * $scope.formData.total_freight;
+            totalFreight += p.total_freight;
+            p.duty = p.unit_price* p.QuantityShipped  / totalPrice * $scope.formData.duty;
+            totalTax += p.duty;
+        }
+        $scope.totalWeight = totalWeight;
+        $scope.totalTax = totalTax;
+        $scope.totalFreight = totalFreight;
+    };
+
+    $scope.avgTax = function(){
+
+
+        for (var i in $scope.products){
+
+        }
     }
 });

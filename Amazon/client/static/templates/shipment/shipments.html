@@ -24,7 +24,8 @@
                             <th>序号</th>
                             <th>货件号</th>
                             <th>运送时间</th>
-                            <th>发货城市</th>
+                            <th>总运费</th>
+                            <th>总关税</th>
                             <th>操作</th>
                             <!--<th>操作</th>-->
                         </tr>
@@ -34,7 +35,8 @@
                             <td>{{ $index + 1 }}</td>
                             <td><a ui-sref="index.shipmentDetail({id: os.id})">{{ os.ShipmentId }}</a></td>
                             <td>{{ os.ship_date }}</td>
-                            <td>{{ os.ShipFromCity }}</td>
+                            <td>{{ os.total_freight }}</td>
+                            <td>{{ os.duty }}</td>
                             <td>
                                 <a class="fa fa-trash-o text-red" title="删除该记录" ng-click="deleteShipment($index,os.id)"></a>
                             </td>

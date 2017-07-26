@@ -83,11 +83,13 @@ class OutboundShipment(models.Model):
     LabelPrepType = models.CharField(max_length=100, null=True, blank=True)     # 入库货件必需的标签准备的类型。
     ShipmentStatus = models.CharField(max_length=30, null=True, blank=True)
     ShipFromCity = models.CharField(max_length=50, null=True, blank=True)
+    logistics_company = models.CharField(max_length=100, null=True, blank=True, verbose_name=u'物流公司名称')
+    logistics_id = models.CharField(max_length=100, null=True, blank=True, verbose_name=u'物流运单号')
     ship_date = models.DateField(null=True, blank=True, verbose_name=u'发货时间')     # 发货时间
-
     total_freight = models.FloatField(null=True, blank=True, verbose_name=u'总运费')        # 总运费
-    unit_freight = models.FloatField(null=True, blank=True, verbose_name=u'运费单价')
-    comment = models.CharField(max_length=50, null=True, blank=True)      # 是否是自动生成的，如果退货记录找不到对应的订单，则会生成该记录
+    duty = models.FloatField(null=True, blank=True, verbose_name=u'总关税')
+    comment = models.CharField(max_length=255, null=True, blank=True)
+    auto_created = models.BooleanField(default=False)            # 是否是自动生成的，如果退货记录找不到对应的订单，则会生成该记录
 
     class Meta:
         ordering = ['-ship_date']
@@ -105,24 +107,20 @@ class OutboundShipmentItem(models.Model):
     SellerSKU = models.CharField(max_length=50, null=True, blank=True)
     FulfillmentNetworkSKU = models.CharField(max_length=50, null=True, blank=True)      # 商品的亚马逊配送网络 SKU
     QuantityShipped = models.IntegerField(null=True, blank=True, default=0)     # 要配送的商品数量。
-    QuantityReceived = models.IntegerField(null=True, blank=True, default=0)    # 亚马逊配送中心已接收的商品数量
-    QuantityInCase = models.IntegerField(null=True, blank=True, default=0)      # 每个包装箱中的商品数量（仅针对原厂包装发货商品）。请注意，QuantityInCase x 入库货件中的包装箱数 = QuantityShipped
+    unit_price = models.FloatField(null=True, blank=True, verbose_name=u'商品单价')     # 手动输入
     unit_freight = models.FloatField(null=True, blank=True, default=0, verbose_name=u'运费单价')       # 单位：kg
     fuel_tax = models.FloatField(null=True, blank=True, default=0, verbose_name=u'燃油附加税')       # 百分比
     duty = models.FloatField(null=True, blank=True, default=0, verbose_name=u'关税')
-    logistics_company = models.CharField(max_length=100, null=True, blank=True, verbose_name=u'物流公司名称')
-    logistics_id = models.CharField(max_length=100, null=True, blank=True, verbose_name=u'物流运单号')
-    package_width = models.FloatField(null=True, blank=True, verbose_name=u'外包装宽度')
-    package_height = models.FloatField(null=True, blank=True, verbose_name=u'外包装高度')
-    package_length = models.FloatField(null=True, blank=True, verbose_name=u'外包装长度')
-    package_weight = models.FloatField(null=True, blank=True, verbose_name=u'外包装重量')
-    volume_weight = models.FloatField(null=True, blank=True, verbose_name=u'体积重')
+    width = models.FloatField(null=True, blank=True, verbose_name=u'商品宽度')      # cm
+    height = models.FloatField(null=True, blank=True, verbose_name=u'商品高度')     # cm
+    length = models.FloatField(null=True, blank=True, verbose_name=u'商品长度')     # cm
+    weight = models.FloatField(null=True, blank=True, verbose_name=u'商品重量')     # kg
+    volume_weight = models.FloatField(null=True, blank=True, verbose_name=u'体积重')   # kg
+    unit_weight = models.FloatField(null=True, blank=True, verbose_name=u'体积参数')    # max(weight, volume_weight)
 
     total_freight = models.FloatField(null=True, blank=True, verbose_name=u'总运费')    # 通过计算获得：max(外箱体积重,外箱实际重)*运费单价*（1+燃油附加税） = 总运费
     inventory = models.IntegerField(null=True, blank=True, default=0, verbose_name=u'库存')
     unit_cost = models.FloatField(null=True, blank=True, verbose_name=u'移库单位成本')
-    # domestic_unit_cost = models.FloatField(null=True, blank=True, verbose_name=u'入库单位成本')   # = InboundShipment.unit_cost
-    # total_unit_cost = models.FloatField(null=True, blank=True, verbose_name=u'总的单位成本')  # = unit_cost + domestic_unit_cost， 即Product.unit_cost
 
     class Meta:
         ordering = ['SellerSKU', '-shipment__ship_date']

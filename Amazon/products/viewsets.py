@@ -279,14 +279,7 @@ class OutboundShipmentViewSet(NestedViewSetMixin, ModelViewSet):
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
 
-        # Inbound的数量比较 < Supply的剩余数量
-        try:
-            instance = OutboundShipment.objects.get(MarketplaceId=data['MarketplaceId'], ShipmentId=data['ShipmentId'])
-            serializer = self.get_serializer(instance, data=data, partial=partial)
-            serializer.is_valid(raise_exception=True)
-            self.perform_update(serializer)
-        except OutboundShipment.DoesNotExist, ex:
-            self.perform_create(serializer)
+        self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         items = self._create_or_update_items(serializer.instance, products)
         return_data = serializer.data
@@ -357,12 +350,6 @@ class OutboundShipmentViewSet(NestedViewSetMixin, ModelViewSet):
         for item in data:
             product = Product.objects.get(SellerSKU=item['SellerSKU'])
             # 计算体积重
-            item['volume_weight'] = round(float(item['package_width']) * float(item['package_length']) * \
-                                    float(item['package_height']) / float(5000), 2)
-
-            # 计算总运费
-            item['total_freight'] = max(get_float(item, 'volume_weight'), get_float(item, 'package_weight')) * \
-                                    (1 + get_float(item, 'fuel_tax')) * get_float(item, 'unit_freight') * int(item['QuantityShipped'])
             s, created = OutboundShipmentItem.objects.get_or_create(shipment=shipment, MarketplaceId=shipment.MarketplaceId, product=product)
             # 商品库存信息修改
             if int(item['QuantityShipped']) != s.QuantityShipped:
@@ -370,13 +357,17 @@ class OutboundShipmentViewSet(NestedViewSetMixin, ModelViewSet):
             s.inventory += int(item['QuantityShipped']) - s.QuantityShipped
             for key, value in item.items():
                 setattr(s, key, value)
-            s.unit_cost = get_float(item, 'total_freight') / int(item['QuantityShipped'])
-            # s.domestic_unit_cost = self._calc_supply_cost(s.product)
-            # s.inventory = int(item['QuantityShipped'])
-            # s.total_unit_cost = s.unit_cost + s.domestic_unit_cost
+            s.unit_cost = (get_float(item, 'total_freight')+get_float(item, 'duty')) / int(item['QuantityShipped'])
             s.ShipmentId = shipment.ShipmentId
             s.ship_date = shipment.ship_date
             s.save()
+
+            # 如果商品本身长宽高为空，则补充长宽高
+            if not product.width or not product.height or not product.length:
+                product.width = item['width']
+                product.height = item['height']
+                product.length = item['length']
+                product.save()
             items.append(s)
         return items
 

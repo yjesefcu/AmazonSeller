@@ -33,6 +33,7 @@ settlement.register(r'losts', ProductLostViewSet, base_name="api_settlement_lost
 urlpatterns = patterns('',
     url(r'^$', 'products.views.home'),
     url(r'^api/', include(router.urls)),
+    url(r'^product/sku/$', 'products.views.get_product_by_sku'),
     url('^image/upload/$', 'products.views.image_upload'),
     url(r'^sync$', 'products.views.sync_orders'),
     url(r'^calcIncome$', 'products.views.calc_income'),

@@ -143,6 +143,8 @@ class SimpleOutboundShipmentSerializer(serializers.ModelSerializer):
 class OutboundShipmentItemSerializer(serializers.ModelSerializer):
     shipment_id = serializers.IntegerField(source='shipment.id')
     unit_cost = FloatRoundField()
+    total_freight = FloatRoundField()
+    duty = FloatRoundField()
 
     class Meta:
         model = OutboundShipmentItem

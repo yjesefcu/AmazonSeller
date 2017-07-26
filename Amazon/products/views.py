@@ -1,16 +1,27 @@
 #-*- coding:utf-8 -*-
-import os
+import os, json
 from django.shortcuts import render, render_to_response
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404
 from django.conf import settings
 from api import create_image_path
 from amazon_services.models import MarketAccount
 from models import *
 from api import *
+from serializer import ProductSerializer
 
 
 def home(request):
     return render_to_response('index.html')
+
+
+def get_product_by_sku(request):
+    sku = request.GET.get('SellerSKU')
+    try:
+        product = Product.objects.get(SellerSKU=sku)
+        data = ProductSerializer(product).data
+        return HttpResponse(json.dumps(data), content_type='application/json')
+    except Product.DoesNotExist, ex:
+        raise Http404
 
 
 def image_upload(request):
