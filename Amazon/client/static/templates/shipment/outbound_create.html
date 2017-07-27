@@ -48,7 +48,7 @@
                                 <label >运单号</label>
                                 <input type="text" class="form-control" placeholder="" ng-model="formData.logistics_id">
                             </div>
-                            <div class="form-group col-sm-2 col-xs-6">
+                            <div class="form-group col-sm-2 col-xs-6" ng-if="createBy=='sea'">
                                 <label>体积参数</label>
                                 <select class="form-control" ng-model="volume_args">
                                     <option value="5000">5000</option>
@@ -89,7 +89,7 @@
                         <thead>
                             <tr>
                                 <th colspan="3" class="dark-border">基本信息</th>
-                                <th colspan="6" class="dark-border">商品基本信息</th>
+                                <th colspan="{{ createBy=='sea'?6:4 }}" class="dark-border">商品基本信息</th>
                                 <th colspan="2" class="dark-border">费用</th>
                                 <th class="dark-border">操作</th>
                             </tr>
@@ -100,10 +100,11 @@
                                 <th>长<br>cm</th>
                                 <th>宽<br>cm</th>
                                 <th>高<br>cm</th>
-                                <th>实际重量<br>kg</th>
-                                <th>体积重<br>kg</th>
-                                <th>重量参数<br>kg</th>
-                                <th>运费({{ currency }})</th>
+                                <th ng-if="createBy=='sea'">实际重量<br>kg</th>
+                                <th ng-if="createBy=='sea'">体积重<br>kg</th>
+                                <th ng-if="createBy=='sea'">重量参数<br>kg</th>
+                                <th ng-if="createBy=='air'">总体积<br>CBM</th>
+                                <th>总计头程({{ currency }})</th>
                                 <th>关税({{ currency }})</th>
                                 <th>操作</th>
                             </tr>
@@ -116,8 +117,8 @@
                                 <td><input class="xs" ng-model="p.length" ng-blur="calc()"></td>
                                 <td><input class="xs" ng-model="p.width" ng-blur="calc()"></td>
                                 <td><input class="xs" ng-model="p.height" ng-blur="calc()"></td>
-                                <td><input class="xs" ng-model="p.weight" ng-blur="calc()"></td>
-                                <td>{{ p.volume_weight }}</td>
+                                <td ng-if="createBy=='sea'"><input class="xs" ng-model="p.weight" ng-blur="calc()" ng-if="createBy=='sea'"></td>
+                                <td ng-if="createBy=='sea'">{{ p.volume_weight }}</td>
                                 <td>{{ p.unit_weight }}</td>
                                 <td><input class="md" ng-model="p.total_freight" ng-init="p.fuel_tax=0"></td>
                                 <td><input class="xs" ng-model="p.duty" ng-init="p.duty=0"> </td>
@@ -130,8 +131,8 @@
                                 <td></td>
                                 <td></td>
                                 <td></td>
-                                <td></td>
-                                <td></td>
+                                <td ng-if="createBy=='sea'"></td>
+                                <td ng-if="createBy=='sea'"></td>
                                 <td>{{ totalWeight }}</td>
                                 <td>{{ totalFreight }}</td>
                                 <td>{{ totalTax }}</td>

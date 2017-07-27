@@ -27,6 +27,7 @@ app.controller('ShipmentCtrl', function ($scope, $http, $rootScope, serviceFacto
 
 app.controller('OutboundEditCtrl', function ($scope, $http, $rootScope, $stateParams, $state, $timeout, serviceFactory) {
     var id = $stateParams.id;
+    $scope.createBy = $stateParams.by;
     $scope.formData = {MarketplaceId: $rootScope.MarketplaceId};
     $scope.products = [];
     $scope.error_msg = '';
@@ -144,10 +145,6 @@ app.controller('OutboundEditCtrl', function ($scope, $http, $rootScope, $statePa
         return total;
     };
 
-    function calcVolumeWeight(product){
-        return product.weight*product.height*product.length/$scope.volume_args;
-    }
-
     $scope.totalWeight = 0;
     $scope.totalTax = 0;
     $scope.totalFreight = 0;
@@ -156,15 +153,20 @@ app.controller('OutboundEditCtrl', function ($scope, $http, $rootScope, $statePa
         var p, totalWeight=0, totalPrice= 0, totalFreight= 0,totalTax=0;
         for (var i in $scope.products){
             p = $scope.products[i];
-            p.volume_weight = p.weight * p.height * p.length / $scope.volume_args;
-            p.unit_weight = Math.max(parseFloat(p.volume_weight), parseFloat(p.weight)) * p.QuantityShipped;
-            totalWeight += p.unit_weight;
+            if ($scope.createBy == 'sea')
+            {
+                p.volume_weight = p.weight * p.height * p.length / $scope.volume_args;
+                p.unit_weight = Math.max(parseFloat(p.volume_weight), parseFloat(p.weight));
+            }else{
+                p.unit_weight = p.width * p.length * p.height / 1000000;
+            }
+            totalWeight += p.unit_weight * p.QuantityShipped;
             totalPrice += p.unit_price * p.QuantityShipped;
         }
         // 计算每个商品的运费和关税
         for (var i in $scope.products){
             p = $scope.products[i];
-            p.total_freight = p.unit_weight  / totalWeight * $scope.formData.total_freight;
+            p.total_freight = p.unit_weight * p.QuantityShipped  / totalWeight * $scope.formData.total_freight;
             totalFreight += p.total_freight;
             p.duty = p.unit_price* p.QuantityShipped  / totalPrice * $scope.formData.duty;
             totalTax += p.duty;
