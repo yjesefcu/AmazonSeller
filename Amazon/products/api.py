@@ -721,7 +721,7 @@ class ProductProfitCalc(object):
             ps.income = get_float_from_model(order_total, 'income') + get_float_from_model(refund_total, 'income') + \
                         get_float_from_model(lost_total, 'income')
             ps.amazon_cost = get_float_from_model(order_total, 'amazon_cost') + get_float_from_model(refund_total, 'amazon_cost') + \
-                             get_float_from_model(removal_total, 'amazon_cost') + ps.advertising_fee + ps.custom_return_fee
+                             get_float_from_model(removal_total, 'amazon_cost') + to_float(ps.advertising_fee) + ps.custom_return_fee
             ps.promotion = get_float_from_model(order_total, 'promotion') + get_float_from_model(refund_total, 'promotion')
             # ps.amount = get_float_from_model(order_total, 'amount') + get_float_from_model(refund_total, 'amount') + \
             #             get_float_from_model(removal_total, 'amount') + get_float_from_model(lost_total, 'Amount')
