@@ -323,6 +323,20 @@ app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $sta
             }
         });
     };
+
+    $scope.setAdvertising = function () {
+        if ($scope.advertising_fee == ''){
+            return;
+        }
+        $http.patch(serviceFactory.settlementDetail(settlementId) + 'advertising/', {
+            advertising_fee_adjust: $scope.advertising_fee
+        }).then(function (result) {
+            $rootScope.addAlert('info', '设置成功');
+            $scope.advertisingInvalid = false;
+        }).catch(function (result) {
+            $rootScope.addAlert('error', '发生异常');
+        });
+    }
 })
 .controller('setFeeCtrl', function($scope, $rootScope, $http, $state, serviceFactory, $uibModalInstance, data) {
     $scope.settlement = data;

@@ -610,9 +610,33 @@ class ProductProfitCalc(object):
         try:
             ps = ProductSettlement.objects.get(settlement=self.settlement, product=product)
             if ps.quantity:
-                self._update_inventory(product, -ps.quantity)        # 先将库存补充上
+                # 先将自动生成的去掉
+                quantity = ps.quantity
+                quantity -= self._remove_inventory_auto_created(product)
+                self._update_inventory(product, -quantity)        # 先将库存补充上
         except ProductSettlement.DoesNotExist, ex:
             return
+
+    def _remove_inventory_auto_created(self, product):
+        settlement = self.settlement
+        name = '%s ~ %s' % (self.settlement.StartDate.strftime('%Y-%m-%d'), self.settlement.EndDate.strftime('%Y-%m-%d'))
+        try:
+            supply = InboundShipment.objects.get(product=product, ShipmentName=name, MarketplaceId=settlement.MarketplaceId)
+        except InboundShipment.DoesNotExist, ex:
+            return 0
+        try:
+            shipment = OutboundShipment.objects.get(ShipmentId=name, MarketplaceId=settlement.MarketplaceId)
+            shipment_item = OutboundShipmentItem.objects.get(shipment=shipment, product=product,
+                                                                       MarketplaceId=settlement.MarketplaceId)
+        except BaseException, ex:
+            return 0
+        quantity = shipment_item.QuantityShipped
+        shipment_item.delete()
+        supply.delete()
+        product.amazon_inventory -= quantity
+        product.domestic_inventory -= quantity
+        product.save()
+        return quantity
 
     def _create_refund_inventory(self, product):
         """
@@ -633,7 +657,7 @@ class ProductProfitCalc(object):
             supply.ship_date = datetime.date.today()
         tmp = quantity - (supply.count if supply.count else 0)
         product.domestic_inventory += tmp
-        supply.ship_date = datetime.date.today()
+        supply.ship_date = settlement.StartDate.date()
         supply.count = quantity
         supply.insert_time = datetime.datetime.now()
         supply.unit_cost = product.supply_cost
@@ -673,14 +697,14 @@ class ProductProfitCalc(object):
             self._calc_removals(product)
             self._calc_with_refunds(product)
             self._calc_lost(product)
-            advertising_cost = self._calc_advertising(product)
+            # advertising_cost = self._calc_advertising(product)
             # 更新库存
             self._update_inventory(product, self.sale_quantity)
             ps, created = ProductSettlement.objects.get_or_create(settlement=self.settlement, product=product)
             ps.quantity = self.sale_quantity
             # 秒杀费，广告费
             deal_payment = sum_queryset(SellerDealPayment.objects.filter(settlement=self.settlement), 'DealFeeAmount')
-            ps.advertising_fee = -advertising_cost
+            # ps.advertising_fee = -advertising_cost
             # 退货服务费
             ps.custom_return_fee = sum_queryset(OtherTransaction.objects.filter(TransactionType='FBACustomerReturn',
                                                 settlement=self.settlement, SellerSKU=product.SellerSKU,
@@ -697,7 +721,7 @@ class ProductProfitCalc(object):
             ps.income = get_float_from_model(order_total, 'income') + get_float_from_model(refund_total, 'income') + \
                         get_float_from_model(lost_total, 'income')
             ps.amazon_cost = get_float_from_model(order_total, 'amazon_cost') + get_float_from_model(refund_total, 'amazon_cost') + \
-                             get_float_from_model(removal_total, 'amazon_cost') - advertising_cost + ps.custom_return_fee
+                             get_float_from_model(removal_total, 'amazon_cost') + ps.advertising_fee + ps.custom_return_fee
             ps.promotion = get_float_from_model(order_total, 'promotion') + get_float_from_model(refund_total, 'promotion')
             # ps.amount = get_float_from_model(order_total, 'amount') + get_float_from_model(refund_total, 'amount') + \
             #             get_float_from_model(removal_total, 'amount') + get_float_from_model(lost_total, 'Amount')
@@ -857,6 +881,7 @@ class ProductProfitCalc(object):
         quantity_key = ['count', 'QuantityShipped']
         if count == 0:
             return
+        name = '%s ~ %s' % (self.settlement.StartDate.strftime('%Y-%m-%d'), self.settlement.EndDate.strftime('%Y-%m-%d'))
         if count > 0:
             for i in [0, 1]:
                 items = class_list[i].objects.filter(product=product, inventory__gt=0).order_by(order_list[i])

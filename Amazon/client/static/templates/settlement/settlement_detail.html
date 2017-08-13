@@ -43,6 +43,13 @@
                         </div>
                     </div>
                 </div>
+                <div class="row" style="margin-bottom: 16px;">
+                    <div class="col-md-12">
+                        <label class="control-label">请设置实际广告费用</label>
+                        <input placeholder="请输入结算周期内的广告费用，格式为负数" style="width: 300px;" ng-model="advertising_fee">&nbsp;&nbsp;&nbsp;
+                        <button class="btn btn-primary" ng-click="setAdvertising()">确定</button>
+                    </div>
+                </div>
         </div>
     </div>
     <div ng-include="'/static/templates/settlement_order_detail.html'" ng-controller="settlementOrdersCtrl"></div>

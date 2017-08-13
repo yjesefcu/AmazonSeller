@@ -120,7 +120,8 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
         serializer_class = self.get_serializer_class()
         fee = to_float(request.data.get('advertising_fee_adjust'))
 
-        if abs(fee - to_float(instance.advertising_fee_adjust)) > 0.1:
+        # if abs(fee - to_float(instance.advertising_fee_adjust)) > 0.1:
+        if True:
             products = ProductSettlement.objects.filter(settlement=instance, advertising_fee__isnull=False, is_total=False)
             count = products.count()
             diff = fee - to_float(instance.advertising_fee)
@@ -128,6 +129,11 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
                 avg = diff / count
                 # 将每个商品的广告费加上avg
                 products.update(advertising_fee=F('advertising_fee') + avg)
+            else:   # 如果没有商品有广告费，那么平均到所有商品上
+                products = ProductSettlement.objects.filter(settlement=instance, is_total=False)
+                avg = fee / products.count()
+                products.update(advertising_fee=avg)
+
             # 平均到有广告费的商品上
             instance.advertising_fee = fee
             instance.advertising_fee_adjust = fee
