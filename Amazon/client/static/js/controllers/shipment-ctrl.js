@@ -155,7 +155,7 @@ app.controller('OutboundEditCtrl', function ($scope, $http, $rootScope, $statePa
             p = $scope.products[i];
             if ($scope.createBy == 'sea')
             {
-                p.volume_weight = p.weight * p.height * p.length / $scope.volume_args;
+                p.volume_weight = p.width * p.height * p.length / $scope.volume_args;
                 p.unit_weight = Math.max(parseFloat(p.volume_weight), parseFloat(p.weight));
             }else{
                 p.unit_weight = p.width * p.length * p.height / 1000000;

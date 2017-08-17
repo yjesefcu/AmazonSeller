@@ -61,6 +61,7 @@ class InboundShipment(models.Model):
     insert_time = models.DateTimeField(null=True, blank=True)   # 添加至数据库的时间
     unit_cost = models.FloatField(null=True, blank=True, verbose_name=u'单位成本')  # 包括单价与运费
     ShipmentName = models.CharField(max_length=50, null=True, blank=True)      # 是否是自动生成的，如果退货记录找不到对应的订单，则会生成该记录
+    settlement_id = models.IntegerField(default=0)      # 0表示手动创建，>0表示settlement计算生成
 
     class Meta:
         ordering = ('-ship_date', )
@@ -89,7 +90,7 @@ class OutboundShipment(models.Model):
     total_freight = models.FloatField(null=True, blank=True, verbose_name=u'总运费')        # 总运费
     duty = models.FloatField(null=True, blank=True, verbose_name=u'总关税')
     comment = models.CharField(max_length=255, null=True, blank=True)
-    auto_created = models.BooleanField(default=False)            # 是否是自动生成的，如果退货记录找不到对应的订单，则会生成该记录
+    settlement_id = models.IntegerField(default=0)      # 0表示手动创建，>0表示settlement计算生成
 
     class Meta:
         ordering = ['-ship_date']

@@ -272,7 +272,7 @@ class SettlementDbHandler(object):
             if not order:
                 order = order_list.first()
             data['order_item'] = order
-            data['quantity'] = order.Quantity
+            data['quantity'] = -order.Quantity
             data['UnitPrice'] = order.UnitPrice
 
         # 找到对应的订单信息
@@ -288,7 +288,7 @@ class SettlementDbHandler(object):
                 price = get_float(order, 'ItemPrice')
                 quantity = int(order.get('QuantityShipped', 0))
                 unit_price = price/quantity if quantity else 0
-                return unit_price, quantity
+                return unit_price, -quantity
         logger.error('cannot get order item from amazon: %s', amazon_order_id)
         return None
 
@@ -619,13 +619,12 @@ class ProductProfitCalc(object):
 
     def _remove_inventory_auto_created(self, product):
         settlement = self.settlement
-        name = '%s ~ %s' % (self.settlement.StartDate.strftime('%Y-%m-%d'), self.settlement.EndDate.strftime('%Y-%m-%d'))
         try:
-            supply = InboundShipment.objects.get(product=product, ShipmentName=name, MarketplaceId=settlement.MarketplaceId)
+            supply = InboundShipment.objects.get(product=product, MarketplaceId=settlement.MarketplaceId, settlement_id=self.settlement.pk)
         except InboundShipment.DoesNotExist, ex:
             return 0
         try:
-            shipment = OutboundShipment.objects.get(ShipmentId=name, MarketplaceId=settlement.MarketplaceId)
+            shipment = OutboundShipment.objects.get(MarketplaceId=settlement.MarketplaceId, settlement_id=self.settlement.pk)
             shipment_item = OutboundShipmentItem.objects.get(shipment=shipment, product=product,
                                                                        MarketplaceId=settlement.MarketplaceId)
         except BaseException, ex:
@@ -643,7 +642,7 @@ class ProductProfitCalc(object):
         如果退货记录找不到相应的订单，则需要在国内、国际库存中增加这部分库存
         :param product:
         """
-        items = RefundItem.objects.filter(product=product, order_item__isnull=True, is_total=False)
+        items = RefundItem.objects.filter(product=product, order_item__isnull=True, is_total=False, settlement=self.settlement)
         quantity = items.aggregate(total=Sum('quantity')).get('total')
         if not quantity:
             return
@@ -652,7 +651,7 @@ class ProductProfitCalc(object):
         name = '%s ~ %s' % (self.settlement.StartDate.strftime('%Y-%m-%d'), self.settlement.EndDate.strftime('%Y-%m-%d'))
         # 添加到国内库存
         supply, created = InboundShipment.objects.get_or_create(product=product, ShipmentName=name,
-                                                                MarketplaceId=settlement.MarketplaceId)
+                                                                MarketplaceId=settlement.MarketplaceId, settlement_id=self.settlement.pk)
         if created:
             supply.ship_date = datetime.date.today()
         tmp = quantity - (supply.count if supply.count else 0)
@@ -666,7 +665,7 @@ class ProductProfitCalc(object):
         supply.save()
 
         # 添加到国际物流
-        shipment, created = OutboundShipment.objects.get_or_create(ShipmentId=name, MarketplaceId=settlement.MarketplaceId)
+        shipment, created = OutboundShipment.objects.get_or_create(ShipmentId=name, MarketplaceId=settlement.MarketplaceId, settlement_id=self.settlement.pk)
         if created:
             shipment.ship_date = datetime.date.today()
             shipment.ShipmentName = 'auto created'
@@ -691,7 +690,7 @@ class ProductProfitCalc(object):
             self.sale_quantity = 0       # 每个商品计算时都先清零
             self.unfound_refund_quantity = 0
             self._clear(product)    # 先恢复库存
-            CostCalculate.calc_current_cost(product)
+            # CostCalculate.calc_current_cost(product)
             self._calc_order_profit(product)
             self._calc_with_refunds(product)
             self._calc_removals(product)
@@ -699,7 +698,7 @@ class ProductProfitCalc(object):
             self._calc_lost(product)
             # advertising_cost = self._calc_advertising(product)
             # 更新库存
-            self._update_inventory(product, self.sale_quantity)
+            # self._update_inventory(product, self.sale_quantity)
             ps, created = ProductSettlement.objects.get_or_create(settlement=self.settlement, product=product)
             ps.quantity = self.sale_quantity
             # 秒杀费，广告费
@@ -743,7 +742,7 @@ class ProductProfitCalc(object):
         :param product:
         :return: 数量、实收、成本
         """
-        orders = SettleOrderItem.objects.filter(product=product, settlement=self.settlement)
+        orders = SettleOrderItem.objects.filter(product=product, settlement=self.settlement, is_total=False)
         # if not orders.exists():
         #     return
         for order in orders:
@@ -785,16 +784,16 @@ class ProductProfitCalc(object):
         计算退货的收入支出
         :param product:
         """
-        refunds = RefundItem.objects.filter(product=product, settlement=self.settlement)
+        refunds = RefundItem.objects.filter(product=product, settlement=self.settlement, is_total=False)
         # if not refunds.exists():
         #     return
         for refund in refunds:
             if refund.order_item:
                 refund.cost = -refund.order_item.cost
-                self.sale_quantity -= refund.quantity
+                self.sale_quantity += refund.quantity
             else:
                 refund.cost = product.cost
-            refund.total_cost = refund.cost * refund.quantity
+            refund.total_cost = -refund.cost * refund.quantity
             refund.profit = refund.total_cost + refund.amount
             refund.profit_rate = refund.profit / refund.income if refund.income else 0
             refund.save()
@@ -817,12 +816,13 @@ class ProductProfitCalc(object):
         """
         计算弃置/移除的商品，相当于销售出去
         """
-        items = ProductRemovalItem.objects.select_related('product').filter(settlement=self.settlement, product=product)
+        items = ProductRemovalItem.objects.select_related('product').filter(settlement=self.settlement, product=product,
+                                                                            is_total=False)
         # if not items.exists():
         #     return
         for item in items:
             item.cost = -product.cost
-            item.total_cost = product.cost * item.Quantity
+            item.total_cost = item.cost * item.Quantity
             item.profit = item.total_cost + item.amount
             item.save()
             self.sale_quantity += item.Quantity
@@ -844,7 +844,7 @@ class ProductProfitCalc(object):
         :param product:
         :return: 总成本
         """
-        items = OtherTransactionItem.objects.filter(settlement=self.settlement, product=product)
+        items = OtherTransactionItem.objects.filter(settlement=self.settlement, product=product, is_total=False)
         # if not items.exists():
         #     return
         for item in items:
