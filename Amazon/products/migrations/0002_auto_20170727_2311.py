@@ -49,11 +49,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='outboundshipment',
-            name='auto_created',
-            field=models.BooleanField(default=False),
-        ),
-        migrations.AddField(
-            model_name='outboundshipment',
             name='duty',
             field=models.FloatField(null=True, verbose_name='\u603b\u5173\u7a0e', blank=True),
         ),

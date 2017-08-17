@@ -653,7 +653,7 @@ class ProductProfitCalc(object):
         supply, created = InboundShipment.objects.get_or_create(product=product, ShipmentName=name,
                                                                 MarketplaceId=settlement.MarketplaceId, settlement_id=self.settlement.pk)
         if created:
-            supply.ship_date = datetime.date.today()
+            supply.ship_date = self.settlement.StartDate.date()
         tmp = quantity - (supply.count if supply.count else 0)
         product.domestic_inventory += tmp
         supply.ship_date = settlement.StartDate.date()
@@ -667,7 +667,7 @@ class ProductProfitCalc(object):
         # 添加到国际物流
         shipment, created = OutboundShipment.objects.get_or_create(ShipmentId=name, MarketplaceId=settlement.MarketplaceId, settlement_id=self.settlement.pk)
         if created:
-            shipment.ship_date = datetime.date.today()
+            shipment.ship_date = self.settlement.StartDate.date()
             shipment.ShipmentName = 'auto created'
             shipment.save()
         # 添加国际物流的子项

@@ -11,10 +11,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='outboundshipment',
-            name='auto_created',
-        ),
         migrations.AddField(
             model_name='inboundshipment',
             name='settlement_id',
