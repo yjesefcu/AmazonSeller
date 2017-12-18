@@ -526,3 +526,4 @@ if __name__ == '__main__':
     # print 'AmazonOrderId length: %d' % len(set(amazon_sell_id))
     # amazon_sell_id = [o['SellerOrderId'] for o in orders]
     # print 'SellerOrderId length: %d' % len(set(amazon_sell_id))
+    SettlementReportService().get_one('5169113822017305')

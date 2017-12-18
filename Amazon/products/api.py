@@ -13,6 +13,7 @@ from errors import Error
 
 logger = logging.getLogger('product')
 DT_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
+DB_DT_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 
 def get_float_from_model(instance, field):
@@ -451,6 +452,8 @@ def update_product_advertising_to_db(settlement, data):
             return d[0: len(d)-4]
         return d
     items = list()
+    settlement_start = settlement.StartDate.date()
+    settlement_end = settlement.EndDate.date()
     for item in data:
         item['MarketplaceId'] = settlement.MarketplaceId
         item['settlement'] = settlement
@@ -458,9 +461,25 @@ def update_product_advertising_to_db(settlement, data):
         item['EndDate'] = _format_datetime(item['EndDate'])
         product, created = Product.objects.get_or_create(MarketplaceId=settlement.MarketplaceId, SellerSKU=item['SellerSKU'])
         item['product'] = product
-        item['cost'] = -float(item['TotalSpend'])
-        items.append(AdvertisingProductItems.objects.create(**item))
-    return items
+
+        start = datetime.datetime.strptime(item['StartDate'], DB_DT_FORMAT).date()
+        end = datetime.datetime.strptime(item['EndDate'], DB_DT_FORMAT).date()
+        day_len = (end-start).days
+        item['TotalSpend'] = to_float(item.get('TotalSpend', 0)) / float(day_len)
+        item['cost'] = -item['TotalSpend']
+        # 广告以周报告形式返回，按天保存到数据库中
+        for i in range(0, day_len):
+            d = start + datetime.timedelta(days=i)
+            if d < settlement_start or d >= settlement_end:
+                continue
+            item['StartDate'] = d.strftime(DB_DT_FORMAT)
+            item['EndDate'] = d.strftime(DB_DT_FORMAT)
+            try:
+                AdvertisingProductItems.objects.get(settlement=settlement, product=product, StartDate=d).delete()
+            except AdvertisingProductItems.DoesNotExist, ex:
+                pass
+            AdvertisingProductItems.objects.create(**item)
+    return True
 
 
 #################  成本计算 ####################
@@ -696,7 +715,6 @@ class ProductProfitCalc(object):
             self._calc_removals(product)
             self._calc_with_refunds(product)
             self._calc_lost(product)
-            # advertising_cost = self._calc_advertising(product)
             # 更新库存
             # self._update_inventory(product, self.sale_quantity)
             ps, created = ProductSettlement.objects.get_or_create(settlement=self.settlement, product=product)
@@ -911,11 +929,6 @@ class ProductProfitCalc(object):
                     item.save()
             product.amazon_inventory += count
             product.save()
-
-    def _calc_advertising(self, product):
-        # 统计广告费
-        total = to_float(AdvertisingProductItems.objects.filter(product=product).aggregate(total=Sum('TotalSpend')).get('total'))
-        return to_float(total)
 
 
 class SettlementCalc(object):
