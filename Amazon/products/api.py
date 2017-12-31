@@ -35,6 +35,21 @@ def to_int(value):
     return int(value)
 
 
+def sum_fields(items, fields, result_item=None):
+    # 计算多条记录的多个字段的求和，并将最后结果付给result_item
+    total = {}
+    for field in fields:
+        total[field] = 0
+    for item in items:
+        for field in fields:
+            total[field] += to_float(getattr(item, field))
+    if result_item:
+        for field in fields:
+            setattr(result_item, field, total.get(field))
+        result_item.save()
+    return total
+
+
 def sum_queryset(query_set, field, is_integer=False):
     if is_integer:
         return to_int(query_set.aggregate(total=Sum(field)).get('total'))
@@ -653,29 +668,11 @@ class ProductIncomeCalc(object):
         orders = SettleOrderItem.objects.filter(settlement=settlement, product=self.product, is_total=False)
         if not orders.exists():
             return
-        quantity = 0
-        principal = 0
-        promotion = 0
-        fee = 0
-        other = 0
-        income = 0
-        for order in orders:
-            quantity += to_int(order.Quantity)
-            principal += to_float(order.Principal)
-            promotion += to_float(order.Promotion)
-            other += to_float(order.OtherPrice)
-            fee += to_float(order.Fee)
-            income += to_float(order.income)
         total, created = SettleOrderItem.objects.get_or_create(settlement=settlement, product=self.product, is_total=True)
-        total.Principal = principal
-        total.Promotion = promotion
-        total.OtherPrice = other
-        total.Fee = fee
-        total.Quantity = quantity
-        total.income = income
-        total.save()
-        self.quantity += quantity
-        self.sales = income
+        fields = ['Quantity', 'Principal', 'Promotion', 'Fee', 'OtherPrice', 'income', 'subscription_fee']
+        sum_fields(orders, fields, total)
+        self.quantity += total.Quantity
+        self.sales = total.income
 
     def _calc_with_refunds(self, settlement):
         """
@@ -685,29 +682,11 @@ class ProductIncomeCalc(object):
         refunds = RefundItem.objects.filter(settlement=settlement, product=self.product, is_total=False)
         if not refunds.exists():
             return
-        quantity = 0
-        principal = 0
-        promotion = 0
-        fee = 0
-        other = 0
-        income = 0
-        for order in refunds:
-            quantity += to_int(order.Quantity)
-            principal += to_float(order.Principal)
-            promotion += to_float(order.Promotion)
-            other += to_float(order.OtherPrice)
-            fee += to_float(order.Fee)
-            income += to_float(order.income)
         total, created = RefundItem.objects.get_or_create(settlement=settlement, product=self.product, is_total=True)
-        total.Principal = principal
-        total.Promotion = promotion
-        total.OtherPrice = other
-        total.Fee = fee
-        total.Quantity = quantity
-        total.income = income
-        total.save()
-        self.refund = income
-        self.quantity += quantity
+        fields = ['Quantity', 'Principal', 'Promotion', 'Fee', 'OtherPrice', 'income', 'subscription_fee']
+        sum_fields(refunds, fields, total)
+        self.refund = total.income
+        self.quantity += total.Quantity
 
     def _calc_removals(self, settlement):
         """
@@ -716,21 +695,11 @@ class ProductIncomeCalc(object):
         items = ProductRemovalItem.objects.filter(settlement=settlement, product=self.product, is_total=False)
         if not items.exists():
             return
-        quantity = 0
-        fee = 0
-        income = 0
-        for item in items:
-            item.amazon_cost = to_float(item.Fee)
-            fee += to_float(item.Fee)
-            income += to_float(item.income)
-            quantity += to_int(item.Quantity)
         total, created = ProductRemovalItem.objects.get_or_create(settlement=settlement, product=self.product, is_total=True)
-        total.Quantity = quantity
-        total.Fee = fee
-        total.income = income
-        total.save()
-        self.other_fee = income
-        self.quantity += quantity
+        fields = ['Fee', 'Quantity']
+        sum_fields(items, fields, total)
+        self.other_fee = total.Fee
+        self.quantity += total.Quantity
 
     def _calc_lost(self, settlement):
         """
@@ -741,18 +710,11 @@ class ProductIncomeCalc(object):
         items = OtherTransactionItem.objects.filter(settlement=settlement, product=self.product, is_total=False)
         if not items.exists():
             return
-        amount = 0
-        quantity = 0
-        for item in items:
-            amount += to_float(item.Amount)
-            quantity += to_int(item.Quantity)
         total, created = OtherTransactionItem.objects.get_or_create(settlement=settlement, product=self.product, is_total=True)
-        total.Amount = amount
-        total.income = amount
-        total.Quantity = quantity
-        total.save()
-        self.other_trade = amount
-        self.quantity += quantity
+        fields = ['Amount', 'Quantity']
+        sum_fields(items, fields, total)
+        self.other_trade = total.Amount
+        self.quantity += total.Quantity
 
 
 class SettlementIncomeCalc(object):
@@ -762,6 +724,8 @@ class SettlementIncomeCalc(object):
         self.settlement = settlement
 
     def calc(self):
+        # 在计算前先将订阅费平均到每个订单上
+        self._calc_subscription_fee()
         # 先计算所有产品的销售部分
         self.calc_all_products()
         # 在计算结算周期的销售收入
@@ -782,6 +746,17 @@ class SettlementIncomeCalc(object):
             calc_obj = ProductIncomeCalc(p)
             calc_obj.calc_income(self.settlement)
 
+    def _calc_subscription_fee(self):
+        # 计算订阅费
+        subscription_fee = sum_queryset(OtherTransaction.objects.filter(settlement=self.settlement,
+                                                                        TransactionType='Subscription Fee'), 'Amount')
+        self.settlement.subscription_fee = subscription_fee
+        # 平均到每个订单上
+        orders = SettleOrderItem.objects.filter(settlement=self.settlement, is_total=False)
+        orders_count = orders.count
+        avg_fee = (subscription_fee / float(orders_count)) if orders_count else 0
+        orders.update(subscription_fee=avg_fee)
+
     def _calc_other_fee(self):
         deal_fee = sum_queryset(SellerDealPayment.objects.filter(settlement=self.settlement), 'DealFeeAmount')      # 促销费用
         # 移除、弃置或其他。除掉赔偿、仓储费的部分，赔偿的部分会在OtherTransactionItem中计算
@@ -793,15 +768,12 @@ class SettlementIncomeCalc(object):
     def _calc_advertising_fee(self):
         # 计算广告费，如果广告报告未导入，那么直接读取AdvertisingTransactionDetails的广告费。
         # 如果广告报告已导入，那么从商品中的订单中求和
-        if self.settlement.advertising_imported:
-            pass
         return sum_queryset(AdvertisingTransactionDetails.objects.filter(settlement=self.settlement), 'TransactionAmount')   # 广告费
 
     def _calc_storage_fee(self):
         # 计算仓储费，如果月度仓储报告未导入，那么直接读取 OtherTransaction.TransactionType=Storage Fee部分
         # 如果月度仓储报告已导入，那么从商品中的订单中求和
-        if self.settlement.storage_imported:
-            pass
+        # 仓储费平均到每个订单上
         return sum_queryset(OtherTransaction.objects.filter(settlement=self.settlement, TransactionType = 'Storage Fee'), 'Amount')
 
     def calc_removals(self, by_product=True):
@@ -833,9 +805,9 @@ class ProductProfitCalc(object):
         """
         try:
             ps = ProductSettlement.objects.get(settlement=self.settlement, product=product)
-            if ps.quantity:
+            if ps.Quantity:
                 # 先将自动生成的去掉
-                quantity = ps.quantity
+                quantity = ps.Quantity
                 quantity -= self._remove_inventory_auto_created(product)
                 self._update_inventory(product, -quantity)        # 先将库存补充上
         except ProductSettlement.DoesNotExist, ex:
@@ -918,40 +890,52 @@ class ProductProfitCalc(object):
             self._calc_order_profit(product)
             self._calc_with_refunds(product)
             self._calc_removals(product)
-            self._calc_with_refunds(product)
             self._calc_lost(product)
             # 更新库存
             # self._update_inventory(product, self.sale_quantity)
             ps, created = ProductSettlement.objects.get_or_create(settlement=self.settlement, product=product)
-            ps.quantity = self.sale_quantity
-            # 秒杀费，广告费
-            deal_payment = sum_queryset(SellerDealPayment.objects.filter(settlement=self.settlement), 'DealFeeAmount')
-            # ps.advertising_fee = -advertising_cost
+            ps.Quantity = self.sale_quantity
+
             # 退货服务费
             ps.custom_return_fee = sum_queryset(OtherTransaction.objects.filter(TransactionType='FBACustomerReturn',
                                                 settlement=self.settlement, SellerSKU=product.SellerSKU,
                                                 refund_item__isnull=True), 'Amount')
             # 统计
-            order_total = SettleOrderItem.objects.get(settlement=self.settlement, product=product, is_total=True)
-            refund_total = RefundItem.objects.get(settlement=self.settlement, product=product, is_total=True)
-            removal_total = ProductRemovalItem.objects.get(settlement=self.settlement, product=product, is_total=True)
-            lost_total = OtherTransactionItem.objects.get(settlement=self.settlement, product=product, is_total=True)
-
-            ps.subscription_fee = get_float_from_model(order_total, 'subscription_fee')
-            ps.quantity = get_float_from_model(order_total, 'Quantity') + get_float_from_model(refund_total, 'quantity')\
-                          + get_float_from_model(removal_total, 'Quantity') + get_float_from_model(lost_total, 'Quantity')
-            ps.income = get_float_from_model(order_total, 'income') + get_float_from_model(refund_total, 'income') + \
-                        get_float_from_model(lost_total, 'income')
-            ps.amazon_cost = get_float_from_model(order_total, 'amazon_cost') + get_float_from_model(refund_total, 'amazon_cost') + \
-                             get_float_from_model(removal_total, 'amazon_cost') + to_float(ps.advertising_fee) + ps.custom_return_fee
-            ps.promotion = get_float_from_model(order_total, 'promotion') + get_float_from_model(refund_total, 'promotion')
-            # ps.amount = get_float_from_model(order_total, 'amount') + get_float_from_model(refund_total, 'amount') + \
-            #             get_float_from_model(removal_total, 'amount') + get_float_from_model(lost_total, 'Amount')
-            ps.amount = ps.income + ps.amazon_cost + ps.promotion
-
-            ps.total_cost = get_float_from_model(order_total, 'total_cost') + get_float_from_model(refund_total, 'total_cost') + \
-                            get_float_from_model(removal_total, 'total_cost') + get_float_from_model(lost_total, 'total_cost')
-            ps.profit = ps.amount + ps.total_cost
+            total_cost = 0
+            profit = 0
+            # 统计订单的成本、利润
+            try:
+                order_total = SettleOrderItem.objects.get(settlement=self.settlement, product=product, is_total=True)
+                ps.advertising_fee = order_total.advertising_fee        # 广告费、仓储费、订阅费只有订单里有
+                ps.storage_fee = order_total.storage_fee
+                ps.subscription_fee = order_total.subscription_fee
+                total_cost += order_total.total_cost
+                profit += order_total.profit
+            except SettleOrderItem.DoesNotExist, ex:
+                pass
+            # 从退货里统计
+            try:
+                refund_total = RefundItem.objects.get(settlement=self.settlement, product=product, is_total=True)
+                total_cost += refund_total.total_cost
+                profit += refund_total.profit
+            except RefundItem.DoesNotExist, ex:
+                pass
+            # 从移除、弃置里统计
+            try:
+                removal_total = ProductRemovalItem.objects.get(settlement=self.settlement, product=product, is_total=True)
+                total_cost += removal_total.total_cost
+                profit += removal_total.profit
+            except ProductRemovalItem.DoesNotExist, ex:
+                pass
+            # 从赔偿里统计
+            try:
+                lost_total = OtherTransactionItem.objects.get(settlement=self.settlement, product=product, is_total=True)
+                total_cost += lost_total.total_cost
+                profit += lost_total.profit
+            except OtherTransactionItem.DoesNotExist, ex:
+                pass
+            ps.total_cost = total_cost
+            ps.profit = profit
             ps.profit_rate = ps.profit / ps.income if ps.income else 0
             ps.is_calculated = True
             ps.save()
@@ -966,8 +950,8 @@ class ProductProfitCalc(object):
         :return: 数量、实收、成本
         """
         orders = SettleOrderItem.objects.filter(product=product, settlement=self.settlement, is_total=False)
-        # if not orders.exists():
-        #     return
+        if not orders.exists():
+            return
         for order in orders:
             self._calc_order_cost(product, order)
 
@@ -975,14 +959,10 @@ class ProductProfitCalc(object):
         total_item, created = SettleOrderItem.objects.get_or_create(settlement=self.settlement, product=product,
                                                                     is_total=True, AmazonOrderId='Total')
         query_set = SettleOrderItem.objects.filter(settlement=self.settlement, product=product, is_total=False)
-        total_item.subscription_fee = sum_queryset(query_set, 'subscription_fee')
-        total_item.Quantity = sum_queryset(query_set, 'Quantity')
-        total_item.promotion = sum_queryset(query_set, 'promotion')
-        total_item.income = sum_queryset(query_set, 'income')
-        total_item.amazon_cost = sum_queryset(query_set, 'amazon_cost')
-        total_item.amount = sum_queryset(query_set, 'amount')
+        # 求和
         total_item.total_cost = sum_queryset(query_set, 'total_cost')
         total_item.profit = sum_queryset(query_set, 'profit')
+        # 计算利润
         total_item.profit_rate = total_item.profit/total_item.income if total_item.income else 0
         total_item.save()
 
@@ -991,12 +971,12 @@ class ProductProfitCalc(object):
         计算每个订单的成本
         :return:
         """
-        subscribe_fee = to_float(order.subscription_fee)
         order.supply_cost = -product.supply_cost
         order.shipment_cost = -product.shipment_cost
         order.cost = -product.cost
-        order.total_cost = (order.supply_cost + order.shipment_cost) * order.Quantity + subscribe_fee
-        order.profit = order.amount + order.total_cost
+        order.total_cost = (order.supply_cost + order.shipment_cost) * order.Quantity + to_float(order.subscription_fee) + \
+                           to_float(order.advertising_fee) + to_float(order.storage_fee)
+        order.profit = order.income + order.total_cost
         order.profit_rate = order.profit / order.income if order.income else 0
         order.save()
         self.sale_quantity += order.Quantity
@@ -1008,16 +988,16 @@ class ProductProfitCalc(object):
         :param product:
         """
         refunds = RefundItem.objects.filter(product=product, settlement=self.settlement, is_total=False)
-        # if not refunds.exists():
-        #     return
+        if not refunds.exists():
+            return
         for refund in refunds:
             if refund.order_item:
                 refund.cost = -refund.order_item.cost
-                self.sale_quantity += refund.quantity
+                self.sale_quantity += refund.Quantity
             else:
                 refund.cost = product.cost
-            refund.total_cost = -refund.cost * refund.quantity
-            refund.profit = refund.total_cost + refund.amount
+            refund.total_cost = -refund.cost * refund.Quantity
+            refund.profit = refund.total_cost + refund.income
             refund.profit_rate = refund.profit / refund.income if refund.income else 0
             refund.save()
 
@@ -1025,11 +1005,6 @@ class ProductProfitCalc(object):
         total_item, created = RefundItem.objects.get_or_create(settlement=self.settlement, product=product,
                                                                is_total=True, AmazonOrderId='Total')
         query_set = RefundItem.objects.filter(settlement=self.settlement, product=product, is_total=False)
-        total_item.quantity = sum_queryset(query_set, 'quantity')
-        total_item.promotion = sum_queryset(query_set, 'promotion')
-        total_item.amazon_cost = sum_queryset(query_set, 'amazon_cost')
-        total_item.income = sum_queryset(query_set, 'income')
-        total_item.amount = sum_queryset(query_set, 'amount')
         total_item.total_cost = sum_queryset(query_set, 'total_cost')
         total_item.profit = sum_queryset(query_set, 'profit')
         total_item.profit_rate = total_item.profit/total_item.income if total_item.income else 0
@@ -1041,12 +1016,12 @@ class ProductProfitCalc(object):
         """
         items = ProductRemovalItem.objects.select_related('product').filter(settlement=self.settlement, product=product,
                                                                             is_total=False)
-        # if not items.exists():
-        #     return
+        if not items.exists():
+            return
         for item in items:
             item.cost = -product.cost
             item.total_cost = item.cost * item.Quantity
-            item.profit = item.total_cost + item.amount
+            item.profit = item.total_cost + item.Fee
             item.save()
             self.sale_quantity += item.Quantity
 
@@ -1054,12 +1029,8 @@ class ProductProfitCalc(object):
         total_item, created = ProductRemovalItem.objects.get_or_create(settlement=self.settlement, product=product,
                                                                        is_total=True, OrderId='Total')
         query_set = ProductRemovalItem.objects.filter(settlement=self.settlement, product=product, is_total=False)
-        total_item.Quantity = sum_queryset(query_set, 'Quantity')
-        total_item.amazon_cost = sum_queryset(query_set, 'amazon_cost')
-        total_item.amount = sum_queryset(query_set, 'amount')
-        total_item.total_cost = sum_queryset(query_set, 'total_cost')
-        total_item.profit = sum_queryset(query_set, 'profit')
-        total_item.save()
+        fields = ['Quantity', 'Fee', 'total_cost', 'profit']
+        sum_fields(query_set, fields, total_item)
 
     def _calc_lost(self, product):
         """
@@ -1068,8 +1039,8 @@ class ProductProfitCalc(object):
         :return: 总成本
         """
         items = OtherTransactionItem.objects.filter(settlement=self.settlement, product=product, is_total=False)
-        # if not items.exists():
-        #     return
+        if not items.exists():
+            return
         for item in items:
             if item.TransactionType == 'INCORRECT_FEES_ITEMS':  # 费用更正无需处理商品成本
                 item.cost = 0
@@ -1077,20 +1048,17 @@ class ProductProfitCalc(object):
                 item.cost = -product.cost
                 self.sale_quantity += item.Quantity
             item.total_cost = item.Quantity * item.cost
-            item.profit = item.total_cost + item.income
-            item.profit_rate = item.profit/item.income if item.income else 0
+            item.profit = item.total_cost + item.Amount
+            item.profit_rate = item.profit/item.Amount if item.Amount else 0
             item.save()
 
         # 计算汇总信息并记录
         total_item, created = OtherTransactionItem.objects.get_or_create(settlement=self.settlement, product=product,
                                                                          is_total=True, AmazonOrderId='Total')
         query_set = OtherTransactionItem.objects.filter(settlement=self.settlement, product=product, is_total=False)
-        total_item.Quantity = sum_queryset(query_set, 'Quantity')
-        total_item.income = sum_queryset(query_set, 'income')
-        total_item.total_cost = sum_queryset(query_set, 'total_cost')
-        total_item.Amount = sum_queryset(query_set, 'Amount')
-        total_item.profit = sum_queryset(query_set, 'profit')
-        total_item.profit_rate = total_item.profit/total_item.income if total_item.income else 0
+        fields = ['Quantity', 'Amount', 'profit', 'total_cost']
+        sum_fields(query_set, fields, total_item)
+        total_item.profit_rate = total_item.profit/total_item.Amount if total_item.Amount else 0
         total_item.save()
 
     def _update_inventory(self, product, count):
@@ -1104,7 +1072,6 @@ class ProductProfitCalc(object):
         quantity_key = ['count', 'QuantityShipped']
         if count == 0:
             return
-        name = '%s ~ %s' % (self.settlement.StartDate.strftime('%Y-%m-%d'), self.settlement.EndDate.strftime('%Y-%m-%d'))
         if count > 0:
             for i in [0, 1]:
                 items = class_list[i].objects.filter(product=product, inventory__gt=0).order_by(order_list[i])
@@ -1147,65 +1114,39 @@ class SettlementCalc(object):
 
     def _aggregate_orders(self):
         total_item, created = SettleOrderItem.objects.get_or_create(settlement=self.settlement, product=None, is_total=True)
-        query_set = SettleOrderItem.objects.filter(settlement=self.settlement, product__isnull=False, is_total=False)
-        total_item.subscription_fee = sum_queryset(query_set, 'subscription_fee')
-        total_item.Quantity = sum_queryset(query_set, 'Quantity')
-        total_item.promotion = sum_queryset(query_set, 'promotion')
-        total_item.income = sum_queryset(query_set, 'income')
-        total_item.amazon_cost = sum_queryset(query_set, 'amazon_cost')
-        total_item.amount = sum_queryset(query_set, 'amount')
-        total_item.total_cost = sum_queryset(query_set, 'total_cost')
-        total_item.profit = sum_queryset(query_set, 'profit')
-        total_item.save()
+        query_set = SettleOrderItem.objects.filter(settlement=self.settlement, product__isnull=False, is_total=True)
+        fields = ['Quantity', 'Principal', 'Promotion', 'Fee', 'OtherPrice', 'income',
+                  'advertising', 'storage_fee', 'subscription_fee', 'total_cost', 'profit']
+        sum_fields(query_set, fields, total_item)
 
     def _aggregate_refunds(self):
         total_item, created = RefundItem.objects.get_or_create(settlement=self.settlement, product=None,
                                                                is_total=True, AmazonOrderId='Total')
-        query_set = RefundItem.objects.filter(settlement=self.settlement, product__isnull=False, is_total=False)
-        total_item.quantity = sum_queryset(query_set, 'quantity')
-        total_item.promotion = sum_queryset(query_set, 'promotion')
-        total_item.income = sum_queryset(query_set, 'income')
-        total_item.amount = sum_queryset(query_set, 'amount')
-        total_item.total_cost = sum_queryset(query_set, 'total_cost')
-        total_item.profit = sum_queryset(query_set, 'profit')
-        total_item.save()
+        query_set = RefundItem.objects.filter(settlement=self.settlement, product__isnull=False, is_total=True)
+        fields = ['Quantity', 'Principal', 'Promotion', 'Fee', 'OtherPrice', 'income', 'total_cost', 'profit']
+        sum_fields(query_set, fields, total_item)
 
     def _aggregate_removals(self):
         total_item, created = ProductRemovalItem.objects.get_or_create(settlement=self.settlement, product=None,
                                                                        is_total=True, OrderId='Total')
-        query_set = ProductRemovalItem.objects.filter(settlement=self.settlement, product__isnull=False, is_total=False)
-        total_item.Quantity = sum_queryset(query_set, 'Quantity')
-        total_item.amazon_cost = sum_queryset(query_set, 'amazon_cost')
-        total_item.amount = sum_queryset(query_set, 'amount')
-        total_item.total_cost = sum_queryset(query_set, 'total_cost')
-        total_item.profit = sum_queryset(query_set, 'profit')
-        total_item.save()
+        query_set = ProductRemovalItem.objects.filter(settlement=self.settlement, product__isnull=False, is_total=True)
+        fields = ['Quantity', 'Fee', 'total_cost', 'profit']
+        sum_fields(query_set, fields, total_item)
 
     def _aggregate_losts(self):
         total_item, created = OtherTransactionItem.objects.get_or_create(settlement=self.settlement, product=None,
                                                                          is_total=True, AmazonOrderId='Total')
-        query_set = OtherTransactionItem.objects.filter(settlement=self.settlement, product__isnull=False, is_total=False)
-        total_item.Quantity = sum_queryset(query_set, 'Quantity')
-        total_item.total_cost = sum_queryset(query_set, 'total_cost')
-        total_item.income = sum_queryset(query_set, 'income')
-        total_item.profit = sum_queryset(query_set, 'profit')
-        total_item.save()
+        query_set = OtherTransactionItem.objects.filter(settlement=self.settlement, product__isnull=False, is_total=True)
+        fields = ['Quantity', 'Amount', 'total_cost', 'profit']
+        sum_fields(query_set, fields, total_item)
 
     def _aggregate_product(self):
-        total_item, created = ProductSettlement.objects.get_or_create(settlement=self.settlement, product=None, is_total=True)
-        query_set = ProductSettlement.objects.filter(settlement=self.settlement, product__isnull=False, is_total=False)
-        total_item.quantity = sum_queryset(query_set, 'quantity')
-        total_item.promotion = sum_queryset(query_set, 'promotion')
-        total_item.income = sum_queryset(query_set, 'income')
-        total_item.amazon_cost = sum_queryset(query_set, 'amazon_cost')
-        total_item.amount = sum_queryset(query_set, 'amount')
-        total_item.total_cost = sum_queryset(query_set, 'total_cost')
-        total_item.subscription_fee = sum_queryset(query_set, 'subscription_fee')
-        total_item.advertising_fee = sum_queryset(query_set, 'advertising_fee')
-        total_item.storage_fee = sum_queryset(query_set, 'storage_fee')
-        total_item.profit = sum_queryset(query_set, 'profit')
-        total_item.profit_rate = total_item.profit / total_item.income if total_item.income else 0
-        total_item.save()
+        query_set = ProductSettlement.objects.filter(settlement=self.settlement, product__isnull=False)
+        settlement = self.settlement
+        fields = ['subscription_fee', 'advertising_fee', 'storage_fee', 'total_cost', 'profit']
+        sum_fields(query_set, settlement, fields)
+        settlement.profit_rate = settlement.profit / settlement.income if settlement.income else 0
+        settlement.save()
 
     def _aggregate(self):
         self._aggregate_orders()
@@ -1243,13 +1184,7 @@ class SettlementCalc(object):
     def _calculate(self, recalc_product=True):
         settlement = self.settlement
         # 先计算所有商品的利润
-        subscription_fee = sum_queryset(OtherTransaction.objects.filter(settlement=settlement,
-                                                                        TransactionType='Subscription Fee'), 'Amount')
         if recalc_product:
-        # 先初始化，如将订阅费平摊到每个订单
-            orders = SettleOrderItem.objects.filter(settlement=settlement, is_total=False)
-            if orders.exists():
-                orders.update(subscription_fee=subscription_fee/orders.count())
             product_calc = ProductProfitCalc(settlement)
             for product in Product.objects.all():
                 product_calc.calc_product_profit(product)
@@ -1259,20 +1194,7 @@ class SettlementCalc(object):
                                                                                           TransactionType='NonSubscriptionFeeAdj'), 'Amount')
         settlement.balanced_adjust = sum_queryset(OtherTransaction.objects.filter(settlement=settlement,
                                                                                   TransactionType='BalanceAdjustment'), 'Amount')
-        settlement.subscribe_fee = subscription_fee
 
-        product_total = ProductSettlement.objects.get(settlement=settlement, is_total=True)
-        settlement.total_cost = product_total.total_cost
-        settlement.income = product_total.income
-        settlement.amazon_cost = product_total.amazon_cost + settlement.subscription_fee_adjust
-        settlement.promotion = product_total.promotion
-        settlement.amount = product_total.amount
-        settlement.quantity = product_total.quantity
-
-        if settlement.advertising_fee is None:
-            settlement.advertising_fee = product_total.advertising_fee
-        # settlement.advertising_fee_adjust = product_total.advertising_fee
-        settlement.profit = settlement.amount + settlement.total_cost
         settlement.profit_rate = settlement.profit / settlement.income if settlement.income else 0
         settlement.save()
 
@@ -1331,7 +1253,6 @@ class FileImporter(object):
         :param settlement:
         """
         from amazon_services.text_parser import MonthlyStorageFeeParser
-        from amazon_services.exception import TextParseException
         parser = MonthlyStorageFeeParser(text)
         items = parser.get_items()
         removals = StorageDbHandler().update_to_db(settlement=settlement, data=items)

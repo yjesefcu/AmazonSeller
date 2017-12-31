@@ -25,10 +25,12 @@
                             <div class="col-sm-6 col-xs-8">
                                 <input id='storageFile' type="file" data-buttonName="btn-primary" ng-model="storageFile" accept="text/plain" style="display: inline-block;">
                             </div>
-                            <div class="col-sm-1">
+                            <div class="col-sm-4">
                                 <button class="btn btn-primary" ng-click="sendStorageFile()" ng-if="!storage_uploading">上传</button>
                                 <button class="btn btn-primary disabled" ng-if="storage_uploading"><i class="fa fa-spinner fa-span"></i> 正在上传...</button>
                             </div>
+                            <label class="col-sm-2"></label>
+                            <div class="col-sm-10" style="color:#999;">仓储报告按每个月的最后一天计算，保存到对应的结算周期内</div>
                         </div>
                     </div>
                     <div class="row" style="margin-bottom: 16px;">
@@ -43,7 +45,7 @@
                                 <button class="btn btn-primary disabled" ng-if="removal_uploading"><i class="fa fa-spinner fa-span"></i> 正在上传...</button>
                             </div>
                             <label class="col-sm-2"></label>
-                            <div class="col-sm-10">只会读取报告中的last-updated-date在结算日期内的记录，其他记录不会服务。如果再次上传移除报告，将会先清除原有的记录</div>
+                            <div class="col-sm-10" style="color:#999;">只会读取报告中的last-updated-date在结算日期内的记录，其他记录不会服务。如果再次上传移除报告，将会先清除原有的记录</div>
                         </div>
                     </div>
                     <div class="row" style="margin-bottom: 16px;">
@@ -58,7 +60,7 @@
                                 <button class="btn btn-primary disabled" ng-if="advertising_uploading"><i class="fa fa-spinner fa-span"></i> 正在上传...</button>
                             </div>
                             <label class="col-sm-2"></label>
-                            <div class="col-sm-10">如果是周/月报告，则会将费用按7天/30天平均，并取结算周期范围内的日期进行保存</div>
+                            <div class="col-sm-10" style="color:#999;">如果是周/月报告，则会将费用按7天/30天平均，并取结算周期范围内的日期进行保存</div>
                         </div>
                     </div>
                 </div>

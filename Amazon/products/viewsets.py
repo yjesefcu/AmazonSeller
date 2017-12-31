@@ -191,6 +191,13 @@ class ProductViewSet(NestedViewSetMixin, ModelViewSet):
         from sync_handler import update_product
         update_product()
 
+    @detail_route(methods=['get'])
+    def calc(self, request, pk):
+        # 计算某个产品的成本
+        product = Product.objects.get(pk=pk)
+
+
+
 class SupplyViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = InboundShipment.objects.select_related('product').all()
     serializer_class = InboundShipmentSerializer

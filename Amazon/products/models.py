@@ -154,7 +154,7 @@ class Settlement(models.Model):
     advertising_fee = models.FloatField(null=True, blank=True)       # 广告费，需以负数保存
     advertising_fee_adjust = models.FloatField(null=True, blank=True, verbose_name=u'实际支付的总广告费')   # 如果advertising_fee<advertising_fee_adjust，那么需要将多余的平均到商品中
     storage_fee = models.FloatField(null=True, blank=True)           # 仓储费，需以负数保存
-    subscribe_fee = models.FloatField(null=True, blank=True, verbose_name=u'订阅费') # 手动
+    subscription_fee = models.FloatField(null=True, blank=True, verbose_name=u'订阅费') # 手动
     cost = models.FloatField(null=True, blank=True, verbose_name=u'成本')
     total_cost = models.FloatField(null=True, blank=True, verbose_name=u'总成本')      # 总成本， cost+adverising_fee+storage_fee+subscription_fee
 
