@@ -19,7 +19,7 @@ app.directive('fileModel', ['$parse', function ($parse) {
 }]);
 
 app.service('fileUpload', ['$http', '$rootScope', function ($http, $rootScope) {
-    this.uploadFileToUrl = function(file, uploadUrl, cb){
+    this.uploadFileToUrl = function(file, uploadUrl, cb, finally_cb){
         var fd = new FormData();
         fd.append('file', file);
 
@@ -31,6 +31,9 @@ app.service('fileUpload', ['$http', '$rootScope', function ($http, $rootScope) {
         })
         .catch(function(){
             $rootScope.addAlert('error', '上传失败');
-        });
+        })
+            .finally(function(){
+                finally_cb && finally_cb();
+            });
     }
 }]);

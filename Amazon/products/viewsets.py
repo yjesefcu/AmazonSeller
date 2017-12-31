@@ -147,6 +147,24 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
             instance.save()
         return Response(serializer_class(instance).data)
 
+    @detail_route(methods=['post'])
+    def advertising_upload(self, request, pk):
+        # 上传广告报告
+        instance = self.get_object()
+        my_file = request.FILES.get("file", None)    # 获取上传的文件，如果没有文件，则默认为None
+        if not my_file:
+            return Response({'errno': -1})
+        text = ''
+        for chunk in my_file.chunks():      # 分块写入文件
+            text += unicode(chunk, chardet.detect(chunk)['encoding'])
+        try:
+            FileImporter().import_advertising(text, instance)
+        except TextParseException, ex:
+            return Response({'errno': 1})
+        instance.advertising_imported = True
+        instance.save()
+        return Response({'error': 0})
+
     @detail_route(methods=['get'])
     def download(self, request, pk):
         instance = self.get_object()

@@ -197,6 +197,9 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
         angular.element("#globalRemovalFile").on('change', function(){
             $scope.globalRemovalFile = this.files[0];
         });
+        angular.element("#advertisingFile").on('change', function(){
+            $scope.globalAdvertisingFile = this.files[0];
+        });
     }, 1000);
     $scope.sendRemovalFile = function(){
         var url = serviceFactory.uploadRemovals(calcSettlementId),
@@ -221,6 +224,19 @@ app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $s
                 $scope.storageInvalid = false;
             }else {
                 $rootScope.addAlert('error', '上传失败，请确认上传文件是否移除报告');
+            }
+        });
+    };
+    $scope.sendAdvertisingFile = function() {   // 上传广告报告
+        var url = serviceFactory.settlementDetail(calcSettlementId) + 'advertising_upload/',
+            file = $scope.globalAdvertisingFile;
+        if ( !file ) return;
+        fileUpload.uploadFileToUrl(file, url, function (data) {
+            if (!data.errno){
+                $rootScope.addAlert('success', '上传成功');
+                $scope.storageInvalid = false;
+            }else {
+                $rootScope.addAlert('error', '上传失败，请确认上传文件是否广告报告');
             }
         });
     };
@@ -267,6 +283,9 @@ app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $sta
     $scope.settlementId = $stateParams.settlementId;
     var settlementId = $scope.settlementId;
     $scope.isSettlement = true;
+    $scope.storage_uploading = false;   // 文件上传状态
+    $scope.removal_uploading = false;   // 文件上传状态
+    $scope.advertising_uploading = false;   // 文件上传状态
     $http.get(serviceFactory.settlementDetail(settlementId))
         .then(function (result) {
              $scope.settlement = result.data;
@@ -296,11 +315,15 @@ app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $sta
         angular.element("#removalFile").on('change', function(){
             $scope.fileToUpload = this.files[0];
         });
+        angular.element("#advertisingFile").on('change', function(){
+            $scope.advertisingFile = this.files[0];
+        });
     }, 1000);
     $scope.sendRemovalFile = function(){
         var url = serviceFactory.uploadRemovals(settlementId),
             file = $scope.fileToUpload;
         if ( !file ) return;
+        $scope.removal_uploading = true;
         fileUpload.uploadFileToUrl(file, url, function (data) {
             if (!data.errno){
                 $rootScope.addAlert('success', '上传成功，一共找到' + data.data.length + '条记录');
@@ -308,12 +331,15 @@ app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $sta
             }else {
                 $rootScope.addAlert('error', '上传失败，请确认上传文件是否移除报告');
             }
+        }, function(){
+            $scope.removal_uploading = false;
         });
     };
     $scope.sendStorageFile = function(){
         var url = serviceFactory.settlementDetail(settlementId) + 'storage_upload/',
             file = $scope.storageFile;
         if ( !file ) return;
+        $scope.storage_uploading = true;
         fileUpload.uploadFileToUrl(file, url, function (data) {
             if (!data.errno){
                 $rootScope.addAlert('success', '上传成功，一共找到' + data.data.length + '条记录');
@@ -321,6 +347,23 @@ app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $sta
             }else {
                 $rootScope.addAlert('error', '上传失败，请确认上传文件是否移除报告');
             }
+        }, function(){
+            $scope.storage_uploading = false;
+        });
+    };
+    $scope.sendAdvertisingFile = function() {   // 上传广告报告
+        var url = serviceFactory.settlementDetail(settlementId) + 'advertising_upload/',
+            file = $scope.advertisingFile;
+        if ( !file ) return;
+        $scope.advertising_uploading = true;
+        fileUpload.uploadFileToUrl(file, url, function (data) {
+            if (!data.errno){
+                $rootScope.addAlert('success', '上传成功');
+            }else {
+                $rootScope.addAlert('error', '上传失败，请确认上传文件是否广告报告');
+            }
+        }, function(){
+            $scope.advertising_uploading = false;
         });
     };
 
