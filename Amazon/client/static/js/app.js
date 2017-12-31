@@ -18,7 +18,7 @@ app.controller('MainCtrl', function ($scope, $state, $http, $rootScope, $locatio
         $rootScope.alerts.push({
             type: type, msg: msg, "dismiss-on-timeout": timeout, close: function () {
                 return $rootScope.closeAlert(this);
-            },
+            }
         });
     };
     $rootScope.closeAlert = function (index) {

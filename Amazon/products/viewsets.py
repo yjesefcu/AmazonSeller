@@ -82,6 +82,41 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
         return Response({'errno': Error.SUCCESS})
 
     @detail_route(methods=['get'])
+    def calc_cost(self, request, pk):
+        # 计算多个商品的成本，计算完后会自动计算利润
+        from api import ProductProfitCalc
+        settlement = self.get_object()
+        ids = request.query_params.get('products', None)
+        if ids:
+            # 计算一个或多个商品的利润
+            id_list = ids.split(',')
+            products = Product.objects.filter(id__in=id_list)
+            for p in products:
+                isvalid = ValidationChecker(settlement).check_product(p)      # 先检查商品数据是否合法，主要对比实际库存是否大于订单数量
+                if not isvalid:
+                    return Response({'response': "error", 'errno': Error.INVALID_DATA,
+                                     'message': '%s的亚马逊库存小与订单的数量，无法计算' % p.SellerSKU})
+            calculator = ProductProfitCalc(settlement)
+            for p in products:
+                calculator.calc_product_cost(p)
+        return Response({'result': 'success', 'errno': Error.SUCCESS})
+
+    @detail_route(methods=['get'])
+    def calc_profit(self, request, pk):
+        # 只计算利润，不重新计算成本
+        from api import ProductProfitCalc
+        settlement = self.get_object()
+        ids = request.query_params.get('products', None)
+        if ids:
+            # 计算一个或多个商品的利润
+            id_list = ids.split(',')
+            products = Product.objects.filter(id__in=id_list)
+            calculator = ProductProfitCalc(settlement)
+            for p in products:
+                calculator.calc_product_profit(p)
+        return Response({'result': 'success', 'errno': Error.SUCCESS})
+
+    @detail_route(methods=['get'])
     def calcStatus(self, request, pk):
         instance = self.get_object()
         return Response({'errno': instance.calc_status})

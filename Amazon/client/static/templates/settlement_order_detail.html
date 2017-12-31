@@ -8,9 +8,16 @@
         </div>
         <!-- /.box-header -->
         <div class="box-body" style="display: none;overflow-x: auto;">
+            <div class="row" style="padding: 8px 16px;">
+                <button class="btn btn-default" style="margin-right: 16px;" title="根据进价、运费等计算商品的成本，并自动计算利润" ng-if="!isCalcCost" ng-click="calc_products('calc_cost')">计算成本</button>
+                <button class="btn btn-default disabled" style="margin-right: 16px;" title="根据进价、运费等计算商品的成本，并自动计算利润" ng-if="isCalcCost"><i class="fa fa-spinner fa-span"></i>正在计算...</button>
+                <button class="btn btn-default" title="根据已计算的成本，直接重新计算利润" ng-click="calc_products('calc_profit')" ng-if="!isCalcProfit">计算利润</button>
+                <button class="btn btn-default disabled" title="根据已计算的成本，直接重新计算利润" ng-if="isCalcProfit"><i class="fa fa-spinner fa-span"></i>正在计算...</button>
+            </div>
             <table id="summaryTable" class="table table-bordered table-hover table-lg">
                 <thead>
                 <tr>
+                    <th>操作</th>
                     <th>序号</th>
                     <th>SKU</th>
                     <th>商品图片</th>
@@ -32,6 +39,9 @@
                 </thead>
                 <tbody>
                 <tr ng-repeat="o in products"table-repeat-directive>
+                    <td class="smart-form">
+                        <label class="checkbox"><input type="checkbox" name="checkbox" ng-click="selectProduct($event, $index)" ng-model="o.selected"></label>
+                    </td>
                     <td>{{ $index+1 }}</td>
                     <td><a ui-sref="index.productDetail.settlement({productId: o.product.id, settlementId: settlementId})"> {{ o.product.SellerSKU }}</a></td>
                     <td><img src="{{ host }}{{ o.product.Image }}"></td>

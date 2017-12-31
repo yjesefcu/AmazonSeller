@@ -379,7 +379,8 @@ app.controller('settlementDetailCtrl', function ($scope, $rootScope, $http, $sta
         }).catch(function (result) {
             $rootScope.addAlert('error', '发生异常');
         });
-    }
+    };
+
 })
 .controller('setFeeCtrl', function($scope, $rootScope, $http, $state, serviceFactory, $uibModalInstance, data) {
     $scope.settlement = data;
@@ -450,16 +451,6 @@ app.controller('settlementOrdersCtrl', function ($scope, $rootScope, $http, $sta
                 $scope.productLoading = false;
                 $rootScope.addAlert('warning', '获取商品列表失败');
             });
-//        $http.get(serviceFactory.settlementProducts(settlementId), {
-//            params: getTotalParam})
-//            .then(function (result) {
-//                if (result.data.length)
-//                {
-//                    $scope.productSummary = result.data[0];
-//                }
-//            }).catch(function (result) {
-//                $rootScope.addAlert('warning', '获取商品列表失败');
-//            });
     }
 
     function getOrders() {
@@ -543,6 +534,50 @@ app.controller('settlementOrdersCtrl', function ($scope, $rootScope, $http, $sta
             $rootScope.addAlert('warning', '获取商品列表失败');
         });
     }
+
+
+    var selectedProducts = {};
+    $scope.isCalcCost = false;
+    $scope.isCalcProfit = false;
+    $scope.selectProduct = function($event, index) {        // 选中/取消某个商品
+        if ($event.target.checked)
+        {
+            selectedProducts[index] = $scope.products[index];
+        }else {
+            delete selectedProducts[index];
+        }
+    };
+
+    $scope.calc_products = function(calc_type) {     // 计算选中的商品的成本
+        var idList = [];
+        for (var i in selectedProducts) {
+            idList.push(selectedProducts[i].product.id);
+        }
+        if (!idList.length){
+            return;
+        }
+        if (calc_type === 'calc_cost') {
+            $scope.isCalcCost = true;
+        } else {
+            $scope.isCalcProfit = true;
+        }
+        $http.get(serviceFactory.getUrl('/api/settlements/' + settlementId + '/' + calc_type + '?products=' + idList.join(',')))
+            .then(function (result) {
+                if (result.data.errno) {
+                    $rootScope.addAlert('error', '计算失败:' + result.data.message);
+                } else {
+                    $rootScope.addAlert('success', '计算完成');
+                    for (var i in selectedProducts) {   // 取消已选
+                        selectedProducts[i].selected = false;
+                    }
+                }
+            }).catch(function (result) {
+                $rootScope.addAlert('warning', '计算过程发生错误');
+            }).finally(function(){
+                $scope.isCalcCost = false;
+                $scope.isCalcProfit = false;
+            });
+    };
 
     function openSetModal() {
         var modalInstance = $uibModal.open({
