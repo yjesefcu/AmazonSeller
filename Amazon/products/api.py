@@ -299,7 +299,7 @@ class SettlementDbHandler(object):
             if count > 1:
                 logger.info('SettleOrderItem return more than one: %s', data['OrderItemId'])
                 for o in order_list:
-                    if (-o.Principal) == to_float(data['PriceAdjustmentAmount']):
+                    if (-o.Principal) == to_float(data['Principal']):
                         exist = True
                         order = o
                         break

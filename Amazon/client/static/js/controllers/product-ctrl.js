@@ -196,7 +196,7 @@ app.controller("ProductEditCtrl", function ($scope, $http, $rootScope, $location
                     return {
                         id: id,
                         cb: function (data) {
-                            $scope.shipments.push(data);
+                            $scope.supplies.push(data);
                         }
                     };//用于传递数据
                 }
