@@ -399,8 +399,7 @@ app.controller('settlementOrdersCtrl', function ($scope, $rootScope, $http, $sta
     }
 
     function getProducts() {
-        $http.get(serviceFactory.settlementProducts(settlementId), {
-            params: getListParam})
+        $http.get(serviceFactory.settlementProducts(settlementId))
             .then(function (result) {
                 $scope.productLoading = false;
                 $scope.products = result.data;
@@ -408,16 +407,16 @@ app.controller('settlementOrdersCtrl', function ($scope, $rootScope, $http, $sta
                 $scope.productLoading = false;
                 $rootScope.addAlert('warning', '获取商品列表失败');
             });
-        $http.get(serviceFactory.settlementProducts(settlementId), {
-            params: getTotalParam})
-            .then(function (result) {
-                if (result.data.length)
-                {
-                    $scope.productSummary = result.data[0];
-                }
-            }).catch(function (result) {
-                $rootScope.addAlert('warning', '获取商品列表失败');
-            });
+//        $http.get(serviceFactory.settlementProducts(settlementId), {
+//            params: getTotalParam})
+//            .then(function (result) {
+//                if (result.data.length)
+//                {
+//                    $scope.productSummary = result.data[0];
+//                }
+//            }).catch(function (result) {
+//                $rootScope.addAlert('warning', '获取商品列表失败');
+//            });
     }
 
     function getOrders() {

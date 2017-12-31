@@ -137,19 +137,27 @@ class Settlement(models.Model):
     TotalAmount = models.FloatField(null=True, blank=True)
     StartDate = models.DateTimeField(null=True, blank=True, verbose_name=u'结算开始日期')
     EndDate = models.DateTimeField(null=True, blank=True, verbose_name=u'结算结束日期')
-    subscribe_fee = models.FloatField(null=True, blank=True, verbose_name=u'订阅费') # 手动
-    subscription_fee_adjust = models.FloatField(null=True, blank=True, verbose_name=u'补偿金额')    # OtherTransaction.SubscriptionFeeAdj的总和
-    balanced_adjust = models.FloatField(null=True, blank=True, verbose_name=u'余额调整')
-    advertising_fee = models.FloatField(null=True, blank=True, verbose_name=u'从商品中统计的广告费')
-    advertising_fee_adjust = models.FloatField(null=True, blank=True, verbose_name=u'实际支付的总广告费')   # 如果advertising_fee<advertising_fee_adjust，那么需要将多余的平均到商品中
+
+    # 销售
+    # subscription_fee_adjust = models.FloatField(null=True, blank=True, verbose_name=u'补偿金额')    # OtherTransaction.SubscriptionFeeAdj的总和
     custom_return_fee = models.FloatField(null=True, blank=True)    # 退货服务费，如果退货服务费的OtherTransaction没找到对应的RefundItem记录，则会记录在这里
 
+    Quantity = models.IntegerField(null=True, blank=True, verbose_name=u'销售数量')           # 销售数量
+    # 亚马逊部分
+    sales = models.FloatField(default=0, verbose_name=u'订单')
+    refund = models.FloatField(default=0, verbose_name=u'退货')
+    other_fee = models.FloatField(default=0, verbose_name=u'其他服务费')     # 包括移除、弃置
+    other_trade = models.FloatField(default=0, verbose_name=u'其他交易')     # 包括交易
     income = models.FloatField(null=True, blank=True, verbose_name=u'总收入')   # 计算
-    amazon_cost = models.FloatField(null=True, blank=True, verbose_name=u'亚马逊所收费用')
-    promotion = models.FloatField(null=True, blank=True, verbose_name=u'促销返点')
-    amount = models.FloatField(null=True, blank=True, verbose_name=u'实收')
-    quantity = models.IntegerField(null=True, blank=True, verbose_name=u'销售数量')           # 销售数量
-    total_cost = models.FloatField(null=True, blank=True, verbose_name=u'总成本')      # 计算
+
+    # 成本
+    advertising_fee = models.FloatField(null=True, blank=True)       # 广告费，需以负数保存
+    advertising_fee_adjust = models.FloatField(null=True, blank=True, verbose_name=u'实际支付的总广告费')   # 如果advertising_fee<advertising_fee_adjust，那么需要将多余的平均到商品中
+    storage_fee = models.FloatField(null=True, blank=True)           # 仓储费，需以负数保存
+    subscribe_fee = models.FloatField(null=True, blank=True, verbose_name=u'订阅费') # 手动
+    cost = models.FloatField(null=True, blank=True, verbose_name=u'成本')
+    total_cost = models.FloatField(null=True, blank=True, verbose_name=u'总成本')      # 总成本， cost+adverising_fee+storage_fee+subscription_fee
+
     profit = models.FloatField(null=True, blank=True, verbose_name=u'利润')           # 计算
     profit_rate = models.FloatField(null=True, blank=True, verbose_name=u'利润率')     # 计算
 
@@ -158,7 +166,7 @@ class Settlement(models.Model):
     is_downloading = models.BooleanField(default=False)
     storage_imported = models.BooleanField(default=False)       # 月度仓储费是否已导入
     removal_imported = models.BooleanField(default=False)       # 移除报告是否已导入
-    advertising_report_valid = models.BooleanField(default=False)   # 读取广告费时是否成功
+    advertising_imported = models.BooleanField(default=False)   # 广告报告是否已导入
 
     class Meta:
         ordering = ['-EndDate']
@@ -175,21 +183,29 @@ class ProductSettlement(models.Model):
     MarketplaceId = models.CharField(max_length=30, db_index=True)     # 市场Id
     settlement = models.ForeignKey(Settlement, related_name='products')
     product = models.ForeignKey(Product, null=True, blank=True)
-    advertising_fee = models.FloatField(null=True, blank=True)       # 广告费，需以负数保存
-    storage_fee = models.FloatField(null=True, blank=True)           # 仓储费，需以负数保存
+
+    Quantity = models.IntegerField(null=True, blank=True)           # 销售数量
+    # 销售环节
     custom_return_fee = models.FloatField(null=True, blank=True)    # 退货服务费，如果退货服务费的OtherTransaction没找到对应的RefundItem记录，则会记录在这里
 
-    quantity = models.IntegerField(null=True, blank=True)           # 销售数量
-    subscription_fee = models.FloatField(null=True, blank=True, verbose_name=u'订阅费')
+    # 亚马逊
+    sales = models.FloatField(default=0, verbose_name=u'销售')
+    refund = models.FloatField(default=0, verbose_name=u'退货')
+    other_fee = models.FloatField(default=0, verbose_name=u'其他服务费')     # 移除、弃置
+    other_trade = models.FloatField(default=0, verbose_name=u'其他交易')     # 赔偿
     income = models.FloatField(null=True, blank=True)         # 总销售
-    amazon_cost = models.FloatField(null=True, blank=True, verbose_name=u'亚马逊所收费用')
-    promotion = models.FloatField(null=True, blank=True, verbose_name=u'促销返点')
-    amount = models.FloatField(null=True, blank=True, verbose_name=u'实收')
-    total_cost = models.FloatField(null=True, blank=True)           # 总成本
+
+    # 成本
+    advertising_fee = models.FloatField(null=True, blank=True)       # 广告费，需以负数保存
+    storage_fee = models.FloatField(null=True, blank=True)           # 仓储费，需以负数保存
+    subscription_fee = models.FloatField(null=True, blank=True, verbose_name=u'订阅费')
+    cost = models.FloatField(null=True, blank=True, verbose_name=u'成本')
+    total_cost = models.FloatField(null=True, blank=True)           # 总成本， cost+adverising_fee+storage_fee+subscription_fee
+
+    # 总计
     profit = models.FloatField(null=True, blank=True, verbose_name=u'利润')
     profit_rate = models.FloatField(null=True, blank=True, verbose_name=u'利润率')
 
-    is_total = models.BooleanField(default=False)
     is_calculated = models.BooleanField(default=False)       # 是否计算过
 
     def update_cost(self, cost_diff):
@@ -204,7 +220,6 @@ class ProductSettlement(models.Model):
         # 更新settlement的记录
         if self.is_total:
             self.settlement.update_cost(cost_diff)
-
 
 
 class Refund(models.Model):
@@ -232,29 +247,21 @@ class RefundItem(models.Model):
     PostedDate = models.DateTimeField(null=True, blank=True, verbose_name=u'提交时间')
     product = models.ForeignKey(Product, null=True, blank=True, related_name='refunds')     # product为空表示汇总记录
     SellerSKU = models.CharField(max_length=50, null=True, blank=True)
-    PriceAdjustmentType = models.CharField(max_length=50, null=True, blank=True)
-    PriceAdjustmentAmount = models.FloatField(null=True, blank=True)
-    Principal = models.FloatField(null=True, blank=True)        # 商品总价
-    Shipping = models.FloatField(null=True, blank=True)         # 运费
-    Commission = models.FloatField(null=True, blank=True)       # 退还的商品佣金
-    RefundCommission = models.FloatField(null=True, blank=True) # 退货抽取的佣金
-    PromotionPrincipal = models.FloatField(null=True, blank=True)   # 退还的销售促销
-    PromotionShipping = models.FloatField(null=True, blank=True)    # 退还的运费促销
-    ShippingChargeback = models.FloatField(null=True, blank=True)
-    RestockingFee = models.FloatField(null=True, blank=True)
-
-    FBAReturnFee = models.FloatField(null=True, blank=True, verbose_name=u'退货费')    # = OtherTransaction中TransactionType= FBACustomerReturn的记录的Amount
-
     order_item = models.ForeignKey('SettleOrderItem', null=True, blank=True)        # 退款关联的订单
-    quantity = models.IntegerField(null=True, blank=True)   # 销售的数量，从SettleOrderItem中读取
-    cost = models.FloatField(null=True, blank=True, verbose_name=u'单位成本')         # 成本，应该为正数
+
+    Quantity = models.IntegerField(null=True, blank=True)   # 销售的数量，从SettleOrderItem中读取
+    # 销售部分
     UnitPrice = models.FloatField(null=True, blank=True, verbose_name=u'销售单价')
+    Principal = models.FloatField(null=True, blank=True)        # 商品总价
+    OtherPrice = models.FloatField(null=True, blank=True, verbose_name='买家其他退款')
+    Fee = models.FloatField(null=True, blank=True, verbose_name='亚马逊费用退款')
+    Promotion = models.FloatField(null=True, blank=True, verbose_name='促销返点')
+
+    # 成本
+    cost = models.FloatField(null=True, blank=True, verbose_name=u'单位成本')         # 成本，应该为正数
     # 汇总
     total_cost = models.FloatField(null=True, blank=True, verbose_name=u'总成本')  # subscription_fee + cost
-    income = models.FloatField(null=True, blank=True, verbose_name=u'订单付款') #　= PriceAdjustmentAmount
-    amazon_cost = models.FloatField(null=True, blank=True, verbose_name=u'亚马逊所收费用')
-    promotion = models.FloatField(null=True, blank=True, verbose_name=u'促销返点')
-    amount = models.FloatField(null=True, blank=True, verbose_name=u'实收') #　=Principal
+    income = models.FloatField(null=True, blank=True, verbose_name=u'实收') #　= PriceAdjustmentAmount
     profit = models.FloatField(null=True, blank=True, default=0)    # 利润
     profit_rate = models.FloatField(null=True, blank=True)          # 利润率
 
@@ -320,7 +327,7 @@ class ProductRemovalItem(models.Model):
     移除商品信息
     """
     MarketplaceId = models.CharField(max_length=30, db_index=True)     # 市场Id
-    settlement = models.ForeignKey(Settlement)
+    settlement = models.ForeignKey(Settlement, related_name='removals')
     RequestDate = models.DateTimeField(null=True, blank=True)
     UpdateDate = models.DateTimeField(null=True, blank=True)
     OrderId = models.CharField(max_length=50, null=True, blank=True)
@@ -329,17 +336,19 @@ class ProductRemovalItem(models.Model):
     SellerSKU = models.CharField(max_length=50, null=True, blank=True)
     FNSKU = models.CharField(max_length=50, null=True, blank=True)
     Disposition = models.CharField(max_length=20, null=True, blank=True)       # Sellable/Unsellable
+    product = models.ForeignKey(Product, related_name='removals', null=True, blank=True)
+
     Quantity = models.IntegerField(null=True, blank=True)
+    # 亚马逊
     Fee = models.FloatField(null=True, blank=True)       # 弃置费用
     # 计算所得
-    product = models.ForeignKey(Product, related_name='removals', null=True, blank=True)
     cost = models.FloatField(null=True, blank=True, verbose_name=u'单位成本')
 
     # 汇总
     total_cost = models.FloatField(null=True, blank=True, verbose_name=u'总成本')  # subscription_fee + cost
-    amazon_cost = models.FloatField(null=True, blank=True, verbose_name=u'亚马逊所收费用')     # = Fee
-    amount = models.FloatField(null=True, blank=True, verbose_name=u'实收') #　= amazon_cost
+    income = models.FloatField(null=True, blank=True, verbose_name=u'亚马逊实收')     # = Fee
     profit = models.FloatField(null=True, blank=True, default=0)    # 利润
+    profit_rate = models.FloatField(null=True, blank=True, default=0)
 
     is_total = models.BooleanField(default=False)      # 是否是汇总项
 
@@ -372,15 +381,16 @@ class OtherTransactionItem(models.Model):
     AmazonOrderId = models.CharField(max_length=50, null=True, blank=True)
     TransactionType = models.CharField(max_length=50, null=True, blank=True, verbose_name=u'服务费类型') # INCORRECT_FEES_ITEMS：费用更正，无需计算成本
     PostedDate = models.DateTimeField(null=True, blank=True, verbose_name=u'提交时间')
+    product = models.ForeignKey(Product, null=True, blank=True)
     # 赔偿明细
     SellerSKU = models.CharField(max_length=50, null=True, blank=True)
     Quantity = models.IntegerField(null=True, blank=True)
-    Amount = models.FloatField(null=True, blank=True)
+    # 亚马逊
+    UnitPrice = models.FloatField(null=True, blank=True, verbose_name=u'商品销售单价')   # Amount/Quantity
+    Amount = models.FloatField(null=True, blank=True, verbose_name=u'赔偿价格')
 
     # 其他
-    product = models.ForeignKey(Product, null=True, blank=True)
     cost = models.FloatField(null=True, blank=True, verbose_name=u'单位成本')     # 如果是仓库丢失，需要扣除成本
-    UnitPrice = models.FloatField(null=True, blank=True, verbose_name=u'商品销售单价')   # Amount/Quantity
 
     # 汇总
     income = models.FloatField(null=True, blank=True)       # = Amount
@@ -455,6 +465,18 @@ class AdvertisingProductItems(models.Model):
     cost = models.FloatField(null=True, blank=True)     # cost为TotalSpend+校正费用（实际支出-所有商品综合)/商品数
 
 
+class SellerCouponPayment(models.Model):
+    """
+    优惠券返还
+    """
+    MarketplaceId = models.CharField(max_length=30, db_index=True)     # 市场Id
+    settlement = models.ForeignKey(Settlement, null=True, blank=True, related_name='coupons')   # 关联的结算周期
+    PostedDate = models.DateTimeField(null=True, blank=True)
+    Amount = models.FloatField(default=0, null=True)    # 总额
+    Count = models.IntegerField(default=0)      # 数量
+    cost = models.FloatField(null=True, blank=True)     # cost = Amount
+
+
 class SettleOrder(models.Model):
     """
     销售记录
@@ -487,32 +509,21 @@ class SettleOrderItem(models.Model):
     UnitPrice = models.FloatField(null=True, blank=True, verbose_name=u'单价')    # Principal/Quantity
     Quantity = models.IntegerField(null=True, blank=True)
     Principal = models.FloatField(null=True, blank=True, verbose_name=u'订单付款')
-    # Principal = models.FloatField(null=True, blank=True, verbose_name=u'商品总价')
-
-    ShippingChargeback = models.FloatField(null=True, blank=True, verbose_name=u'买家运费付款')       # 买家运费付款
-    Shipping = models.FloatField(null=True, blank=True, verbose_name=u'其他-运费')
-    PromotionShipping = models.FloatField(null=True, blank=True, verbose_name=u'促销返点-运费')    # 从销售收入中扣除
-    # FBAPerUnitFulfillmentFee + FBAPerOrderFulfillmentFee = 表格中的基础服务费
-    FBAPerUnitFulfillmentFee = models.FloatField(null=True, blank=True, verbose_name=u'亚马逊物流基础服务费')
-    FBAPerOrderFulfillmentFee = models.FloatField(null=True, blank=True)
-
-    GiftwrapChargeback = models.FloatField(null=True, blank=True)
-    GiftWrap = models.FloatField(null=True, blank=True)
-    Commission = models.FloatField(null=True, blank=True, verbose_name=u'佣金')
-    PromotionPrincipal = models.FloatField(null=True, blank=True, verbose_name=u'销售促销返点')   # 从销售收入中扣除
+    OtherPrice = models.FloatField(null=True, blank=True, verbose_name='其他付款')
+    Fee = models.FloatField(null=True, blank=True, verbose_name='亚马逊收取费用')
+    Promotion = models.FloatField(null=True, blank=True, verbose_name='促销返款')
+    income = models.FloatField(null=True, blank=True, verbose_name=u'销售实收') #　=Principal
 
     #成本
+    advertising_fee = models.FloatField(null=True, blank=True)       # 广告费，需以负数保存
+    storage_fee = models.FloatField(null=True, blank=True)           # 仓储费，需以负数保存
     subscription_fee = models.FloatField(null=True, blank=True, verbose_name=u'订阅费')     # 单位：USD，负数
-    supply_cost = models.FloatField(null=True, blank=True, verbose_name=u'国内运费')        # 负数， =product.supply_cost
-    shipment_cost = models.FloatField(null=True, blank=True, verbose_name=u'国际运费')       # 负数， =product.shipment_cost
-    cost = models.FloatField(null=True, blank=True, default=0, verbose_name=u'单位成本')      # =product.cost，USD            # 负数
+    supply_cost = models.FloatField(null=True, blank=True, verbose_name=u'国内运费')        # 负数， = product.supply_cost
+    shipment_cost = models.FloatField(null=True, blank=True, verbose_name=u'国际运费')       # 负数， = product.shipment_cost
+    cost = models.FloatField(null=True, blank=True, default=0, verbose_name=u'单位成本')      # = product.cost，USD            # 负数
+    total_cost = models.FloatField(null=True, blank=True, verbose_name=u'总成本')  # subscription_fee + cost
 
     # 汇总
-    total_cost = models.FloatField(null=True, blank=True, verbose_name=u'总成本')  # subscription_fee + cost
-    income = models.FloatField(null=True, blank=True, verbose_name=u'订单付款') #　=Principal
-    amazon_cost = models.FloatField(null=True, blank=True, verbose_name=u'亚马逊所收费用')
-    promotion = models.FloatField(null=True, blank=True, verbose_name=u'促销返点')
-    amount = models.FloatField(null=True, blank=True, verbose_name=u'实收') #　=Principal
     profit = models.FloatField(null=True, blank=True, default=0)    # 利润
     profit_rate = models.FloatField(null=True, blank=True)
 

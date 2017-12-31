@@ -14,7 +14,7 @@ from amazon_services.exception import TextParseException
 from amazon_services.models import MarketAccount
 from models import *
 from serializer import *
-from api import FileImporter, to_float, get_float, ValidationChecker, ProductIncomeCalc
+from api import FileImporter, to_float, get_float, ValidationChecker, ProductIncomeCalc, SettlementIncomeCalc
 from errors import Error
 from data_export import DataExport
 
@@ -63,6 +63,13 @@ class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
         return Response({'products': ',  '.join(sku_list), 'storage_imported': instance.storage_imported,
                          'removal_imported': instance.removal_imported, 'advertising_valid': advertising_valid,
                          'data_sync_valid': True})
+
+    @detail_route(methods=['get'])
+    def calc_income(self, request, pk):
+        # 计算销售总收入
+        settlement = Settlement.objects.get(pk=pk)
+        SettlementIncomeCalc(settlement).calc()
+        return Response('success')
 
     @detail_route(methods=['get'])
     def calc(self, request, pk):
@@ -161,6 +168,10 @@ class ProductViewSet(NestedViewSetMixin, ModelViewSet):
         serializer = ProductSettlementSerializer(settlements, many=True)
         return Response(serializer.data)
 
+    @list_route(methods=['get'])
+    def sync(self, request):
+        from sync_handler import update_product
+        update_product()
 
 class SupplyViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = InboundShipment.objects.select_related('product').all()
@@ -213,16 +224,29 @@ class ProfitProductFilter(object):
         return queryset
 
 
+class ProductSettlementFilter(object):
+
+    def filter_queryset(self, request, queryset, view):
+        data = request.query_params
+        if 'product' in data:
+            product = data.get('product')
+            if not product:
+                queryset = queryset.filter(product__isnull=True)
+            else:
+                queryset = queryset.filter(product__pk=product)
+        return queryset
+
+
 class SettlementProductViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = ProductSettlement.objects.select_related('product').all()
     serializer_class = ProductSettlementSerializer
-    filter_backends = (DjangoFilterBackend, ProfitProductFilter,)
-    filter_fields = ('settlement', 'product', 'is_total')
+    filter_backends = (DjangoFilterBackend, ProductSettlementFilter,)
+    filter_fields = ('settlement', 'product')
 
 
 class OrderViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = SettleOrderItem.objects.select_related('product').all()
-    serializer_class = OrderItemSerializer
+    serializer_class = SimpleOrderItemSerializer
     filter_backends = (DjangoFilterBackend, ProfitProductFilter,)
     # filter_fields = ('settlement', 'product', 'is_total')
 
@@ -416,7 +440,7 @@ class OutboundShipmentViewSet(NestedViewSetMixin, ModelViewSet):
 
 class RefundViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = RefundItem.objects.select_related('product').all()
-    serializer_class = RefundItemSerializer
+    serializer_class = SimpleRefundItemSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
     filter_backends = (DjangoFilterBackend, ProfitProductFilter,)
     # filter_fields = ('settlement', 'product', 'is_total')
@@ -432,7 +456,7 @@ class RefundViewSet(NestedViewSetMixin, ModelViewSet):
 class RemovalViewSet(NestedViewSetMixin, ModelViewSet):
 
     queryset = ProductRemovalItem.objects.select_related('product').all()
-    serializer_class = ProductRemovalItemSerializer
+    serializer_class = SimpleProductRemovalItemSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
     filter_backends = (DjangoFilterBackend, ProfitProductFilter,)
     # filter_fields = ('settlement', 'product', 'is_total')
@@ -456,21 +480,18 @@ class RemovalViewSet(NestedViewSetMixin, ModelViewSet):
         try:
             _query_dict = self.get_parents_query_dict()
             settlement = Settlement.objects.get(pk=_query_dict['settlement'])
-            before_amount = ProductIncomeCalc().calc_removal_income(settlement)
             items = FileImporter().import_removals(text, settlement)
-            after_amount = ProductIncomeCalc().calc_removal_income(settlement)
-            settlement.amount += (after_amount - before_amount)     # 更新settlement的income信息
+            settlement.removal_imported = True
             settlement.save()
         except TextParseException, ex:
             return Response({'errno': 1})
-        settlement.removal_imported = True
-        settlement.save()
+        items = ProductRemovalItem.objects.filter(settlement=settlement, is_total=False)
         return Response({'error': 0, 'data': ProductRemovalItemSerializer(items, many=True).data})
 
 
 class ProductLostViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = OtherTransactionItem.objects.select_related('product').all()
-    serializer_class = ProductLostSerializer
+    serializer_class = SimpleProductLostSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
     filter_backends = (DjangoFilterBackend, ProfitProductFilter,)
     # filter_fields = ('settlement', 'product', 'is_total')

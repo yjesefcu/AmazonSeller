@@ -1,6 +1,6 @@
 #-*- coding:utf-8 -*-
 __author__ = 'liucaiyun'
-import os, datetime, urllib, json, logging, traceback, time
+import os, datetime, urllib, json, logging, traceback, time, threading
 from PIL import Image
 from random import Random
 import dateutil.parser
@@ -29,8 +29,17 @@ def to_float(value):
     return float(value)
 
 
-def sum_queryset(query_set, field):
+def to_int(value):
+    if not value:
+        return 0
+    return int(value)
+
+
+def sum_queryset(query_set, field, is_integer=False):
+    if is_integer:
+        return to_int(query_set.aggregate(total=Sum(field)).get('total'))
     return to_float(query_set.aggregate(total=Sum(field)).get('total'))
+
 
 def get_float(data, key):
     value = data.get(key)
@@ -42,19 +51,26 @@ def get_float(data, key):
 def update_product_to_db(product_data):
     """
     """
-    product, created = Product.objects.get_or_create(MarketplaceId=product_data['MarketplaceId'],
-                                                     SellerSKU=product_data['SellerSKU'])
-    if not product.Image:
-        # 下载image到本地
-        image = download_image(product_data['Image'])
-        if image:
-            product_data['Image'] = image
-    for key, value in product_data.items():
-        setattr(product, key, value)
-    # 计算体积重
-    product.volume_weight = float(product.package_width) * float(product.package_height) \
-                            * float(product.package_length) / 5000
-    product.save()
+    try:
+        product, created = Product.objects.get_or_create(MarketplaceId=product_data['MarketplaceId'],
+                                                         SellerSKU=product_data['SellerSKU'])
+        # product.ASIN = product_data.get('ASIN')
+        for key, value in product_data.items():
+            setattr(product, key, value)
+        # 计算体积重
+        product.volume_weight = float(product.package_width) * float(product.package_height) \
+                                * float(product.package_length) / 5000
+        product.save()
+        if not product.Image:
+            # 下载image到本地
+            image = download_image(product_data['Image'])
+            if image:
+                product_data['Image'] = image
+                product.Image = image
+                product.save()
+    except BaseException, ex:
+        traceback.format_exc()
+        raise ex
 
 
 def create_image_path():
@@ -132,21 +148,34 @@ class SettlementDbHandler(object):
             return None
         # 更新详细内容
         if 'Order' in data:
+            # 删除已有的
+            settlement.orders.all().delete()
             for item in data['Order']:
                 self._update_order_to_db(settlement, item)
         if 'Refund' in data:
+            # 删除已有的
+            settlement.refunds.all().delete()
             for item in data['Refund']:
                 self._update_refund_to_db(settlement, item)
         if 'OtherTransactions' in data:
+            # 删除已有的
+            settlement.other_transactions.all().delete()
             for item in data['OtherTransactions']:
                 self._update_transaction_to_db(settlement, item)
         if 'SellerDealPayment' in data:
+            settlement.seller_deal_payments.all().delete()
             for item in data['SellerDealPayment']:
                 self._update_deal_payment_to_db(settlement, item)
         if 'AdvertisingTransactionDetails' in data:
+            settlement.advertising_transactions.all().delete()
             for item in data['AdvertisingTransactionDetails']:
                 self._update_advertising_transaction_to_db(settlement, item)
-        self._init_settlement_products(settlement)
+        if 'SellerCouponPayment' in data:
+            # 删除已有的
+            settlement.coupons.all().delete()
+            for item in data['SellerCouponPayment']:
+                self._update_coupon_payment_to_db(settlement, item)
+        # self._init_settlement_products(settlement)
         return settlement
 
     def _init_settlement_products(self, settlement):
@@ -184,13 +213,6 @@ class SettlementDbHandler(object):
         """
         if not data:
             return None
-        try:
-            order = SettleOrder.objects.get(settlement=settlement, AmazonOrderId=data['AmazonOrderId'],
-                                            ShipmentID=data['ShipmentID']) # 存在则返回
-            print 'Order exist:　%s' % json.dumps(data)
-            return order
-        except SettleOrder.DoesNotExist, ex:
-            pass
         items = data['items']
         del data['items']
         order = SettleOrder.objects.create(MarketplaceId=self.MarketplaceId, settlement=settlement, **data)
@@ -210,21 +232,18 @@ class SettlementDbHandler(object):
         product, created = Product.objects.get_or_create(SellerSKU=data['SellerSKU'],
                                                          MarketplaceId=self.MarketplaceId)
         data['product'] = product
-        data['SellerSKU'] = product.SellerSKU
+        # data['SellerSKU'] = product.SellerSKU
         # 单价
         if data['Quantity'] and int(data['Quantity']) > 0:
             data['UnitPrice'] = float(data['Principal']) / int(data['Quantity'])
+        #汇总
+        data['income'] = to_float(data.get('Principal', 0)) + to_float(data.get('Promotion', 0)) + \
+                         to_float(data.get('OtherPrice', 0)) + to_float(data.get('Fee', 0))
         return SettleOrderItem.objects.create(**data)
 
     def _update_refund_to_db(self, settlement, data):
         if not data:
             return None
-        try:
-            refund = Refund.objects.get(settlement=settlement, AdjustmentID=data['AdjustmentID'])
-            print 'Refund exist:　%s' % json.dumps(data)
-            return refund
-        except Refund.DoesNotExist, ex:
-            pass
         data['MarketplaceId'] = self.MarketplaceId
         data['settlement'] = settlement
         items = data['items']
@@ -237,12 +256,6 @@ class SettlementDbHandler(object):
     def _update_refund_item_to_db(self, refund, data):
         if not data:
             return None
-        try:
-            item = RefundItem.objects.get(refund=refund, MerchantAdjustmentItemID=data['MerchantAdjustmentItemID'])
-            print 'RefundItem exist:　%s' % json.dumps(data)
-            return item
-        except RefundItem.DoesNotExist, ex:
-            pass
         data['PostedDate'] = refund.PostedDate
         data['MarketplaceId'] = refund.MarketplaceId
         data['settlement'] = refund.settlement
@@ -252,15 +265,18 @@ class SettlementDbHandler(object):
                                                          MarketplaceId=self.MarketplaceId)
         data['product'] = product
         data['SellerSKU'] = product.SellerSKU
+
         # 获取该订单的商品数量、以及退款的总额
         order_list = SettleOrderItem.objects.filter(OrderItemId=data['OrderItemId'])
         exist = False
         order = None
         count = order_list.count()
-        if not count:
-            logger.error('SettleOrderItem not exist:%s', data['OrderItemId'])
-            data['UnitPrice'], data['quantity'] = self._get_order_item_quantity_from_amazon(data['OrderItemId'], data['AmazonOrderId'])
-        else:
+        # if not count:
+        #     logger.error('SettleOrderItem not exist:%s', data['OrderItemId'])
+        #     data['UnitPrice'], data['quantity'] = self._get_order_item_quantity_from_amazon(data['OrderItemId'], data['AmazonOrderId'])
+        # else:
+        # 找到关联的订货单
+        if count:
             if count > 1:
                 logger.info('SettleOrderItem return more than one: %s', data['OrderItemId'])
                 for o in order_list:
@@ -273,10 +289,13 @@ class SettlementDbHandler(object):
             if not order:
                 order = order_list.first()
             data['order_item'] = order
-            data['quantity'] = -order.Quantity
+            data['Quantity'] = -order.Quantity
             data['UnitPrice'] = order.UnitPrice
+        else:
+            data['Quantity'] = -1
 
         # 找到对应的订单信息
+        data['income'] = to_float(data.get('Principal', 0)) + to_float(data.get('Promotion')) + to_float(data.get('OtherPrice')) + to_float(data.get('Fee'))
         return RefundItem.objects.create(**data)
 
     def _get_order_item_quantity_from_amazon(self, order_item_id, amazon_order_id):
@@ -292,7 +311,6 @@ class SettlementDbHandler(object):
                 return unit_price, -quantity
         logger.error('cannot get order item from amazon: %s', amazon_order_id)
         return None
-
 
     def _update_transaction_to_db(self, settlement, data):
         if not data:
@@ -314,6 +332,7 @@ class SettlementDbHandler(object):
         obj = OtherTransaction.objects.create(**data)
         self._update_transaction_fees_to_db(obj, fees)
         self._update_transaction_items_to_db(obj, items)
+        # todo
         self._update_custom_return_fee(settlement)      # 将FBACustomReturn的退货费用更新到退款表中
         return obj
 
@@ -351,18 +370,37 @@ class SettlementDbHandler(object):
         data['settlement'] = settlement
         return SellerDealPayment.objects.create(**data)
 
+    def _update_coupon_payment_to_db(self, settlement, data):
+        if not data:
+            return None
+        data['settlement'] = settlement
+        data['cost'] = data['Amount']
+        return SellerCouponPayment.objects.create(**data)
+
     def _update_advertising_transaction_to_db(self, settlement, data):
         if not data:
             return None
-        try:
-            obj = AdvertisingTransactionDetails.objects.get(settlement=settlement, InvoiceId=data['InvoiceId'])
-            print 'Advertising exist:　%s' % json.dumps(data)
-            return obj
-        except AdvertisingTransactionDetails.DoesNotExist, ex:
-            pass
+        # try:
+        #     obj = AdvertisingTransactionDetails.objects.get(settlement=settlement, InvoiceId=data['InvoiceId'])
+        #     print 'Advertising exist:　%s' % json.dumps(data)
+        #     return obj
+        # except AdvertisingTransactionDetails.DoesNotExist, ex:
+        #     pass
+        data['settlement'] = settlement
         data['MarketplaceId'] = self.MarketplaceId
         data['settlement'] = settlement
         return AdvertisingTransactionDetails.objects.create(**data)
+
+    @staticmethod
+    def _get_product_info_of_traction_fee(market, fee):
+        # 根据赔偿记录的订单id，找到对应的商品信息
+        logger.warning('FBACustomReturn: cannot find refund item:%s', fee.AmazonOrderId)
+        items = OrderItemService(market).list_items(fee.AmazonOrderId)
+        if not items:
+            logger.error('exception occurred when get OrderItem related to FBACustomerReturn: %s', fee.AmazonOrderId)
+            return
+        fee.SellerSKU = items[0]['SellerSKU']
+        fee.save()
 
     def _update_custom_return_fee(self, settlement):
         """
@@ -372,19 +410,15 @@ class SettlementDbHandler(object):
         for fee in return_fees:
             try:
                 refund = RefundItem.objects.get(AmazonOrderId=fee.AmazonOrderId)
-            except RefundItem.DoesNotExist, ex:
-                # 找不到的话，查找订单信息，找到对应的商品SellerSKU
-                logger.warning('FBACustomReturn: cannot find refund item:%s', fee.AmazonOrderId)
-                items = OrderItemService(self.market).list_items(fee.AmazonOrderId)
-                if not items:
-                    logger.error('exception occurred when get OrderItem related to FBACustomerReturn: %s', fee.AmazonOrderId)
-                    continue
-                fee.SellerSKU = items[0]['SellerSKU']
-                fee.save()
-                continue
             except RefundItem.MultipleObjectsReturned, ex:
                 logger.warning('FBACustomReturn: multi object return when find AmazonOrderId in RefundItem:%s', fee.AmazonOrderId)
                 refund = RefundItem.objects.filter(AmazonOrderId=fee.AmazonOrderId).first()
+            except RefundItem.DoesNotExist, ex:
+                # 找不到的话，查找订单信息，找到对应的商品SellerSKU
+                # 单独起一个线程进行查询
+                #
+                threading.Thread(target=SettlementDbHandler._get_product_info_of_traction_fee, args=(self.market, fee,), ).start()
+                return
             fee.refund_item = refund
             fee.SellerSKU = refund.SellerSKU
             fee.save()
@@ -398,22 +432,20 @@ class RemovalDbHandler(object):
         results = list()
         start_date = settlement.StartDate.strftime(DT_FORMAT)
         end_date = settlement.EndDate.strftime(DT_FORMAT)
+        if data:
+            # 先清除原有的记录
+            ProductRemovalItem.objects.filter(settlement=settlement).delete()
         for item in data:
             update_data = dateutil.parser.parse(item['UpdateDate']).replace(tzinfo=None).strftime(DT_FORMAT)
             if update_data > end_date \
                 or update_data < start_date:   # 如果报告日期超出结算日期，则不处理
                 continue
-            try:
-                obj = ProductRemovalItem.objects.get(OrderId=item['OrderId'], SellerSKU=item['SellerSKU'],
-                                                     RequestDate=item['RequestDate'])
-                results.append(obj)
-            except ProductRemovalItem.DoesNotExist,ex:
-                item['settlement'] = settlement
-                item['MarketplaceId'] = settlement.MarketplaceId
-                product, created = Product.objects.get_or_create(SellerSKU=item['SellerSKU'], MarketplaceId=settlement.MarketplaceId)
-                item['product'] = product
-                item['Fee'] = -float(item['Fee'])
-                results.append(ProductRemovalItem.objects.create(**item))
+            item['settlement'] = settlement
+            item['MarketplaceId'] = settlement.MarketplaceId
+            product, created = Product.objects.get_or_create(SellerSKU=item['SellerSKU'], MarketplaceId=settlement.MarketplaceId)
+            item['product'] = product
+            item['Fee'] = -float(item['Fee'])
+            results.append(ProductRemovalItem.objects.create(**item))
         return results
 
 
@@ -440,7 +472,7 @@ class StorageDbHandler(object):
                 logger.warning('cannot find Product for ASIN:%s', item['ASIN'])
         return results
 
-
+# 将广告数据在settlement时间范围内的数据，平均成天保存到数据库里，不在settlement时间范围内的不保存
 def update_product_advertising_to_db(settlement, data):
     """
     同步广告业绩报告数据到数据库
@@ -532,67 +564,114 @@ class CostCalculate(object):
 class ProductIncomeCalc(object):
     # 计算商品的销售部分数据
 
+    def __init__(self, product):
+        self.product = product
+
     def calc_income(self, settlement):
-        self.income = 0
-        self.amount = 0
+        self.quantity = 0
+        self.sales = 0
+        self.refund = 0
+        self.other_fee = 0
+        self.other_trade = 0
         self._calc_order(settlement)
         self._calc_removals(settlement)
         self._calc_with_refunds(settlement)
         self._calc_lost(settlement)
-        settlement.income = self.income
-        settlement.amount = self.amount
-        settlement.save()
-
-    def calc_removal_income(self, settlement):
-        self.amount = 0
-        self._calc_removals(settlement)
-        return self.amount
+        total, created = ProductSettlement.objects.get_or_create(settlement=settlement, product=self.product)
+        total.Quantity = self.quantity
+        total.sales = self.sales
+        total.refund = self.refund
+        total.other_fee = self.other_fee
+        total.other_trade = self.other_trade
+        total.income = self.sales + self.refund + self.other_trade + self.other_fee
+        total.save()
 
     def _calc_order(self, settlement):
         """
         计算每个订单的成本
         :return:
         """
-        orders = SettleOrderItem.objects.filter(settlement=settlement)
-        # if not orders.exists():
-        #     return
+        orders = SettleOrderItem.objects.filter(settlement=settlement, product=self.product, is_total=False)
+        if not orders.exists():
+            return
+        quantity = 0
+        principal = 0
+        promotion = 0
+        fee = 0
+        other = 0
+        income = 0
         for order in orders:
-            order.income = order.Principal
-            order.amazon_cost = to_float(order.FBAPerUnitFulfillmentFee) + to_float(order.FBAPerOrderFulfillmentFee) \
-                                  + to_float(order.Commission)
-            order.promotion = to_float(order.PromotionShipping) + to_float(order.PromotionPrincipal)
-            order.amount = to_float(order.income) + to_float(order.amazon_cost) + to_float(order.promotion)
-            order.save()
-            self.income += order.income
-            self.amount += order.amount
+            quantity += to_int(order.Quantity)
+            principal += to_float(order.Principal)
+            promotion += to_float(order.Promotion)
+            other += to_float(order.OtherPrice)
+            fee += to_float(order.Fee)
+            income += to_float(order.income)
+        total, created = SettleOrderItem.objects.get_or_create(settlement=settlement, product=self.product, is_total=True)
+        total.Principal = principal
+        total.Promotion = promotion
+        total.OtherPrice = other
+        total.Fee = fee
+        total.Quantity = quantity
+        total.income = income
+        total.save()
+        self.quantity += quantity
+        self.sales = income
 
     def _calc_with_refunds(self, settlement):
         """
         计算退货的收入支出
         :param product:
         """
-        refunds = RefundItem.objects.filter(settlement=settlement)
-        for refund in refunds:
-            refund.income = to_float(refund.PriceAdjustmentAmount)
-            refund.promotion = to_float(refund.PromotionPrincipal) + to_float(refund.PromotionShipping)
-            refund.amazon_cost = to_float(refund.Commission) + to_float(refund.RefundCommission)
-            refund.amount = refund.income + refund.promotion + refund.amazon_cost
-            refund.save()
-            self.income += refund.income
-            self.amount += refund.amount
+        refunds = RefundItem.objects.filter(settlement=settlement, product=self.product, is_total=False)
+        if not refunds.exists():
+            return
+        quantity = 0
+        principal = 0
+        promotion = 0
+        fee = 0
+        other = 0
+        income = 0
+        for order in refunds:
+            quantity += to_int(order.Quantity)
+            principal += to_float(order.Principal)
+            promotion += to_float(order.Promotion)
+            other += to_float(order.OtherPrice)
+            fee += to_float(order.Fee)
+            income += to_float(order.income)
+        total, created = RefundItem.objects.get_or_create(settlement=settlement, product=self.product, is_total=True)
+        total.Principal = principal
+        total.Promotion = promotion
+        total.OtherPrice = other
+        total.Fee = fee
+        total.Quantity = quantity
+        total.income = income
+        total.save()
+        self.refund = income
+        self.quantity += quantity
 
     def _calc_removals(self, settlement):
         """
         计算弃置/移除的商品，相当于销售出去
         """
-        items = ProductRemovalItem.objects.filter(settlement=settlement)
-
+        items = ProductRemovalItem.objects.filter(settlement=settlement, product=self.product, is_total=False)
+        if not items.exists():
+            return
+        quantity = 0
+        fee = 0
+        income = 0
         for item in items:
             item.amazon_cost = to_float(item.Fee)
-            item.amount = item.amazon_cost
-            item.save()
-            self.amount += item.amount
-
+            fee += to_float(item.Fee)
+            income += to_float(item.income)
+            quantity += to_int(item.Quantity)
+        total, created = ProductRemovalItem.objects.get_or_create(settlement=settlement, product=self.product, is_total=True)
+        total.Quantity = quantity
+        total.Fee = fee
+        total.income = income
+        total.save()
+        self.other_fee = income
+        self.quantity += quantity
 
     def _calc_lost(self, settlement):
         """
@@ -600,13 +679,81 @@ class ProductIncomeCalc(object):
         :param product:
         :return: 总成本
         """
-        items = OtherTransactionItem.objects.filter(settlement=settlement)
-        # if not items.exists():
-        #     return
+        items = OtherTransactionItem.objects.filter(settlement=settlement, product=self.product, is_total=False)
+        if not items.exists():
+            return
+        amount = 0
+        quantity = 0
         for item in items:
-            item.income = item.Amount if item.Amount else 0
-            item.save()
-            self.income += item.income
+            amount += to_float(item.Amount)
+            quantity += to_int(item.Quantity)
+        total, created = OtherTransactionItem.objects.get_or_create(settlement=settlement, product=self.product, is_total=True)
+        total.Amount = amount
+        total.income = amount
+        total.Quantity = quantity
+        total.save()
+        self.other_trade = amount
+        self.quantity += quantity
+
+
+class SettlementIncomeCalc(object):
+    # 计算某个结算周期的亚马逊部分
+
+    def __init__(self, settlement):
+        self.settlement = settlement
+
+    def calc(self):
+        # 先计算所有产品的销售部分
+        self.calc_all_products()
+        # 在计算结算周期的销售收入
+        products = ProductSettlement.objects.filter(settlement=self.settlement)
+        self.settlement.sales = sum_queryset(products, 'sales')
+        self.settlement.refund = sum_queryset(products, 'refund')
+        self.settlement.other_fee = self._calc_other_fee()
+        self.settlement.other_trade = sum_queryset(products, 'other_trade')
+        self.settlement.income = self.settlement.sales + self.settlement.refund + self.settlement.other_fee + self.settlement.other_trade
+        self.settlement.advertising_fee = self._calc_advertising_fee()
+        self.settlement.storage_fee = self._calc_storage_fee()
+        self.settlement.Quantity = sum_queryset(products, 'Quantity', is_integer=True)
+        self.settlement.save()
+
+    def calc_all_products(self):
+        products = Product.objects.all()
+        for p in products:
+            calc_obj = ProductIncomeCalc(p)
+            calc_obj.calc_income(self.settlement)
+
+    def _calc_other_fee(self):
+        deal_fee = sum_queryset(SellerDealPayment.objects.filter(settlement=self.settlement), 'DealFeeAmount')      # 促销费用
+        # 移除、弃置或其他。除掉赔偿、仓储费的部分，赔偿的部分会在OtherTransactionItem中计算
+        removal = sum_queryset(OtherTransaction.objects.filter(settlement=self.settlement)
+                               .exclude(TransactionType__in=['REVERSAL_REIMBURSEMENT', 'WAREHOUSE_DAMAGE', 'Storage Fee']), 'Amount')
+        coupon = sum_queryset(SellerCouponPayment.objects.filter(settlement=self.settlement), 'Amount')
+        return deal_fee + removal + coupon
+
+    def _calc_advertising_fee(self):
+        # 计算广告费，如果广告报告未导入，那么直接读取AdvertisingTransactionDetails的广告费。
+        # 如果广告报告已导入，那么从商品中的订单中求和
+        if self.settlement.advertising_imported:
+            pass
+        return sum_queryset(AdvertisingTransactionDetails.objects.filter(settlement=self.settlement), 'TransactionAmount')   # 广告费
+
+    def _calc_storage_fee(self):
+        # 计算仓储费，如果月度仓储报告未导入，那么直接读取 OtherTransaction.TransactionType=Storage Fee部分
+        # 如果月度仓储报告已导入，那么从商品中的订单中求和
+        if self.settlement.storage_imported:
+            pass
+        return sum_queryset(OtherTransaction.objects.filter(settlement=self.settlement, TransactionType = 'Storage Fee'), 'Amount')
+
+    def calc_removals(self, by_product=True):
+        # 计算所有产品的移除费用
+        # by_product： True： 从ProductRemovalItem读取。 False：从OtherTransaction.TransactionType=['DisposalComplete', 'RemovalComplete']读取
+        if by_product:
+            return sum_queryset(ProductRemovalItem.objects.filter(settlement=self.settlement, is_total=False), 'Fee')
+        else:
+            queryset = OtherTransaction.objects.filter(settlement=self.settlement, TransactionType__in=['DisposalComplete', 'RemovalComplete'])
+            return sum_queryset(queryset, 'Amount')
+
 
 
 class ProductProfitCalc(object):
@@ -1115,6 +1262,7 @@ class FileImporter(object):
         parser = ProductRemovalParser(text)
         items = parser.get_items()
         removals = RemovalDbHandler().update_to_db(settlement=settlement, data=items)
+        # removals = RemovalDbHandler().upload_by_day(market_id=settlement.MarketplaceId, data=items)
         return removals
 
     @classmethod

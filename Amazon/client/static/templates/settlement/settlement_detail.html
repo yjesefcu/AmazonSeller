@@ -37,9 +37,11 @@
                                 <input id='removalFile' type="file" data-buttonName="btn-primary" ng-model="fileToUpload" accept="text/plain" style="display: inline-block;">
 
                             </div>
-                            <div class="col-sm-1">
+                            <div class="col-sm-4">
                                 <button class="btn btn-primary" ng-click="sendRemovalFile()">上传</button>
                             </div>
+                            <label class="col-sm-2"></label>
+                            <div class="col-sm-10">只会读取报告中的last-updated-date在结算日期内的记录，其他记录不会服务。如果再次上传移除报告，将会先清除原有的记录</div>
                         </div>
                     </div>
                 </div>

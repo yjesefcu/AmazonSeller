@@ -28,6 +28,7 @@ class BaseParser(object):
                 self._parse()
         except Exception, e:
             # logger.warning('parse xml exception:%s', traceback.format_exc())
+            traceback.format_exc(e)
             raise Exception(u'parse xml string exception')
 
     def is_error_response(self):
@@ -282,6 +283,7 @@ class SettlementReportParser(BaseParser):
         self.OtherTransactions = list()    # 服务费列表
         self.SellerDealPayment = list()
         self.AdvertisingTransactionDetails = list()
+        self.SellerCouponPayment = list()   # 优惠券
         super(SettlementReportParser, self).__init__(s)
 
     def _parse(self):
@@ -299,19 +301,23 @@ class SettlementReportParser(BaseParser):
             self.SellerDealPayment.append(self._parse_deal_payment(ele))
         for ele in self.findall(report, 'AdvertisingTransactionDetails'):
             self.AdvertisingTransactionDetails.append(self._parse_advertising_transaction(ele))
+        for ele in self.findall(report, 'SellerCouponPayment'):
+            self.SellerCouponPayment.append(self._parse_coupon_payment(ele))
         self.items = {
             'SettlementData': self.SettlementData,
             'Order': self.Orders,
             'Refund': self.Refunds,
             'OtherTransactions': self.OtherTransactions,
             'SellerDealPayment': self.SellerDealPayment,
-            'AdvertisingTransactionDetails': self.AdvertisingTransactionDetails
+            'AdvertisingTransactionDetails': self.AdvertisingTransactionDetails,
+            'SellerCouponPayment': self.SellerCouponPayment
         }
 
     def _parse_settlement_data(self, element):
         settlement = dict()
         settlement['AmazonSettlementID'] = self.find(element, 'AmazonSettlementID').text
         settlement['TotalAmount'] = self.find(element, 'TotalAmount').text
+        settlement['currency'] = self.find(element, 'TotalAmount').get('currency')
         settlement['StartDate'] = self.find(element, 'StartDate').text
         settlement['EndDate'] = self.find(element, 'EndDate').text
         return settlement
@@ -336,16 +342,22 @@ class SettlementReportParser(BaseParser):
         item['OrderItemId'] = self.find(ele, 'AmazonOrderItemCode').text
         item['SellerSKU'] = self.find(ele, 'SKU').text
         item['Quantity'] = self.find(ele, 'Quantity').text
+        price_total = 0
         for component in self.findall(ele, 'ItemPrice/Component'):  # 获取商品总价和运费
-            if self.find(component, 'Type').text not in ['Principal', 'Shipping']:
-                continue
-            item[self.find(component, 'Type').text] = self.find(component, 'Amount').text
+            if self.find(component, 'Type').text == 'Principal':
+                item['Principal'] = self.find(component, 'Amount').text
+            else:
+                price_total += float(self.find(component, 'Amount').text)
+        item['OtherPrice'] = price_total
         if self.find(ele, 'ItemFees') is not None:      # 亚马逊物流基础服务费
+            fee_total = 0
             for fee in self.findall(ele, 'ItemFees/Fee'):
-                item[self.find(fee, 'Type').text] = self.find(fee, 'Amount').text
+                fee_total += float(self.find(fee, 'Amount').text)
+            item['Fee'] = fee_total
+        promotion_total = 0
         for promotion in self.findall(ele, 'Promotion'):    # 促销返点
-            t = 'Promotion' + self.find(promotion, 'Type').text
-            item[t] = self.find(promotion, 'Amount').text
+            promotion_total += float(self.find(promotion, 'Amount').text)
+        item['Promotion'] = promotion_total
         return item
 
     def _parse_refund(self, element):
@@ -369,15 +381,28 @@ class SettlementReportParser(BaseParser):
         item['MerchantAdjustmentItemID'] = self.find(element, 'MerchantAdjustmentItemID').text
         item['SellerSKU'] = self.find(element, 'SKU').text
         if self.find(element, 'ItemPriceAdjustments') is not None:
+            total = 0    # 除了Principal和Shipping以外的退款
             for component in self.findall(element, 'ItemPriceAdjustments/Component'):
-                item['PriceAdjustmentType'] = self.find(component, 'Type').text
-                item['PriceAdjustmentAmount'] = self.find(component, 'Amount').text
+                # PriceAdjustmentType 退款类型，有很多种
+                t = self.find(component, 'Type').text
+                value = self.find(component, 'Amount').text
+                if t == 'Principal':
+                    item['Principal'] = value
+                else:
+                    total += float(value)
+            item['OtherPrice'] = total
         if self.find(element, 'ItemFeeAdjustments') is not None:
+            total = 0
             for fee in self.findall(element, 'ItemFeeAdjustments/Fee'):
-                item[self.find(fee, 'Type').text] = self.find(fee, 'Amount').text
+                # item[self.find(fee, 'Type').text] = self.find(fee, 'Amount').text
+                total += float(self.find(fee, 'Amount').text)
+            item['Fee'] = total
+        promotion_total = 0
         for promotion in self.findall(element, 'PromotionAdjustment'):
-            t = 'Promotion' + self.find(promotion, 'Type').text
-            item[t] = self.find(promotion, 'Amount').text
+            # t = 'Promotion' + self.find(promotion, 'Type').text
+            # item[t] = self.find(promotion, 'Amount').text
+            promotion_total += float(self.find(promotion, 'Amount').text)
+        item['Promotion'] = promotion_total
         return item
 
     def _parse_transaction(self, element):
@@ -431,10 +456,25 @@ class SettlementReportParser(BaseParser):
         advertising['TransactionAmount'] = self.find(element, 'TransactionAmount').text
         return advertising
 
+    def _parse_coupon_payment(self, element):
+        coupon = dict()
+        coupon['PostedDate'] = self.find(element, 'PostedDate').text
+        coupon['Amount'] = self.find(element, 'CouponFee').find('Amount').text
+        coupon['Count'] = self.find(element, 'Count').text
+        return coupon
+
 
 if __name__ == '__main__':
-    parser = RequestExceed('country.xml')
-    print parser.is_exceed
+    # from file_utils import get_file_content
+    # content = get_file_content('7548637834017515', '7548637834017515.xml')
+    f = open('1117-1201.xml', 'rb')
+    content = ''.join(f.readlines())
+    parser = SettlementReportParser(content)
+    orders = parser.items['Order']
+    for order in orders:
+        if order['AmazonOrderId'] == '112-9507060-2421826':
+            pass
+    parser.items
     # print parser.is_error_response()
     # print parser.get_orders()
     # print parser.get_next_token()

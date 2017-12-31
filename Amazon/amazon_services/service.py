@@ -8,6 +8,8 @@ from xml_parser import *
 from text_parser import *
 from models import RequestRecords, ReportRequestRecord
 from exception import *
+from file_utils import save_file, get_file_content
+from exception import FileNotExist
 logger = logging.getLogger('amazon')
 # 禁用安全请求警告
 # requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -111,7 +113,7 @@ class AmazonService(object):
             logger.info('request exceed: %s, action=%s', self.__class__.__name__, action)
             self._request_exceed()
             self._queue.get(block=True)
-            return self._post(uri, action, param, api_version)
+            return self.post(uri, action, param, api_version)
 
     def _post(self, uri, action, param=None, api_version='2013-09-01'):
         if not param:
@@ -333,6 +335,7 @@ class ProductService(AmazonService):
                       param, api_version='2011-10-01')
         if not r:
             logger.error('GetMatchingProductForId except. ')
+            return None
         try:
             parser = ProductParser(r.text)
         except Exception, ex:
@@ -441,12 +444,19 @@ class SettlementReportService(BaseReportService):
         根据ReportId获取单个报告的xml信息
         :param report_id:
         """
-        r = self._get_service.get_report(report_id)
+        # 如果本地存在，则不再重复读取
         try:
-            parser = SettlementReportParser(r.text)
+            content = get_file_content(report_id, report_id + '.xml')
+        except FileNotExist, ex:
+            r = self._get_service.get_report(report_id)
+            content = r.text
+            # 保存到本地
+            save_file(content, report_id, report_id + '.xml')
+        try:
+            parser = SettlementReportParser(content)
         except Exception, ex:
             traceback.format_exc()
-            logger.warning('SettlementReport parse failed: %s', r.text)
+            logger.warning('SettlementReport parse failed: %s', content)
             return None
         # 不获取NextToken的值
         items = parser.get_items()
@@ -466,9 +476,19 @@ class AdvertiseReportService(BaseReportService):
         # 只发起请求
         return self._request_service.request('_GET_PADS_PRODUCT_PERFORMANCE_OVER_TIME_WEEKLY_DATA_TSV_', day)
 
-    def get_items_by_report_id(self, report_id):
-        r = self.get_by_report_id(report_id)
-        parser = AdvertisingParser(r.text)
+    def get_items_by_report_id(self, report_id, start_day=None):
+        # 保存到本地的文件名
+        if start_day:
+            name = 'week_%s_%s.txt' % (start_day, report_id)
+        else:
+            name = 'week_%s.txt' % report_id
+        content = get_file_content('advertising', name)
+        if not content:
+            r = self.get_by_report_id(report_id)
+            # 保存到本地
+            save_file(r.text, 'advertising', name)
+            content = r.text
+        parser = AdvertisingParser(content)
         return parser.get_items()
 
     def get_by_day(self, day, request_report_id=None):
@@ -493,7 +513,7 @@ class AdvertiseReportService(BaseReportService):
             request_report_id = self._request_service.request(report_type, start_day)
         report_id = self._check_report_done(report_type, request_report_id)
         if report_id:
-            return self.get_items_by_report_id(report_id)
+            return self.get_items_by_report_id(report_id, start_day)
         return None
 
 

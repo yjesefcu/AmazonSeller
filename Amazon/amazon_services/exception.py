@@ -9,3 +9,8 @@ class TextParseException(BaseException):
 class RequestExceedException(BaseException):
 
     pass
+
+
+class FileNotExist(BaseException):
+
+    pass
