@@ -68,7 +68,7 @@
                 </h3>
             </div>
             <!-- /.box-header -->
-            <div class="box-body" ng-show="showSupplies">
+            <div class="box-body" ng-show="showSupplies" style="overflow-x: auto;">
                 <table id="inboundShipements" class="table table-bordered table-hover">
                     <thead>
                     <tr>
@@ -120,10 +120,12 @@
         <!-- general form elements -->
         <div class="box box-primary">
             <div class="box-header with-border" ng-click="showShipments=!showShipments">
-                <h3 class="box-title">移库货件({{shipments.length}}）</h3>
+                <h3 class="box-title">移库货件（{{shipments.length}}）
+                <a class="btn btn-primary" style="margin-left: 16px;" ui-sref="index.shipment">添加移库货件</a>
+                </h3>
             </div>
             <!-- /.box-header -->
-            <div class="box-body" ng-show="showShipments">
+            <div class="box-body" ng-show="showShipments" style="overflow-x: auto;">
                 <table id="outboundShipements" class="table table-bordered table-hover">
                     <thead>
                     <tr>
@@ -168,7 +170,7 @@
                 <h3 class="box-title">结算记录({{settlements.length}})</h3>
             </div>
             <!-- /.box-header -->
-            <div class="box-body" ng-show="showSettlements">
+            <div class="box-body" ng-show="showSettlements" style="overflow-x: auto;">
                 <table id="settlements" class="table table-bordered table-hover">
                     <thead>
                     <tr>
@@ -186,6 +188,7 @@
                             <th class="td-cost">总成本({{ currency }})</th>
                             <th>利润({{ currency }})</th>
                             <th>利润率</th>
+                            <th>操作</th>
                             <!--<th>操作</th>-->
                         </tr>
                     </thead>
@@ -203,9 +206,13 @@
                             <td class="td-cost">{{s.subscription_fee}}</td>
                             <td class="td-cost">{{s.cost}}</td>
                             <td class="td-cost">{{s.total_cost}}</td>
-                        <td>{{ s.profit }}</td>
-                        <td>{{ s.profit_rate }}</td>
-                    </tr>
+                            <td>{{ s.profit }}</td>
+                            <td>{{ s.profit_rate }}</td>
+                            <td>
+                                <button ng-click="calc_products(s.id)" class="btn btn-primary" ng-if="!isCalculating">开始计算</button>
+                                <button class="btn btn-primary disabled" ng-if="isCalculating"><i class="fa fa-spinner fa-span"></i>正在计算...</button>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>

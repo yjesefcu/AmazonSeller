@@ -226,7 +226,24 @@ app.controller("ProductEditCtrl", function ($scope, $http, $rootScope, $location
             }
             $rootScope.addAlert('error', '保存失败');
         });
-    }
+    };
+    $scope.isCalculating = false;
+    $scope.calc_products = function(settlementId) {     // 计算选中的商品的成本
+        $scope.isCalculating = true;
+        $http.get(serviceFactory.getUrl('/api/settlements/' + settlementId + '/calc_cost?products=' + $scope.productId))
+            .then(function (result) {
+                if (result.data.errno) {
+                    $rootScope.addAlert('error', '计算失败:' + result.data.message);
+                } else {
+                    $rootScope.addAlert('success', '计算完成');
+
+                }
+            }).catch(function (result) {
+                $rootScope.addAlert('warning', '计算过程发生错误');
+            }).finally(function(){
+                $scope.isCalculating = false;
+            });
+    };
 });
 
 app.controller('ProductOrdersCtrl', function ($scope, $rootScope, $http, $location, $state, $stateParams, $timeout, serviceFactory) {
