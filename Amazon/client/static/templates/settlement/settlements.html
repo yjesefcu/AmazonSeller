@@ -10,9 +10,9 @@
             <div class="box box-primary">
                 <div class="box-header with-border">
                     <h3 class="box-title">结算记录</h3>
-                    <button class="btn btn-primary" ng-if="readingReport==0" ng-click="startReadingReport()">同步数据</button>
+                    <!--<button class="btn btn-primary" ng-if="readingReport==0" ng-click="startReadingReport()">同步数据</button>
                     <button class="btn btn-primary" ng-if="readingReport==10"><i class="fa fa-refresh fa-spin"></i>正中同步数据，请勿关闭系统...</button>
-                    <button class="btn btn-danger" ng-if="readingReport==1" ng-click="startReadingReport()">同步失败</button>
+                    <button class="btn btn-danger" ng-if="readingReport==1" ng-click="startReadingReport()">同步失败</button> -->
                 </div>
                 <!-- /.box-header -->
                 <div class="box-body" style="overflow-x: auto;">
@@ -56,7 +56,6 @@
                             <th class="td-cost">总成本({{ currency }})</th>
                             <th>利润({{ currency }})</th>
                             <th>利润率</th>
-{#                            <th>操作</th>#}
                             <!--<th>操作</th>-->
                         </tr>
                         </thead>
@@ -76,13 +75,13 @@
                             <td class="td-cost">{{s.total_cost}}</td>
                             <td>{{ s.profit }}</td>
                             <td>{{ s.profit_rate }}</td>
-{#                            <td>#}
-{#                                <button ng-click="startCalculate($index, s.id)" class="btn btn-danger" ng-if="s.calc_status==1 && !isDownloading">计算失败</button>#}
-{#                                <button ng-click="startCalculate($index, s.id)" class="btn btn-primary" ng-if="s.calc_status==0 && !isDownloading">开始计算</button>#}
-{#                                <i class="fa fa-refresh fa-spin" ng-if="s.calc_status==10 && !isDownloading"></i>#}
-{#                                <button class="btn btn-default" ng-if="!s.isDownloading" ng-click="download($index, s.id)">下载</button>#}
-{#                                <button class="btn btn-default" ng-if="s.isDownloading"><i class="fa fa-refresh fa-spin"></i>正在生成</button>#}
-{#                            </td>#}
+                           <!-- <td>
+                                <button ng-click="startCalculate($index, s.id)" class="btn btn-danger" ng-if="s.calc_status==1 && !isDownloading">计算失败</button>
+                                <button ng-click="startCalculate($index, s.id)" class="btn btn-primary" ng-if="s.calc_status==0 && !isDownloading">开始计算</button>
+                                <i class="fa fa-refresh fa-spin" ng-if="s.calc_status==10 && !isDownloading"></i>
+                                <button class="btn btn-default" ng-if="!s.isDownloading" ng-click="download($index, s.id)">下载</button>
+                                <button class="btn btn-default" ng-if="s.isDownloading"><i class="fa fa-refresh fa-spin"></i>正在生成</button>
+                            </td>  -->
                         </tr>
                         </tbody>
                     </table>
