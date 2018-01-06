@@ -1,3 +1,4 @@
+"use strict";
 /**
  * Created by liucaiyun on 2017/5/4.
  */
@@ -50,5 +51,7 @@ app.config(['atomicNotifyProvider', function(atomicNotifyProvider){
 app.config(function($sceDelegateProvider) {
     $sceDelegateProvider.resourceUrlWhitelist([
         // Allow same origin resource loads.
-        '**'])
+        '**']);
 });
+
+$.fn.dataTable.ext.errMode = 'none'; //不显示任何错误信息

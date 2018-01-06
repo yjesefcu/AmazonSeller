@@ -8,6 +8,11 @@ app.config(['$stateProvider', '$urlRouterProvider', function($stateProvider, $ur
             // templateUrl: 'index.html',
             // controller: 'HomeCtrl'
         })
+        .state('index.users', {
+            url:'users',
+            templateUrl: '/static/templates/users/users.html',
+            controller: 'UserCtrl'
+        })
         .state('index.products', {
             url:'products',
             templateUrl: '/static/templates/product/products.html'

@@ -220,7 +220,7 @@ app.controller("ProductEditCtrl", function ($scope, $http, $rootScope, $location
             $rootScope.addAlert('info', '删除成功');
             $scope.supplies.splice(index, 1);
         }).catch(function (result) {
-            if (result.status == 400){
+            if (result.status === 400){
                 $rootScope.addAlert('error', '库存 < 原始数量，无法删除');
                 return;
             }

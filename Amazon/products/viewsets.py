@@ -232,7 +232,6 @@ class ProductViewSet(NestedViewSetMixin, ModelViewSet):
         product = Product.objects.get(pk=pk)
 
 
-
 class SupplyViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = InboundShipment.objects.select_related('product').all()
     serializer_class = InboundShipmentSerializer

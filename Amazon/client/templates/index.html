@@ -30,7 +30,7 @@
     <header class="main-header">        <!-- Logo -->
         <a href="#" class="logo">
             <!-- mini logo for sidebar mini 50x50 pixels -->
-            <span class="logo-mini"><b>A</b>LT</span>
+            <span class="logo-mini">结算系统</span>
             <!-- logo for regular state and mobile devices -->
             <span class="logo-lg"><b>结算系统</b></span>
         </a>
@@ -44,7 +44,7 @@
                 <ul class="nav navbar-nav">
                     <!-- Control Sidebar Toggle Button -->
                     <li>
-                        <a data-toggle="control-sidebar"><i class="fa fa-gears"></i></a>
+                        <a data-toggle="control-sidebar"><i class="fa fa-user"></i>刘彩云</a>
                     </li>
                 </ul>
             </div>
@@ -64,6 +64,12 @@
         <section class="sidebar">
             <ul class="sidebar-menu">
                 <li class="header">MAIN NAVIGATION</li>
+                <li class="treeview" ng-class="{'active': currentUrl.indexOf('/users')==0 }">
+                    <a ui-sref="index.users" ng-click="currentUrl='/users'">
+                        <i class="fa  fa-users"></i>
+                        <span>用户管理</span>
+                    </a>
+                </li>
                 <li class="treeview" ng-class="{'active': currentUrl.indexOf('/product')==0 }">
                     <a ui-sref="index.products" ng-click="currentUrl='/products'">
                         <i class="fa  fa-file-text-o"></i>
@@ -114,6 +120,7 @@
     <script src="/static/js/controllers/product-ctrl.js"></script>
     <script src="/static/js/controllers/shipment-ctrl.js"></script>
     <script src="/static/js/controllers/settlement-ctrl.js"></script>
+    <script src="/static/js/controllers/user-ctrl.js"></script>
     <script src="/static/js/jquery/bootstrap-filestyle/bootstrap-filestyle.min.js"></script>
     <!--<script src="/static/components/AdminLTE/dist/js/demo.js"></script>-->
     <script></script>

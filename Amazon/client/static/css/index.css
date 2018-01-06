@@ -74,3 +74,6 @@ table tr.no-hover:hover{
 .table-lg{
   min-width: 1500px;
 }
+.error{
+  color: red;
+}

@@ -48,6 +48,9 @@ INSTALLED_APPS = (
     'PIL',
     'products',
     'client',
+    'my_auth',
+    'rolepermissions',
+    # 'apscheduler',
 )
 
 
@@ -83,6 +86,10 @@ DATABASES = {
         'PASSWORD': 'root',
         'HOST': '127.0.0.1',
         'PORT': '3306',
+        # 'USER': 'zhfdb',
+        # 'PASSWORD': 'Zhouhuafeng.1',
+        # 'HOST': '116.62.192.177',
+        # 'PORT': '3506',
     }
 }
 
@@ -113,6 +120,8 @@ CORS_ALLOW_HEADERS = ['Origin', 'x-requested-with','content-type', 'Accept']
 CORS_ALLOW_METHODS = ['GET', 'POST', 'DELETE', 'PATCH', 'PUT']
 # CORS_ORIGIN_ALLOW_ALL = True
 # CORS_ALLOW_CREDENTIALS = True
+
+ROLEPERMISSIONS_MODULE = 'website.roles'
 
 LOGGING = {
     'version': 1,
