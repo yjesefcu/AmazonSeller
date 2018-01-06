@@ -13,7 +13,7 @@ app.controller('MainCtrl', function ($scope, $state, $http, $rootScope, $locatio
     $rootScope.currentcy = 'USD';
     $scope.currentUrl = $location.$$path;
     $rootScope.addAlert = function (type, msg, timeout) {
-        if (typeof(timeout) == 'undefined'){
+        if (typeof(timeout) === 'undefined'){
             timeout = 3000;
         }
         $rootScope.alerts.push({
@@ -38,7 +38,7 @@ app.controller('MainCtrl', function ($scope, $state, $http, $rootScope, $locatio
         $rootScope.MarketplaceId = $rootScope.currentMarket.MarketplaceId;
         $rootScope.currency = $rootScope.currentMarket.currency;
         $state.go('index');
-    }
+    };
 });
 
 app.config(['atomicNotifyProvider', function(atomicNotifyProvider){
@@ -54,4 +54,4 @@ app.config(function($sceDelegateProvider) {
         '**']);
 });
 
-$.fn.dataTable.ext.errMode = 'none'; //不显示任何错误信息
+// $.fn.dataTables.ext.errMode = 'none'; //不显示任何错误信息

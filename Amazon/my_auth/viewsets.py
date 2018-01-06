@@ -28,7 +28,7 @@ def get_role_name(role):
 
 
 class UserViewSet(NestedViewSetMixin, ModelViewSet):
-    queryset = User.objects.all().filter(is_active=True).order_by('-date_joined')
+    queryset = User.objects.all().filter(is_active=True, is_superuser=False).order_by('-date_joined')
     serializer_class = UserSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
 

@@ -13536,7 +13536,7 @@
 		 *  @type string|function
 		 *  @default alert
 		 */
-		errMode: "alert",
+		errMode: "none",		// modified by lcy 20180106  不显示告警
 	
 	
 		/**

@@ -1,3 +1,4 @@
+"use strict";
 
 app.factory('serviceFactory', function ($rootScope) {
     var host='', services = {};

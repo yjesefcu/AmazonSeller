@@ -1,3 +1,5 @@
+"use strict";
+
 app.controller('ShipmentCtrl', function ($scope, $http, $rootScope, serviceFactory) {
     $scope.shipments = [];
     $http.get(serviceFactory.outboundShipments(), {

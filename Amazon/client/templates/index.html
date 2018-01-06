@@ -44,7 +44,14 @@
                 <ul class="nav navbar-nav">
                     <!-- Control Sidebar Toggle Button -->
                     <li>
-                        <a data-toggle="control-sidebar"><i class="fa fa-user"></i>刘彩云</a>
+                        <a class="dropdown-toggle" data-toggle="dropdown" aria-expanded="false"><i class="fa fa-user"></i>刘彩云</a>
+                        <ul class="dropdown-menu">
+                            <li ng-click="logout()">
+                                <a href="#">
+                                    <i class="fa fa-sign-out text-aqua"></i> 注销
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                 </ul>
             </div>
@@ -108,7 +115,7 @@
     <script src="/static/components/AdminLTE/plugins/slimScroll/jquery.slimscroll.min.js"></script>
     <script src="/static/components/AdminLTE/plugins/fastclick/fastclick.js"></script>
     <!-- DataTables -->
-    <script src="/static/components/AdminLTE/plugins/datatables/jquery.dataTables.min.js"></script>
+    <script src="/static/components/AdminLTE/plugins/datatables/jquery.dataTables.js"></script>
     <script src="/static/components/AdminLTE/plugins/datatables/dataTables.bootstrap.min.js"></script>
     <script src="/static/components/AdminLTE/dist/js/app.min.js"></script>
     <script src="/static/components/angular-atomic-notify/dist/angular-atomic-notify.min.js"></script>

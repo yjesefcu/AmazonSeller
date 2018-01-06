@@ -1,3 +1,5 @@
+"use strict";
+
 app.controller('settlementCtrl', function ($scope, $rootScope, $http, $state, $stateParams, $timeout, $interval, serviceFactory, fileUpload) {
     $scope.settlements = [];
     $scope.selectedSettlement = '';
