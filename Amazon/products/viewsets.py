@@ -28,6 +28,7 @@ class CsrfExemptSessionAuthentication(SessionAuthentication):
 class SettlementViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = Settlement.objects.all()
     serializer_class = SettlementSerializer
+    authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
     filter_backends = (DjangoFilterBackend,)
     filter_fields = ('MarketplaceId',)
 

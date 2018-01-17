@@ -256,6 +256,7 @@ class RefundItem(models.Model):
     OtherPrice = models.FloatField(null=True, blank=True, verbose_name='买家其他退款')
     Fee = models.FloatField(null=True, blank=True, verbose_name='亚马逊费用退款')
     Promotion = models.FloatField(null=True, blank=True, verbose_name='促销返点')
+    FBAReturnFee = models.FloatField(null=True, blank=True, verbose_name=u'退货服务费')      # 从OtherTransaction.OtherTransactionType=FBACustomerReturn的记录获取
 
     # 成本
     cost = models.FloatField(null=True, blank=True, verbose_name=u'单位成本')         # 成本，应该为正数

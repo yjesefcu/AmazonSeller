@@ -181,6 +181,8 @@ class SettlementDbHandler(object):
             settlement.other_transactions.all().delete()
             for item in data['OtherTransactions']:
                 self._update_transaction_to_db(settlement, item)
+            # todo
+            self._update_custom_return_fee(settlement)      # 将FBACustomReturn的退货费用更新到退款表中
         if 'SellerDealPayment' in data:
             settlement.seller_deal_payments.all().delete()
             for item in data['SellerDealPayment']:
@@ -334,12 +336,6 @@ class SettlementDbHandler(object):
     def _update_transaction_to_db(self, settlement, data):
         if not data:
             return None
-        try:
-            obj = OtherTransaction.objects.get(settlement=settlement, TransactionID=data['TransactionID'])
-            print 'Transaction already exist: %s' % data['TransactionID']
-            return obj
-        except OtherTransaction.DoesNotExist, ex:
-            pass
         data['MarketplaceId'] = self.MarketplaceId
         data['settlement'] = settlement
         fees = data.get('fees', None)
@@ -351,8 +347,6 @@ class SettlementDbHandler(object):
         obj = OtherTransaction.objects.create(**data)
         self._update_transaction_fees_to_db(obj, fees)
         self._update_transaction_items_to_db(obj, items)
-        # todo
-        self._update_custom_return_fee(settlement)      # 将FBACustomReturn的退货费用更新到退款表中
         return obj
 
     def _update_transaction_fees_to_db(self, transaction, data):
@@ -428,20 +422,22 @@ class SettlementDbHandler(object):
         return_fees = OtherTransaction.objects.filter(settlement=settlement, TransactionType='FBACustomerReturn')
         for fee in return_fees:
             try:
-                refund = RefundItem.objects.get(AmazonOrderId=fee.AmazonOrderId)
+                refund = RefundItem.objects.get(AmazonOrderId=fee.AmazonOrderId, FBAReturnFee__isnull=True)
             except RefundItem.MultipleObjectsReturned, ex:
                 logger.warning('FBACustomReturn: multi object return when find AmazonOrderId in RefundItem:%s', fee.AmazonOrderId)
-                refund = RefundItem.objects.filter(AmazonOrderId=fee.AmazonOrderId).first()
+                refund = RefundItem.objects.filter(AmazonOrderId=fee.AmazonOrderId, FBAReturnFee__isnull=True).first()
             except RefundItem.DoesNotExist, ex:
                 # 找不到的话，查找订单信息，找到对应的商品SellerSKU
                 # 单独起一个线程进行查询
                 #
-                threading.Thread(target=SettlementDbHandler._get_product_info_of_traction_fee, args=(self.market, fee,), ).start()
-                return
+                # threading.Thread(target=SettlementDbHandler._get_product_info_of_traction_fee, args=(self.market, fee,), ).start()
+                logger.warning('FBACustomReturn: no RefundItem found for AmazonOrderId:%s', fee.AmazonOrderId)
+                continue
             fee.refund_item = refund
             fee.SellerSKU = refund.SellerSKU
             fee.save()
             refund.FBAReturnFee = fee.Amount     # 将退货费加到refund里
+            refund.income = refund.income + refund.FBAReturnFee
             refund.save()
 
 
@@ -474,21 +470,38 @@ class StorageDbHandler(object):
     """
 
     def update_to_db(self, settlement, data):
+        # 仓储费无需判断日期
         results = list()
-        start_date = settlement.StartDate.strftime('%Y-%m-%d')
-        end_date = settlement.EndDate.strftime('%Y-%m-%d')
+        # 先将仓储费按ASIN进行汇总
+        data_by_asin = dict()
         for item in data:
-            update_data = dateutil.parser.parse(item['ChargeDate']).replace(tzinfo=None).strftime(DT_FORMAT)
-            if update_data > end_date \
-                or update_data < start_date:   # 如果报告日期超出结算日期，则不处理
-                continue
+            asin = item['ASIN']
+            if asin in data_by_asin:
+                data_by_asin[asin] += to_float(item['Fee'])
+            else:
+                data_by_asin[asin] = to_float(item['Fee'])
+        total_fee = 0   #
+        for asin, fee in data_by_asin.items():
             try:
-                obj = ProductSettlement.objects.get(product__ASIN=item['ASIN'])
-                obj.storage_fee = item['Fee']
+                p = Product.objects.get(ASIN=asin)
+                total_fee += fee
+                obj = ProductSettlement.objects.get(product=p, settlement=settlement)
+                obj.storage_fee = fee
                 obj.save()
+                # 平均到每个订单上
+                orders = SettleOrderItem.objects.filter(settlement=settlement, product=p, is_total=False)
+                if orders.exists():
+                    orders.update(storage_fee=fee/float(orders.count()))
+                    t = SettleOrderItem.objects.get(settlement=settlement, product=p, is_total=True)
+                    t.storage_fee = fee
+                    t.save()
                 results.append(obj)
-            except ProductRemovalItem.DoesNotExist,ex:
-                logger.warning('cannot find Product for ASIN:%s', item['ASIN'])
+            except Product.DoesNotExist, ex:
+                logger.error('cannot find product with ASIN:' + asin)
+                total_fee += fee
+        # 更新settlement的仓储费
+        settlement.storage_fee = total_fee
+        settlement.save()
         return results
 
 
@@ -768,7 +781,8 @@ class SettlementIncomeCalc(object):
         deal_fee = sum_queryset(SellerDealPayment.objects.filter(settlement=self.settlement), 'DealFeeAmount')      # 促销费用
         # 移除、弃置或其他。除掉赔偿、仓储费的部分，赔偿的部分会在OtherTransactionItem中计算
         removal = sum_queryset(OtherTransaction.objects.filter(settlement=self.settlement)
-                               .exclude(TransactionType__in=['REVERSAL_REIMBURSEMENT', 'WAREHOUSE_DAMAGE', 'Storage Fee']), 'Amount')
+                               .exclude(TransactionType__in=['REVERSAL_REIMBURSEMENT', 'WAREHOUSE_DAMAGE',
+                                                             'Storage Fee', 'FBACustomerReturn', 'DisposalComplete']), 'Amount')
         coupon = sum_queryset(SellerCouponPayment.objects.filter(settlement=self.settlement), 'Amount')
         return deal_fee + removal + coupon
 

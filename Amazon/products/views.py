@@ -24,6 +24,11 @@ def get_product_by_sku(request):
         raise Http404
 
 
+def sync_products(request):
+    from sync_handler import update_product
+    update_product()
+
+
 def image_upload(request):
     if request.method == 'POST':
         my_file = request.FILES.get("image", None)    # 获取上传的文件，如果没有文件，则默认为None
@@ -142,10 +147,16 @@ def _init_shipment():
 
 
 def calc_income(request):
+    from amazon_services.service import SettlementReportService
+    market = MarketAccount.objects.get(MarketplaceId='ATVPDKIKX0DER')
     pk = request.GET.get('id')
     settlement = Settlement.objects.get(pk=pk)
-    calc = ProductIncomeCalc()
-    calc.calc_income(settlement)
+
+    service = SettlementReportService(market)
+    settlement_data = service.get_one(settlement.report_id)
+
+    SettlementDbHandler(market).update_settlement_to_db(settlement_data)
+    SettlementIncomeCalc(settlement).calc()
     return HttpResponse('success')
 
 
