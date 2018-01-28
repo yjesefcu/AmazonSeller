@@ -34,7 +34,7 @@
                                 <td>{{p.price}}</td>
                                 <td>{{p.count}}</td>
                                 <td>{{ p.received_count }}</td>
-                                <td>{{ p.status_name }}</td>
+                                <td>{{ p.status.name }}</td>
                                 <td>
                                     <a href="#" ui-sref="index.purchasingDetail({orderId: p.id})" ng-if="p.canEdit">处理</a>
                                 </td>

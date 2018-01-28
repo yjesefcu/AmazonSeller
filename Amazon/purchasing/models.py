@@ -14,6 +14,11 @@ class OrderStatus(models.Model):
     WaitForCheck = 6
     WaitForTrafficFeePayed = 7  # 等待物流费打款
     FINISH = 8                  # 完成
+    code = models.CharField(max_length=50)
+    name = models.CharField(max_length=50)
+    next_status = models.IntegerField(null=True, blank=True)
+    role = models.CharField(max_length=50, null=True, blank=True)       # 当处于这个状态时，可操作的角色是什么
+    permissions = models.CharField(max_length=100, null=True, blank=True)  # 当处于这个状态时，需要的权限是什么
 
 
 class Contract(models.Model):
@@ -27,11 +32,6 @@ class Contract(models.Model):
 
 
 class PurchasingOrder(models.Model):
-    STATUS_CHOICE = ((OrderStatus.WaitForDepositPayed, u'等待支付预付款'), (OrderStatus.WaitForProducing, u'等待生产完成'),
-                     (OrderStatus.WaitForPaying, u'等待打尾款'), (OrderStatus.WaitForTraffic, u'等待填写物流信息'),
-                     (OrderStatus.WaitForInbound, u'等待入库'), (OrderStatus.WaitForCheck, u'等待确认入库信息'),
-                     (OrderStatus.WaitForTrafficFeePayed, u'等待物流费打款'), (OrderStatus.FINISH, u'已完成'),)
-
     # 采购单中每个商品的详情
     # order = models.ForeignKey(PurchasingOrder, related_name='items')
     MarketplaceId = models.CharField(max_length=50)
@@ -42,7 +42,7 @@ class PurchasingOrder(models.Model):
     name = models.CharField(max_length=255, null=True, blank=True)      # 商品名称
     creator = models.ForeignKey(User, null=True, blank=True)                   # 采购单创建人
     create_time = models.DateTimeField(null=True, blank=True)   # 采购单创建时间
-    status = models.IntegerField(choices=STATUS_CHOICE)      # 采购单状态
+    status = models.ForeignKey(OrderStatus)      # 采购单状态
     count = models.IntegerField(null=True, blank=True)      # 数量
     price = models.FloatField(null=True, blank=True)   # 采购单价
     total_price = models.FloatField(null=True, blank=True)  # 商品总价
@@ -79,5 +79,5 @@ class InboundProducts(models.Model):
     inbound_time = models.DateTimeField(null=True, blank=True)   # 入库时间
     traffic_fee = models.FloatField(null=True, blank=True)      # 物流费
     traffic_fee_payed = models.FloatField(null=True, blank=True)    # 已缴纳的物流费
-    status = models.IntegerField(choices=PurchasingOrder.STATUS_CHOICE)
+    status = models.ForeignKey(OrderStatus)
     # payment = models.FloatField(null=True, blank=True, default=0)

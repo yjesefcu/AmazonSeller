@@ -31,7 +31,7 @@ class CsrfExemptSessionAuthentication(SessionAuthentication):
 
 
 class PurchasingOrderViewSet(NestedViewSetMixin, ModelViewSet):
-    queryset = PurchasingOrder.objects.all().order_by('-id').select_related('product')
+    queryset = PurchasingOrder.objects.all().order_by('-id').select_related('product', 'status')
     serializer_class = PurchasingOrderSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
     filter_backends = (DjangoFilterBackend,)
@@ -44,11 +44,10 @@ class PurchasingOrderViewSet(NestedViewSetMixin, ModelViewSet):
         orders_data = data.get('orders')
         create_time = datetime.datetime.now().replace(tzinfo=TZ_ASIA)
         for d in orders_data:
-            product, created = Product.objects.get_or_create(SellerSKU=d.get('SellerSKU'))
+            product, created = Product.objects.get_or_create(MarketplaceId='ATVPDKIKX0DER', SellerSKU=d.get('SellerSKU'))
             total_price = int(d.get('count')) * float(d.get('price'))
             PurchasingOrder.objects.create(contract=contract, product=product, create_time=create_time,
-                                           status=OrderStatus.WaitForDepositPayed, received_count=0, total_price=total_price, **d)
-        # headers = self.get_success_headers(serializer.data)
+                                           status_id=OrderStatus.WaitForDepositPayed, received_count=0, total_price=total_price, **d)
         return Response({}, status=status.HTTP_201_CREATED)
 
 
@@ -62,8 +61,12 @@ class InboundViewSet(NestedViewSetMixin, ModelViewSet):
         _query_dict = self.get_parents_query_dict()
         order = PurchasingOrder.objects.get(pk=_query_dict['order'])
         today = datetime.datetime.now().replace(tzinfo=TZ_ASIA).date()
-        inbound = InboundProducts.objects.create(order=order, product=order.product, shipping_date=today, status=OrderStatus.WaitForInbound, **request.data)
+        status_id = OrderStatus.WaitForInbound
+        inbound = InboundProducts.objects.create(order=order, product=order.product, shipping_date=today, status_id=status_id, **request.data)
         serializer = self.get_serializer(instance=inbound)
+        # 更新订单本身的状态
+        order.status_id = status_id
+        order.save()
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
@@ -73,7 +76,9 @@ class InboundViewSet(NestedViewSetMixin, ModelViewSet):
         instance = self.get_object()
         inbound_data = request.data.get('inbound')
         inbound_data['inbound_time'] = datetime.datetime.now().replace(tzinfo=TZ_ASIA)
-        inbound_data['status'] = OrderStatus.WaitForCheck
+        status_id = OrderStatus.WaitForCheck
+        # inbound_data['status_id'] = status_id
+        instance.status_id = status_id
         serializer = self.get_serializer(instance, data=inbound_data, partial=True)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
@@ -89,6 +94,7 @@ class InboundViewSet(NestedViewSetMixin, ModelViewSet):
         # 更新订单状态
         order.received_count += int(instance.count)
         # 更新订单运费
+        order.status_id = status_id
         order.traffic_fee = to_float(order.traffic_fee) + to_float(instance.traffic_fee)
         order.save()
         return Response(serializer.data)
@@ -99,18 +105,18 @@ class InboundViewSet(NestedViewSetMixin, ModelViewSet):
         instance = self.get_object()
         if instance.traffic_fee:
             # 如果物流费不为0，那么需要等待物流费打款
-            status = OrderStatus.WaitForTrafficFeePayed
+            status_id = OrderStatus.WaitForTrafficFeePayed
         else:
-            status = OrderStatus.FINISH
-        instance.status = status
+            status_id = OrderStatus.FINISH
+        instance.status_id = status_id
         instance.save()
 
         # 如果订单所有货物已到货，那么关闭订单
         order = instance.order
-        if order.received_count == order.count:
-            # order.status = OrderStatus.FINISH
-            # order.save()
-            self._inbound_finish(instance)
+        order.status_id = status_id
+        order.save()
+        if status_id == OrderStatus.FINISH:
+            self._check_inbound_finish(instance)
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
@@ -119,20 +125,23 @@ class InboundViewSet(NestedViewSetMixin, ModelViewSet):
         # 物流费打款
         instance = self.get_object()
         instance.traffic_fee_payed = request.data.get('traffic_fee_payed')
-        instance.status = OrderStatus.FINISH
+        instance.status_id = OrderStatus.FINISH
         instance.save()
 
         order = instance.order
-        if order.received_count == order.count:
-            # order.status = OrderStatus.FINISH
-            # order.save()
-            self._inbound_finish(instance)
+        order.save()
+        self._check_inbound_finish(instance)
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
-    def _inbound_finish(self, instance):
+    def _check_inbound_finish(self, instance):
         # 入库单已完成
-        instance.status = OrderStatus.FINISH
+        order = instance.order
+        if order.received_count < order.count:
+            # 如果实际入库数量 < 采购数量，说明订单还未结束
+            order.status_id = OrderStatus.WaitForTraffic
+            order.save()
+        instance.status_id = OrderStatus.FINISH
         instance.save()
         if not instance.count:
             return

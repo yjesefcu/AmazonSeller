@@ -31,14 +31,27 @@ app.controller('PurchasingOrderCreateCtrl', function ($scope, $http, $rootScope,
     };
 
     $scope.save = function () {
+        var params = [];
+        $scope.orders.forEach(function (n) {
+            if (n.SellerSKU) {
+                params.push(n);
+            }
+        });
+        if (!params.length) {
+            return;
+        }
         $http.post('/api/purchasing/', {
             contract: $scope.contract,
-            orders: $scope.orders
+            orders: params
         }).then(function (result) {
             $state.go('index.purchasing');
         }).catch(function (error) {
             $rootScope.addAlert('error', '创建采购单失败');
         });
+    };
+
+    $scope.remove = function (index) {
+        $scope.orders.splice(index, 1);
     };
 });
 
@@ -51,19 +64,7 @@ app.controller('PurchasingOrderListCtrl', function ($scope, $http, $rootScope) {
             // 判断采购单是否可操作
             var userRole = $rootScope.userRole;
             $scope.orders.forEach(function (n) {
-                if (n.status === OrderStatus.WaitForDepositPayed && userRole === Role.Finance) {
-                    n.canEdit = true;
-                } else if (n.status === OrderStatus.WaitForProducing && userRole === Role.Purchasing) {
-                    n.canEdit = true;
-                } else if (n.status === OrderStatus.WaitForPaying && userRole === Role.Finance){
-                    n.canEdit = true;
-                } else if (n.status === OrderStatus.WaitForTraffic && userRole === Role.Purchasing) {
-                    n.canEdit = true;
-                } else if (n.status === OrderStatus.WaitForInbound && userRole === Role.CabManager) {
-                    n.canEdit = true;
-                } else if (n.status === OrderStatus.WaitForCheck && userRole === Role.Purchasing) {
-                    n.canEdit = true;
-                } else if (n.status === OrderStatus.WaitForTrafficFeePayed && userRole === Role.Finance) {
+                if (n.status.role === userRole) {
                     n.canEdit = true;
                 }
             });

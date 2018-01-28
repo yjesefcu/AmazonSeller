@@ -60,7 +60,7 @@
                                 <label >已入库数量：</label><span>{{order.received_count}}</span>
                             </div>
                             <div class="form-group col-sm-3 col-xs-6">
-                                <label >采购单状态：</label><span>{{order.status_name}}</span>
+                                <label >采购单状态：</label><span>{{order.status.name}}</span>
                             </div>
                         </div>
                     </div>
@@ -96,11 +96,11 @@
                             <td>{{p.inbound_time}}</td>
                             <td>{{ p.count}}</td>
                             <td>{{ p.traffic_fee }}</td>
-                            <td>{{p.status_name}}</td>
+                            <td>{{p.status.name}}</td>
                             <td>
-                                <a class="btn btn-default" title="完成入库" ng-click="openInboudModal(p.id)" ng-if="p.status===5 && userRole==='godown_manager'">入库</a>
-                                <a class="btn btn-default" title="确认入库信息" ng-click="updateInbound(p.id, 'confirm')" ng-if="p.status===6 && userRole==='purchasing_agent'">入库确认</a>
-                                <a class="btn btn-default" title="确认物流费已打款" ng-click="inboundTrafficFeeConfirm(p.id)" ng-if="p.status===7 && userRole==='finance'">物流费已打款</a>
+                                <a class="btn btn-default" title="完成入库" ng-click="openInboudModal(p.id)" ng-if="p.status.id===5 && userRole===p.status.role">入库</a>
+                                <a class="btn btn-default" title="确认入库信息" ng-click="updateInbound(p.id, 'confirm')" ng-if="p.status.id===6 && userRole===p.status.role">入库确认</a>
+                                <a class="btn btn-default" title="确认物流费已打款" ng-click="inboundTrafficFeeConfirm(p.id)" ng-if="p.status.id===7 && userRole===p.status.role">物流费已打款</a>
                             </td>
                         </tr>
                         </tbody>
@@ -112,18 +112,18 @@
         </div>
     </div>
     <div class="row">
-        <div class="col-sm-12" ng-if="order.status === 1 && userRole==='finance'">
+        <div class="col-sm-12" ng-if="order.status.id === 1 && userRole===order.status.role">
             <input type="text" placeholder="请输入实际支付预付款：{{order.deposit}}({{currency}})" class="col-sm-4" ng-model="order.deposit_payed">
-            <button ng-click="update({deposit_payed: order.deposit_payed, status: 2, final_payment_payed: (order.total_price-order.deposit_payed)})">确认已打款</button>
+            <button ng-click="update({deposit_payed: order.deposit_payed, status_id: 2, final_payment_payed: (order.total_price-order.deposit_payed)})">确认已打款</button>
         </div>
-        <div class="col-sm-12" ng-if="order.status === 2 && userRole==='purchasing_agent'">
-            <button class="btn btn-primary" ng-click="update({status: 3})">货物生产已完成，提交财务打尾款</button>
+        <div class="col-sm-12" ng-if="order.status.id === 2 && userRole===order.status.role">
+            <button class="btn btn-primary" ng-click="update({status_id: 3})">货物生产已完成，提交财务打尾款</button>
         </div>
-        <div class="col-sm-12" ng-if="order.status === 3 && userRole==='finance'">
+        <div class="col-sm-12" ng-if="order.status.id === 3 && userRole===order.status.role">
             <input type="text" placeholder="请输入实际支出尾款：{{order.final_payment_payed}}({{currency}}" class="col-sm-4" ng-model="order.final_payment_payed">
-            <button ng-click="update({final_payment_payed: order.final_payment_payed, status: 4})">确认尾款已打款</button>
+            <button ng-click="update({final_payment_payed: order.final_payment_payed, status_id: 4})">确认尾款已打款</button>
         </div>
-        <div class="col-sm-12" ng-if="order.status === 4 && userRole==='purchasing_agent'">
+        <div class="col-sm-12" ng-if="order.status.id === 4 && userRole===order.status.role">
             <input type="text" placeholder="请填写物流信息" class="col-sm-4" ng-model="order.traffic_info">
             <button ng-click="createInbound({traffic_info: order.traffic_info})">确认已发货</button>
         </div>
