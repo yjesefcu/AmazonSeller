@@ -87,10 +87,6 @@ app.controller('PurchasingOrderDetailCtrl', function ($scope, $http, $rootScope,
         init();
     };
 
-    $scope.$on('refresh', function () {
-        $scope.refresh();
-    });
-
     $scope.openInboudModal = function (id) {        // 打开创建入库信息的对话框
         var modalInstance = $uibModal.open({
             templateUrl : '/static/templates/purchasing/create_inbound.html',//script标签中定义的id
@@ -115,7 +111,7 @@ app.controller('PurchasingOrderDetailCtrl', function ($scope, $http, $rootScope,
         var url = '/api/purchasing/' + $scope.orderId + '/inbounds/' + inboundId + '/' + method + '/';
         $http.post(url, params).then(function (result) {
             $rootScope.addAlert('info', '提交成功');
-            getInbounds();
+            $scope.refresh();
         }).catch(function (error) {
             $rootScope.addAlert('error', '提交失败');
         });
@@ -135,7 +131,7 @@ app.controller('PurchasingOrderDetailCtrl', function ($scope, $http, $rootScope,
             }
         });
         modalInstance.result.then(function (result) {
-            getInbounds();
+            $scope.refresh();
         });
     };
     init();

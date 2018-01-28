@@ -10,10 +10,6 @@ from api import *
 from serializer import ProductSerializer
 
 
-def home(request):
-    return render_to_response('index.html')
-
-
 def get_product_by_sku(request):
     sku = request.GET.get('SellerSKU')
     try:

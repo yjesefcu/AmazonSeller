@@ -50,13 +50,13 @@ INSTALLED_APPS = (
     'client',
     'my_auth',
     'rolepermissions',
-    # 'apscheduler',
     'purchasing',
 )
 
 
 TEMPLATE_DIRS = (
     os.path.join(BASE_DIR, 'client/templates'),
+    os.path.join(BASE_DIR, 'my_auth/templates'),
 )
 
 MIDDLEWARE_CLASSES = (
@@ -115,6 +115,8 @@ STATIC_URL = '/static/'
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
+
+LOGIN_URL = '/login/'
 
 CORS_ALLOW_ORIGIN = '*'
 CORS_ALLOW_HEADERS = ['Origin', 'x-requested-with','content-type', 'Accept']

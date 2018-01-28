@@ -24,6 +24,7 @@
     <!--<script src="/static/js/controllers/product-ctrl.js"></script>-->
 </head>
 <body class="hold-transition skin-blue sidebar-mini" ng-app="myApp">
+<input value="{{ user.first_name }}" id="username" hidden>
 {% verbatim %}
 <ng-atomic-notify></ng-atomic-notify>
 <div class="wrapper" ng-controller="MainCtrl">
@@ -44,10 +45,12 @@
                 <ul class="nav navbar-nav">
                     <!-- Control Sidebar Toggle Button -->
                     <li>
-                        <a class="dropdown-toggle" data-toggle="dropdown" aria-expanded="false"><i class="fa fa-user"></i>刘彩云</a>
+                        <a class="dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
+                            <i class="fa fa-user"></i><span id="headerUsername"></span><span class="caret"></span>
+                        </a>
                         <ul class="dropdown-menu">
-                            <li ng-click="logout()">
-                                <a href="#">
+                            <li>
+                                <a href="/logout">
                                     <i class="fa fa-sign-out text-aqua"></i> 注销
                                 </a>
                             </li>
@@ -137,7 +140,10 @@
     <script src="/static/js/controllers/purchasing-ctrl.js"></script>
     <script src="/static/js/jquery/bootstrap-filestyle/bootstrap-filestyle.min.js"></script>
     <!--<script src="/static/components/AdminLTE/dist/js/demo.js"></script>-->
-    <script></script>
     {% endverbatim %}
+    <script>
+        var username = $("#username").val();
+        $("#headerUsername").html(username);
+    </script>
 </body>
 </html>

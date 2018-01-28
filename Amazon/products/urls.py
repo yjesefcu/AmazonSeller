@@ -31,7 +31,6 @@ settlement.register(r'removals', RemovalViewSet, base_name="api_settlement_remov
 settlement.register(r'losts', ProductLostViewSet, base_name="api_settlement_losts", parents_query_lookups=['settlement'])
 
 urlpatterns = patterns('',
-    url(r'^$', 'products.views.home'),
     url(r'^api/', include(router.urls)),
     url(r'^product/sku/$', 'products.views.get_product_by_sku'),
     url(r'^product/sync/$', 'products.views.sync_products'),

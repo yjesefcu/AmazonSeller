@@ -4,6 +4,12 @@ from products.serializer import ProductSerializer
 from models import *
 
 
+class StatusField(serializers.CharField):
+
+    def to_representation(self, value):
+        return OrderStatus.get(value)
+
+
 class DateTimeFormat(serializers.DateTimeField):
 
     def to_representation(self, value):
@@ -23,7 +29,7 @@ class PurchasingOrderSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
     create_time = DateTimeFormat(read_only=True)
     contract = ContractSerializer(read_only=True)
-    status = serializers.CharField()
+    status_name = serializers.CharField(source='get_status_display')
 
     class Meta:
         model = PurchasingOrder
@@ -32,6 +38,7 @@ class PurchasingOrderSerializer(serializers.ModelSerializer):
 
 class InboundSerializer(serializers.ModelSerializer):
     inbound_time = DateTimeFormat()
+    status = serializers.CharField(source='get_status_display')
 
     class Meta:
         model = InboundProducts

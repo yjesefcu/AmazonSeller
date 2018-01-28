@@ -10,5 +10,8 @@ router = ExtendedSimpleRouter()
 product = router.register(r'users', UserViewSet, base_name="api_users")
 
 urlpatterns = patterns('',
+    url(r'^$', 'my_auth.views.home'),
     url(r'^api/', include(router.urls)),
+    url(r'^login', 'my_auth.views.login'),
+    url(r'^logout', 'my_auth.views.logout'),
 )

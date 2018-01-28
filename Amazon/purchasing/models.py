@@ -5,7 +5,7 @@ from products.models import Product
 # Create your models here.
 
 
-class OrderStatus(object):
+class OrderStatus(models.Model):
     WaitForDepositPayed = 1     # 等待预付款付清
     WaitForProducing = 2        # 等待采购员填写生产完成信息
     WaitForPaying = 3           # 等待财务尾款打款
@@ -26,10 +26,13 @@ class Contract(models.Model):
     operator = models.CharField(max_length=100, null=True, blank=True)          # 经办人
 
 
+
+
+
 class PurchasingOrder(models.Model):
-    STATUS_CHOICE = ((OrderStatus.WaitForDepositPayed, '等待支付预付款'), (OrderStatus.WaitForProducing, '等待生产完成'),
-                     (OrderStatus.WaitForPaying, '等待打尾款'), (OrderStatus.WaitForTraffic, '等待填写物流信息'),
-                     (OrderStatus.WaitForInbound, '等待入库'), (OrderStatus.WaitForCheck, '等待确认入库信息'),)
+    STATUS_CHOICE = ((OrderStatus.WaitForDepositPayed, u'等待支付预付款'), (OrderStatus.WaitForProducing, u'等待生产完成'),
+                     (OrderStatus.WaitForPaying, u'等待打尾款'), (OrderStatus.WaitForTraffic, u'等待填写物流信息'),
+                     (OrderStatus.WaitForInbound, u'等待入库'), (OrderStatus.WaitForCheck, u'等待确认入库信息'),)
 
     # 采购单中每个商品的详情
     # order = models.ForeignKey(PurchasingOrder, related_name='items')

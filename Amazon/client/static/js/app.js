@@ -39,6 +39,10 @@ app.controller('MainCtrl', function ($scope, $state, $http, $rootScope, $locatio
         $rootScope.currency = $rootScope.currentMarket.currency;
         $state.go('index');
     };
+
+    $scope.logout = function() {
+        $http.post('/logout');
+    }
 });
 
 app.config(['atomicNotifyProvider', function(atomicNotifyProvider){
