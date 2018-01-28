@@ -40,9 +40,16 @@ app.controller('MainCtrl', function ($scope, $state, $http, $rootScope, $locatio
         $state.go('index');
     };
 
-    $scope.logout = function() {
-        $http.post('/logout');
+    function getPermission() {
+        $http.get('/permissions').then(function (result) {
+            var data = result.data;
+            $rootScope.user = data.user;
+            $rootScope.userRole = data.role;
+            $rootScope.permissions = data.permissions;
+        });
     }
+
+    getPermission();
 });
 
 app.config(['atomicNotifyProvider', function(atomicNotifyProvider){

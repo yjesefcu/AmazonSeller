@@ -24,7 +24,6 @@
     <!--<script src="/static/js/controllers/product-ctrl.js"></script>-->
 </head>
 <body class="hold-transition skin-blue sidebar-mini" ng-app="myApp">
-<input value="{{ user.first_name }}" id="username" hidden>
 {% verbatim %}
 <ng-atomic-notify></ng-atomic-notify>
 <div class="wrapper" ng-controller="MainCtrl">
@@ -45,8 +44,8 @@
                 <ul class="nav navbar-nav">
                     <!-- Control Sidebar Toggle Button -->
                     <li>
-                        <a class="dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
-                            <i class="fa fa-user"></i><span id="headerUsername"></span><span class="caret"></span>
+                        <a class="dropdown-toggle" data-toggle="dropdown" aria-expanded="false" href="javascript:void(0)">
+                            <i class="fa fa-user"></i><span>{{user.first_name}}</span><span class="caret"></span>
                         </a>
                         <ul class="dropdown-menu">
                             <li>
@@ -74,7 +73,7 @@
         <section class="sidebar">
             <ul class="sidebar-menu">
                 <li class="header">MAIN NAVIGATION</li>
-                <li class="treeview" ng-class="{'active': currentUrl.indexOf('/users')==0 }">
+                <li class="treeview" ng-class="{'active': currentUrl.indexOf('/users')==0 }" ng-if="userRole==='admin'">
                     <a ui-sref="index.users" ng-click="currentUrl='/users'">
                         <i class="fa  fa-users"></i>
                         <span>用户管理</span>
@@ -92,12 +91,12 @@
                         <span>采购单管理</span>
                     </a>
                 </li>
-                <li class="treeview" ng-class="{'active': currentUrl.indexOf('/shipment')==0 }">
+                <li class="treeview" ng-class="{'active': currentUrl.indexOf('/shipment')==0 }" ng-if="userRole==='admin'">
                     <a ui-sref="index.shipment" ng-click="currentUrl='/shipment'">
                         <i class="fa fa-truck"></i> <span>移库货件</span>
                     </a>
                 </li>
-                <li class="treeview" ng-class="{'active': currentUrl.indexOf('/settlement')==0 }">
+                <li class="treeview" ng-class="{'active': currentUrl.indexOf('/settlement')==0 }" ng-if="userRole==='admin' || userRole==='finance'">
                     <a ui-sref="index.settlement" ng-click="currentUrl='/settlement'">
                         <i class="fa fa-dollar "></i> <span>结算中心</span>
                     </a>
@@ -141,9 +140,5 @@
     <script src="/static/js/jquery/bootstrap-filestyle/bootstrap-filestyle.min.js"></script>
     <!--<script src="/static/components/AdminLTE/dist/js/demo.js"></script>-->
     {% endverbatim %}
-    <script>
-        var username = $("#username").val();
-        $("#headerUsername").html(username);
-    </script>
 </body>
 </html>

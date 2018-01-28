@@ -8,7 +8,7 @@
         <div class="col-md-12">
             <!-- general form elements -->
             <div class="box box-primary">
-                <div class="box-header with-border">
+                <div class="box-header with-border" ng-if="userRole === 'admin' || userRole === 'purchasing_agent'">
                     <h3 class="box-title"><a type="button" ui-sref="index.purchasingCreate" class="btn btn-block btn-primary">新建采购单</a></h3>
                 </div>
                 <!-- /.box-header -->
@@ -23,7 +23,7 @@
                                 <th>数量</th>
                                 <th>已入库</th>
                                 <th>当前状态</th>
-                                <!--<th>操作</th>-->
+                                <th>操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -34,7 +34,10 @@
                                 <td>{{p.price}}</td>
                                 <td>{{p.count}}</td>
                                 <td>{{ p.received_count }}</td>
-                                <td>{{ p.status }}</td>
+                                <td>{{ p.status_name }}</td>
+                                <td>
+                                    <a href="#" ui-sref="index.purchasingDetail({orderId: p.id})" ng-if="p.canEdit">处理</a>
+                                </td>
                             </tr>
                         </tbody>
                     </table>

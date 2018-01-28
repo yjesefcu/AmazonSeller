@@ -89,8 +89,10 @@ app.controller("ProductEditCtrl", function ($scope, $http, $rootScope, $location
     $scope.thumb = {};
     $scope.supplies = [];   // 入库货件
     $scope.shipments = [];  // 移库货件
+    $scope.purchasingOrders = [];   // 采购单
     $scope.showSupplies = false;    // 是否显示入库货件列表
     $scope.showShipments = false;   // 是否显示移库货件列表
+    $scope.purchasingOrders = false;    //是否显示采购单
     $scope.showSettlements = true;  // 是否显示结算列表
     $scope.productId = $stateParams.productId;
     var settlementId = $stateParams.settlementId;
@@ -103,6 +105,7 @@ app.controller("ProductEditCtrl", function ($scope, $http, $rootScope, $location
         getSupplies($scope.productId);
         getShipments($scope.productId);
         getSettlements($scope.productId);
+        getPurchasingOrders($scope.productId);
     }
     $scope.submitForm = function () {
         var url = serviceFactory.createProduct(), method='post';
@@ -126,7 +129,7 @@ app.controller("ProductEditCtrl", function ($scope, $http, $rootScope, $location
                     $state.go('index.productDetail', {productId: result.data.id});
                 }, 500);
             }).catch(function (result) {
-                if (result.status == 400){
+                if (result.status === 400){
                     var msg = [];
                     for (var key in result.data){
                         msg.push(key+"： " + result.data[key]);
@@ -187,6 +190,12 @@ app.controller("ProductEditCtrl", function ($scope, $http, $rootScope, $location
     function getShipments(productId) {  //获取移库货件
         $http.get(serviceFactory.getProductShipments(productId)).then(function (result) {
             $scope.shipments = result.data;
+        });
+    }
+
+    function getPurchasingOrders(productId) {   // 获取采购单
+        $http.get('/api/purchasing/?product_id=' + productId).then(function (result) {
+            $scope.purchasingOrders = result.data;
         });
     }
     $scope.openSupplyModal = function (id) {

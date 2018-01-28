@@ -7,7 +7,11 @@ from models import *
 class StatusField(serializers.CharField):
 
     def to_representation(self, value):
-        return OrderStatus.get(value)
+        for index in range(0, len(PurchasingOrder.STATUS_CHOICE)):
+            v, name = PurchasingOrder.STATUS_CHOICE[index]
+            if v == int(value):
+                return name
+        return value
 
 
 class DateTimeFormat(serializers.DateTimeField):
@@ -29,7 +33,7 @@ class PurchasingOrderSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
     create_time = DateTimeFormat(read_only=True)
     contract = ContractSerializer(read_only=True)
-    status_name = serializers.CharField(source='get_status_display')
+    status_name = StatusField(source='status')
 
     class Meta:
         model = PurchasingOrder
@@ -38,7 +42,7 @@ class PurchasingOrderSerializer(serializers.ModelSerializer):
 
 class InboundSerializer(serializers.ModelSerializer):
     inbound_time = DateTimeFormat()
-    status = serializers.CharField(source='get_status_display')
+    status_name = StatusField(source='status')
 
     class Meta:
         model = InboundProducts

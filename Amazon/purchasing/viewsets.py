@@ -14,7 +14,14 @@ from amazon_services.exception import TextParseException
 from models import *
 from serializer import *
 
+
 TZ_ASIA = pytz.timezone('Asia/Shanghai')
+
+
+def to_float(v):
+    if not v:
+        return 0
+    return float(v)
 
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
@@ -28,7 +35,7 @@ class PurchasingOrderViewSet(NestedViewSetMixin, ModelViewSet):
     serializer_class = PurchasingOrderSerializer
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
     filter_backends = (DjangoFilterBackend,)
-    filter_fields = ('MarketplaceId',)
+    filter_fields = ('MarketplaceId', 'product_id')
 
     def create(self, request, *args, **kwargs):
         data = request.data
@@ -81,6 +88,8 @@ class InboundViewSet(NestedViewSetMixin, ModelViewSet):
             product.save()
         # 更新订单状态
         order.received_count += int(instance.count)
+        # 更新订单运费
+        order.traffic_fee = to_float(order.traffic_fee) + to_float(instance.traffic_fee)
         order.save()
         return Response(serializer.data)
 
@@ -99,8 +108,9 @@ class InboundViewSet(NestedViewSetMixin, ModelViewSet):
         # 如果订单所有货物已到货，那么关闭订单
         order = instance.order
         if order.received_count == order.count:
-            order.status = OrderStatus.FINISH
-            order.save()
+            # order.status = OrderStatus.FINISH
+            # order.save()
+            self._inbound_finish(instance)
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
@@ -114,7 +124,29 @@ class InboundViewSet(NestedViewSetMixin, ModelViewSet):
 
         order = instance.order
         if order.received_count == order.count:
-            order.status = OrderStatus.FINISH
-            order.save()
+            # order.status = OrderStatus.FINISH
+            # order.save()
+            self._inbound_finish(instance)
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
+
+    def _inbound_finish(self, instance):
+        # 入库单已完成
+        instance.status = OrderStatus.FINISH
+        instance.save()
+        if not instance.count:
+            return
+        # 修改商品的国内库存
+        product = instance.product
+        inventory = product.domestic_inventory
+        if not inventory:
+            inventory = 0
+        product.domestic_inventory = inventory + int(instance.count)
+        # 更新商品成本
+        # 计算本次入库的商品成本
+        new_cost = (instance.count * instance.order.price + to_float(instance.traffic_fee)) / float(instance.count)
+        # 更新商品当前国内总成本
+        product.supply_cost = (to_float(product.supply_cost) + new_cost) / float(2)
+        product.cost = product.supply_cost + to_float(product.shipment_cost)
+        product.save()
+

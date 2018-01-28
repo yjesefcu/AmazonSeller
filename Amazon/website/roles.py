@@ -33,3 +33,10 @@ class GodownManager(AbstractUserRole):
     available_permissions = {
         'edit_patient_file': True,
     }
+
+
+class Operator(AbstractUserRole):
+    # 运营人员
+    available_permissions = {
+        'edit_oversea_shipment': True,      # 允许移库
+    }

@@ -26,13 +26,11 @@ class Contract(models.Model):
     operator = models.CharField(max_length=100, null=True, blank=True)          # 经办人
 
 
-
-
-
 class PurchasingOrder(models.Model):
     STATUS_CHOICE = ((OrderStatus.WaitForDepositPayed, u'等待支付预付款'), (OrderStatus.WaitForProducing, u'等待生产完成'),
                      (OrderStatus.WaitForPaying, u'等待打尾款'), (OrderStatus.WaitForTraffic, u'等待填写物流信息'),
-                     (OrderStatus.WaitForInbound, u'等待入库'), (OrderStatus.WaitForCheck, u'等待确认入库信息'),)
+                     (OrderStatus.WaitForInbound, u'等待入库'), (OrderStatus.WaitForCheck, u'等待确认入库信息'),
+                     (OrderStatus.WaitForTrafficFeePayed, u'等待物流费打款'), (OrderStatus.FINISH, u'已完成'),)
 
     # 采购单中每个商品的详情
     # order = models.ForeignKey(PurchasingOrder, related_name='items')
@@ -82,3 +80,4 @@ class InboundProducts(models.Model):
     traffic_fee = models.FloatField(null=True, blank=True)      # 物流费
     traffic_fee_payed = models.FloatField(null=True, blank=True)    # 已缴纳的物流费
     status = models.IntegerField(choices=PurchasingOrder.STATUS_CHOICE)
+    # payment = models.FloatField(null=True, blank=True, default=0)

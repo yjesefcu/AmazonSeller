@@ -8,7 +8,8 @@ from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.template import RequestContext
 from rolepermissions.roles import get_user_roles
-
+from rolepermissions.checkers import has_role
+from serializer import UserSerializer
 # Create your views here.
 
 
@@ -38,3 +39,27 @@ def logout(request):
 @login_required
 def home(request):
     return render_to_response('index.html', context_instance=RequestContext(request, {'user': request.user}))
+
+
+def get_role(request):
+    user = request.user
+    result = {'user': UserSerializer(user).data}
+    if user.is_superuser:
+        result['role'] = 'admin'
+        return HttpResponse(json.dumps(result), content_type='application/json')
+    roles = get_user_roles(user)
+    permissions = []
+    for role in roles:
+        for p, granted in role.available_permissions.items():
+            if granted:
+                permissions.append(p)
+    result['permissions'] = permissions
+    roles = []
+    if has_role(user, 'purchasing_agent'):
+        roles.append('purchasing_agent')
+    if has_role(user, 'finance'):
+        roles.append('finance')
+    if has_role(user, 'godown_manager'):
+        roles.append('godown_manager')
+    result['role'] = roles[0]
+    return HttpResponse(json.dumps(result), content_type='application/json')

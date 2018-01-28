@@ -3,6 +3,25 @@
  */
 'use strict';
 
+
+var OrderStatus = {
+    'WaitForDepositPayed': 1,   //等待预付款付清
+    'WaitForProducing':2,       // 等待采购员填写生产完成信息
+    'WaitForPaying':3,          // 等待财务尾款打款
+    'WaitForTraffic': 4,        // 等待采购员补充物流信息
+    'WaitForInbound': 5,        // 等待仓库入库
+    'WaitForCheck': 6,          // 等待采购员确认入库信息
+    'WaitForTrafficFeePayed': 7,    // 等待物流费打款
+    'FINISH': 8     // 完成
+};
+
+var Role = {
+    'Finance': 'finance',
+    'Purchasing': 'purchasing_agent',
+    'CabManager': 'godown_manager',
+    'Operator': 'operator'
+};
+
 app.controller('PurchasingOrderCreateCtrl', function ($scope, $http, $rootScope, $state) {
     $scope.orders = [];
     $scope.contract = {};
@@ -29,6 +48,25 @@ app.controller('PurchasingOrderListCtrl', function ($scope, $http, $rootScope) {
     function getData() {
         $http.get('/api/purchasing/').then(function (result) {
             $scope.orders = result.data;
+            // 判断采购单是否可操作
+            var userRole = $rootScope.userRole;
+            $scope.orders.forEach(function (n) {
+                if (n.status === OrderStatus.WaitForDepositPayed && userRole === Role.Finance) {
+                    n.canEdit = true;
+                } else if (n.status === OrderStatus.WaitForProducing && userRole === Role.Purchasing) {
+                    n.canEdit = true;
+                } else if (n.status === OrderStatus.WaitForPaying && userRole === Role.Finance){
+                    n.canEdit = true;
+                } else if (n.status === OrderStatus.WaitForTraffic && userRole === Role.Purchasing) {
+                    n.canEdit = true;
+                } else if (n.status === OrderStatus.WaitForInbound && userRole === Role.CabManager) {
+                    n.canEdit = true;
+                } else if (n.status === OrderStatus.WaitForCheck && userRole === Role.Purchasing) {
+                    n.canEdit = true;
+                } else if (n.status === OrderStatus.WaitForTrafficFeePayed && userRole === Role.Finance) {
+                    n.canEdit = true;
+                }
+            });
         }).catch(function (error) {
              $rootScope.addAlert('error', '获取采购单失败');
         });
