@@ -69,5 +69,23 @@ app.config(['$stateProvider', '$urlRouterProvider', function($stateProvider, $ur
             templateUrl: '/static/templates/settlement_order_detail.html',
             controller: 'settlementOrdersCtrl'
         })
+        .state('index.purchasing', {
+            url:'purchasing',
+            templateUrl: '/static/templates/purchasing/purchasing-list.html'
+            // controller: 'ProductCtrl'
+        })
+        .state('index.purchasingCreate', {
+            url: 'purchasing/create',
+            templateUrl: 'static/templates/purchasing/order_create.html'
+        })
+        .state('index.purchasingDetail', {
+            url: 'purchasing/:orderId',
+            templateUrl: 'static/templates/purchasing/purchasing-detail.html'
+        })
+        .state('index.purchasingDetail.inboundCreate', {
+            url: '/addInbound',
+            templateUrl: 'static/templates/purchasing/create_inbound.html',
+
+        })
     ;
 }]);

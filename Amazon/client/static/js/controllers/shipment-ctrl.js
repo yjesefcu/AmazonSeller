@@ -18,7 +18,7 @@ app.controller('ShipmentCtrl', function ($scope, $http, $rootScope, serviceFacto
                 $rootScope.addAlert('info', '删除成功');
                 $scope.shipments.splice(index, 1);
             }).catch(function (result) {
-                if (result.status == 400){
+                if (result.status === 400){
                     $rootScope.addAlert('error', '需删除所有商品记录后才能删除');
                     return;
                 }

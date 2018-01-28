@@ -83,6 +83,12 @@
                         <span>商品列表</span>
                     </a>
                 </li>
+                <li class="treeview" ng-class="{'active': currentUrl.indexOf('/purchasing')==0 }">
+                    <a ui-sref="index.purchasing" ng-click="currentUrl='/purchasing'">
+                        <i class="fa  fa-file-text-o"></i>
+                        <span>采购单管理</span>
+                    </a>
+                </li>
                 <li class="treeview" ng-class="{'active': currentUrl.indexOf('/shipment')==0 }">
                     <a ui-sref="index.shipment" ng-click="currentUrl='/shipment'">
                         <i class="fa fa-truck"></i> <span>移库货件</span>
@@ -128,6 +134,7 @@
     <script src="/static/js/controllers/shipment-ctrl.js"></script>
     <script src="/static/js/controllers/settlement-ctrl.js"></script>
     <script src="/static/js/controllers/user-ctrl.js"></script>
+    <script src="/static/js/controllers/purchasing-ctrl.js"></script>
     <script src="/static/js/jquery/bootstrap-filestyle/bootstrap-filestyle.min.js"></script>
     <!--<script src="/static/components/AdminLTE/dist/js/demo.js"></script>-->
     <script></script>

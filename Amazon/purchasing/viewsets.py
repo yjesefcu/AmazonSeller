@@ -1,0 +1,120 @@
+#-*- coding:utf-8 -*-
+__author__ = 'liucaiyun'
+import os, datetime, chardet, threading, pytz
+from django.conf import settings
+from rest_framework_extensions.mixins import NestedViewSetMixin
+from rest_framework.viewsets import ModelViewSet
+from rest_framework.authentication import SessionAuthentication, BasicAuthentication
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.decorators import detail_route, list_route
+from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import F
+from amazon_services.exception import TextParseException
+from models import *
+from serializer import *
+
+TZ_ASIA = pytz.timezone('Asia/Shanghai')
+
+
+class CsrfExemptSessionAuthentication(SessionAuthentication):
+
+    def enforce_csrf(self, request):
+        return  # To not perform the csrf check previously happening
+
+
+class PurchasingOrderViewSet(NestedViewSetMixin, ModelViewSet):
+    queryset = PurchasingOrder.objects.all().order_by('-id').select_related('product')
+    serializer_class = PurchasingOrderSerializer
+    authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
+    filter_backends = (DjangoFilterBackend,)
+    filter_fields = ('MarketplaceId',)
+
+    def create(self, request, *args, **kwargs):
+        data = request.data
+        contract_data = data.get('contract')
+        contract = Contract.objects.create(**contract_data)
+        orders_data = data.get('orders')
+        create_time = datetime.datetime.now().replace(tzinfo=TZ_ASIA)
+        for d in orders_data:
+            product, created = Product.objects.get_or_create(SellerSKU=d.get('SellerSKU'))
+            total_price = int(d.get('count')) * float(d.get('price'))
+            PurchasingOrder.objects.create(contract=contract, product=product, create_time=create_time,
+                                           status=OrderStatus.WaitForDepositPayed, received_count=0, total_price=total_price, **d)
+        # headers = self.get_success_headers(serializer.data)
+        return Response({}, status=status.HTTP_201_CREATED)
+
+
+class InboundViewSet(NestedViewSetMixin, ModelViewSet):
+    queryset = InboundProducts.objects.all().order_by('-id')
+    serializer_class = InboundSerializer
+    authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
+    filter_backends = (DjangoFilterBackend,)
+
+    def create(self, request, *args, **kwargs):
+        _query_dict = self.get_parents_query_dict()
+        order = PurchasingOrder.objects.get(pk=_query_dict['order'])
+        today = datetime.datetime.now().replace(tzinfo=TZ_ASIA).date()
+        inbound = InboundProducts.objects.create(order=order, product=order.product, shipping_date=today, status=OrderStatus.WaitForInbound, **request.data)
+        serializer = self.get_serializer(instance=inbound)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    @detail_route(methods=['post'])
+    def putin(self, request, pk, **kwargs):
+        # 入库
+        instance = self.get_object()
+        inbound_data = request.data.get('inbound')
+        inbound_data['inbound_time'] = datetime.datetime.now().replace(tzinfo=TZ_ASIA)
+        inbound_data['status'] = OrderStatus.WaitForCheck
+        serializer = self.get_serializer(instance, data=inbound_data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        # 如果product的尺寸有更新
+        order = instance.order
+        if request.data.get('product'):
+            d = request.data.get('product')
+            fields = ['width', 'height', 'length', 'weight', 'package_width', 'package_height', 'package_length', 'package_weight']
+            product = order.product
+            for field in fields:
+                setattr(product, field, d.get(field))
+            product.save()
+        # 更新订单状态
+        order.received_count += int(instance.count)
+        order.save()
+        return Response(serializer.data)
+
+    @detail_route(methods=['post'])
+    def confirm(self, request, pk, **kwargs):
+        # 确认入库数量
+        instance = self.get_object()
+        if instance.traffic_fee:
+            # 如果物流费不为0，那么需要等待物流费打款
+            status = OrderStatus.WaitForTrafficFeePayed
+        else:
+            status = OrderStatus.FINISH
+        instance.status = status
+        instance.save()
+
+        # 如果订单所有货物已到货，那么关闭订单
+        order = instance.order
+        if order.received_count == order.count:
+            order.status = OrderStatus.FINISH
+            order.save()
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+    @detail_route(methods=['post'])
+    def payed(self, request, pk, **kwargs):
+        # 物流费打款
+        instance = self.get_object()
+        instance.traffic_fee_payed = request.data.get('traffic_fee_payed')
+        instance.status = OrderStatus.FINISH
+        instance.save()
+
+        order = instance.order
+        if order.received_count == order.count:
+            order.status = OrderStatus.FINISH
+            order.save()
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)

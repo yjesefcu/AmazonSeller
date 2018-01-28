@@ -27,6 +27,7 @@ app.controller('ProductCtrl', function($scope, $http, $rootScope, $uibModal, $lo
                 }
             }
         });
+
     };
 });
 
@@ -59,7 +60,7 @@ app.controller('supplyModalCtrl', function($scope, $rootScope, $http, serviceFac
     };
     $scope.cancel = function() {
         $uibModalInstance.close();
-    }
+    };
 });
 
 app.directive('tableRepeatDirective', function($timeout) {

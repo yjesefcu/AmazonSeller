@@ -12,6 +12,7 @@ urlpatterns = patterns('',
     url(r'^', include('products.urls')),
     url(r'^', include('amazon_services.urls')),
     url(r'^', include('my_auth.urls')),
+    url(r'^', include('purchasing.urls')),
 )
 urlpatterns += patterns('',
         url(r'^media/(?P<path>.*)$',
